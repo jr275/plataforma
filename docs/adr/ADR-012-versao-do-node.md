@@ -1,6 +1,6 @@
 # ADR-012: Versão do Node.js
 
-**Status:** ACCEPTED como runtime pretendido (Fase 2, 2026-10-11), sujeito à verificação de compatibilidade. Alinhamento feito na Fase 3: `.nvmrc` (`24`), `engines.node` = `^24` e `.github/workflows/ci.yml` usando `node-version-file: .nvmrc`. `pnpm check:consistency` impede divergência. A compatibilidade foi verificada localmente em Node 24.9.0 (`pnpm turbo typecheck lint build`); a verificação no CI do GitHub ainda não ocorreu.
+**Status:** ACCEPTED como runtime pretendido (Fase 2, 2026-10-11; confirmado pelo dono do produto no chat em 2026-10-12), sujeito à verificação de compatibilidade. Alinhamento feito na Fase 3: `.nvmrc` (`24`), `engines.node` = `^24` e `.github/workflows/ci.yml` usando `node-version-file: .nvmrc`. `pnpm check:consistency` impede divergência. A compatibilidade foi verificada localmente em Node 24.9.0 (`pnpm turbo typecheck lint build`); a verificação no CI do GitHub ainda não ocorreu.
 
 ## Evidência (estado no momento da proposta, antes do alinhamento da Fase 3)
 

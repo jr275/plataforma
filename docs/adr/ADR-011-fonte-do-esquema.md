@@ -1,6 +1,6 @@
 # ADR-011: Fonte de verdade do esquema do banco
 
-**Status:** ACCEPTED como direção de trabalho (autorizado pelo dono do produto na Fase 2, 2026-10-11): SQL escrito à mão e versionado é a autoridade do esquema; Drizzle é só a camada tipada de acesso. A implementação da pipeline de migrations de produto continua pendente.
+**Status:** ACCEPTED como direção de trabalho (autorizado pelo dono do produto na Fase 2, 2026-10-11; atestação confirmada pelo dono do produto no chat em 2026-10-12): SQL escrito à mão e versionado é a autoridade do esquema; Drizzle é só a camada tipada de acesso. A implementação da pipeline de migrations de produto continua pendente.
 
 ## Contexto
 
