@@ -117,6 +117,8 @@ pnpm test:gate         # gate transacional
 pnpm test:security     # verificador de catálogo
 ```
 
+Pré-requisitos das suítes (nenhuma instala nada). A falta dos binários do PostgreSQL 16 ou do `openssl` sai com código 2 e uma mensagem; a falta do `pgrep` não tem código próprio: o `MIG-K10` falha uma asserção e a suíte sai com código 1. Em nenhum caso a suíte termina com sucesso. Pré-requisitos: binários do PostgreSQL 16 (`initdb`, `pg_ctl`, `psql`; ver `RLS_HARNESS_PG_BIN_DIR` em `db/test-fixtures/rls/README.md`), `bash`, `openssl` (SHA-256 independente dos testes `MIG-N2` e `MIG-L10`: o runner usa `sha256sum`/`shasum`, e o teste usa outra implementação de propósito) e `pgrep` (o `MIG-K10` mata o `psql` do runner com `SIGKILL`). Em contêineres mínimos instale `openssl` e `procps`. Observação do `MIG-K10`: depois do `SIGKILL` o servidor só libera o lock quando a instrução em andamento termina (`client_connection_check_interval` é 0 por padrão), então o teste espera por condição, com prazo de 20 s, e não por número de iterações.
+
 Invocação do runner (configuração explícita; variáveis `PG*` e `DATABASE_URL` do ambiente são **ignoradas**; só socket Unix, sem TCP e sem senha):
 
 ```bash

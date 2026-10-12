@@ -20,7 +20,23 @@ DB=""; DIR=""; OUT=""; RC=0; N=0
 
 # --- infraestrutura de teste ---------------------------------------------------------------------
 Q() { "${PSQL[@]}" -d "$1" -c "$2"; } # SQL como superusuário do cluster descartável (só para preparar/inspecionar)
-sha_indep() { python3 -c 'import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$1"; }
+# SHA-256 INDEPENDENTE do runner: o runner usa sha256sum ou shasum; aqui usa-se o openssl (outra implementação, outro
+# código de saída a interpretar), presente no macOS e no Linux, para que um defeito comum à ferramenta do runner não passe
+# despercebido. Pré-requisito explícito: openssl, conferido contra o vetor de teste da entrada vazia.
+sha_indep() { # imprime o SHA-256 (64 hex minúsculos) do arquivo $1; se falhar, retorna 1 e NÃO imprime nada
+  local out
+  out="$(openssl dgst -sha256 "$1" 2>/dev/null)" || { echo "# sha_indep: o openssl falhou para '$1'" >&2; return 1; }
+  out="${out##* }"
+  [[ "$out" =~ ^[0-9a-f]{64}$ ]] || { echo "# sha_indep: saída do openssl não é um SHA-256 válido para '$1'" >&2; return 1; }
+  printf '%s\n' "$out"
+}
+# eq_sha ESPERADO CALCULADO: os DOIS precisam ser SHA-256 válidos (64 hex) e iguais; vazio ou malformado nunca casa,
+# nem quando os dois lados vêm vazios (a substituição de comando descarta o status de sha_indep, então a validação é aqui).
+eq_sha() { [[ "$1" =~ ^[0-9a-f]{64}$ && "$2" =~ ^[0-9a-f]{64}$ && "$1" == "$2" ]]; }
+[[ "$(printf '' | openssl dgst -sha256 2>/dev/null | awk '{print $NF}')" == e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 ]] || {
+  echo "PRE-REQUISITO AUSENTE: openssl (usado para o SHA-256 independente dos testes MIG-N2 e MIG-L10). Instale o openssl (macOS: já vem no sistema; Ubuntu: apt install openssl)." >&2
+  exit 2
+}
 
 expect() { # $1 = nome; demais = comando (ou função) que deve retornar 0
   local name="$1"; shift
@@ -105,7 +121,7 @@ expect "MIG-N2 reports it as applied" has "$OUT" "applied 0001_create_one.sql"
 expect "MIG-N2 schema change happened" tbl_present mt_one
 expect "MIG-N2 ledger has exactly one row" eq "$(ledger_count)" 1
 expect "MIG-N2 ledger sha256 equals an independently computed SHA-256 of the file bytes" \
-  eq "$(Q "$DB" "SELECT sha256 FROM plataforma_migrations.ledger WHERE seq = 1")" "$(sha_indep "$DIR/0001_create_one.sql")"
+  eq_sha "$(Q "$DB" "SELECT sha256 FROM plataforma_migrations.ledger WHERE seq = 1")" "$(sha_indep "$DIR/0001_create_one.sql")"
 expect "MIG-N2 ledger records filename, applied_at and applied_by" \
   eq "$(Q "$DB" "SELECT filename||'|'||(applied_at IS NOT NULL)||'|'||applied_by FROM plataforma_migrations.ledger")" "0001_create_one.sql|true|$OWNER"
 expect "MIG-N2 the application role (menlo_app) has no privilege on the ledger" \
@@ -363,7 +379,7 @@ expect "MIG-L5 (finding 1) no duplicated data" eq "$(Q "$DB" "SELECT count(*) FR
 # Limitação documentada: um dono privilegiado que contorna o gatilho ainda consegue apagar a última entrada.
 HEAD_LINE="$(grep '^ledger head:' <<<"$OUT")"; HEAD="${HEAD_LINE#ledger head: }"
 expect "MIG-L10 the runner prints the ledger head as N:SHA256 (independent integrity evidence for the operator)" bash -c '[[ "$1" =~ ^2:[0-9a-f]{64}$ ]]' _ "$HEAD"
-expect "MIG-L10 the printed head equals the checksum of the last migration file" eq "${HEAD#2:}" "$(sha_indep "$DIR/0002_ins.sql")"
+expect "MIG-L10 the printed head equals the checksum of the last migration file" eq_sha "${HEAD#2:}" "$(sha_indep "$DIR/0002_ins.sql")"
 run --expect-head "$HEAD"
 expect "MIG-L9 --expect-head with the true head: succeeds" eq "$RC" 0
 Q "$DB" "SET session_replication_role = replica; DELETE FROM $LD.ledger WHERE seq = 2" >/dev/null
@@ -521,12 +537,30 @@ setup; write 0001_k10.sql 'CREATE TABLE mt_k10 (a int);\nSELECT pg_sleep(6);\n'
 rm -f "$TMP"/k10a.*
 run_bg k10a
 if wait_for_lock; then
+  # O lock é o LOCK TABLE ... EXCLUSIVE MODE em plataforma_migrations.run_lock, tomado pelo backend que atende o psql do
+  # runner. O SIGKILL mata o CLIENTE (psql), não o backend: com client_connection_check_interval = 0 (padrão) o servidor só
+  # percebe o cliente morto quando a instrução em andamento (o pg_sleep da migration) termina; só então a transação é
+  # abortada (nada é confirmado) e o lock é liberado. Por isso a liberação leva até a duração restante da instrução, e a
+  # espera é por CONDIÇÃO com prazo em segundos (não por número de iterações, cuja duração depende da latência do fork/exec
+  # de cada plataforma). O observador é independente: o superusuário do cluster, em outra conexão.
+  K10_DEADLINE=20 # a instrução dura 6 s; o prazo cobre isso com folga e impede espera indefinida
+  holder="$(Q "$DB" "SELECT l.pid FROM pg_locks l WHERE l.locktype='relation' AND l.relation='plataforma_migrations.run_lock'::regclass AND l.granted LIMIT 1")"
   pid="$(pgrep -f "psql.* -d $DB .*run.psql" | head -1)"
-  kill -9 "$pid" 2>/dev/null
+  killed=1; [[ -n "$pid" ]] && kill -9 "$pid" 2>/dev/null && killed=0
   wait
-  expect "MIG-K10 the runner's psql process is killed (SIGKILL) in the middle of a migration: the runner exits nonzero" bash -c '[[ $(cat "$1/k10a.rc") -ne 0 ]]' _ "$TMP"
-  for _ in $(seq 1 50); do [[ "$(run_locks)" -eq 0 ]] && break; sleep 0.1; done
-  expect "MIG-K10 the server released the lock when the client died" eq "$(run_locks)" 0
+  expect "MIG-K10 the runner's psql process is killed (SIGKILL) in the middle of a migration: the runner exits nonzero" \
+    bash -c '[[ "$1" == 0 && $(cat "$2/k10a.rc") -ne 0 ]] && ! kill -0 "$3" 2>/dev/null' _ "$killed" "$TMP" "$pid"
+  t0=$SECONDS; polls=0
+  while [[ "$(run_locks)" -ne 0 ]]; do
+    polls=$((polls + 1)); [[ $((SECONDS - t0)) -ge $K10_DEADLINE ]] && break; sleep 0.1
+  done
+  waited=$((SECONDS - t0)); released="$(run_locks)"
+  echo "# MIG-K10 observed: killed client pid=${pid:-none}; lock-holder backend pid=${holder:-?}; lock released=$([[ "$released" == 0 ]] && echo yes || echo NO) after ~${waited}s (deadline ${K10_DEADLINE}s, ${polls} polls)"
+  expect "MIG-K10 the server released the lock when the client died" eq "$released" 0
+  if [[ "$released" != 0 ]]; then
+    echo "# MIG-K10 diag: run_lock locks (pid:mode:granted): $(Q "$DB" "SELECT coalesce(string_agg(pid || ':' || mode || ':' || granted, ', '), '-') FROM pg_locks WHERE relation = 'plataforma_migrations.run_lock'::regclass")"
+    echo "# MIG-K10 diag: backends in $DB (pid:state:wait_event): $(Q postgres "SELECT coalesce(string_agg(pid || ':' || coalesce(state, '-') || ':' || coalesce(wait_event, '-'), ', '), '-') FROM pg_stat_activity WHERE datname = '$DB'")"
+  fi
   expect "MIG-K10 nothing partial: no table and no ledger entry" bash -c '[[ "$1" == t && "$2" -eq 0 ]]' _ "$(Q "$DB" "SELECT to_regclass('public.mt_k10') IS NULL")" "$(ledger_count)"
   write 0001_k10.sql 'CREATE TABLE mt_k10 (a int);\n'
   run --lock-timeout 1s
