@@ -1,6 +1,6 @@
 # ADR-013: Papéis de banco, privilégios de migration e fronteira de confiança do tenant
 
-**Status:** PROPOSED (2026-10-11); as Fases 6, 7 e 9 implementaram e testaram, **só contra clusters descartáveis**, as correções de ledger, de lock e de catálogo (seção "Implementação e verificação (Fase 6)"), o bootstrap de papéis e o gate de segurança transacional (seção "Implementação e verificação (Fase 7)"). Continua sem papel de produção e sem aprovação do dono do produto para a taxonomia e a opção de tenant. Estende o ADR-011 e o runner da Fase 4; os pontos de conflito com texto anterior estão na seção "Conflitos".
+**Status:** PARCIALMENTE ACEITO (2026-10-12). Os itens 1 a 3 de "Decisões em aberto" foram aprovados pelo dono do produto no chat da sessão de trabalho em 2026-10-12; não há outro registro de aprovação. Os itens 4 a 7 seguem em aberto e o restante do ADR continua PROPOSED (proposto em 2026-10-11). As Fases 6, 7 e 9 implementaram e testaram, **só contra clusters descartáveis**, as correções de ledger, de lock e de catálogo (seção "Implementação e verificação (Fase 6)"), o bootstrap de papéis e o gate de segurança transacional (seção "Implementação e verificação (Fase 7)"). Continua sem papel de produção. Estende o ADR-011 e o runner da Fase 4; os pontos de conflito com texto anterior estão na seção "Conflitos".
 
 ## Contexto: o que existe de fato
 
@@ -200,11 +200,11 @@ Tudo executado só em clusters PostgreSQL 16.15 descartáveis; nenhum banco pers
 
 Nenhum texto anterior foi reescrito nesta fase.
 
-## Decisões em aberto antes do esquema de produto
+## Decisões antes do esquema de produto (itens 1 a 3 aprovados em 2026-10-12; 4 a 7 em aberto)
 
-1. Aprovar a taxonomia, os nomes de papéis e a separação migrator/administrador.
-2. Aprovar a opção A (endurecida) como modelo inicial de tenant e os gatilhos para um modelo mais forte.
-3. Como as migrations semeiam dados sob RLS (X6): política explícita para o migrator, operação administrativa separada ou nunca.
+1. **Aprovado (2026-10-12):** a taxonomia de papéis, os nomes e a separação migrator/administrador, como descritos na seção "Taxonomia de papéis".
+2. **Aprovado (2026-10-12):** a opção A (endurecida) como modelo inicial de tenant, com os gatilhos listados em "O que justificaria um modelo mais forte" para migrar para um modelo mais forte. A segurança entre tenants passa a depender do código da API e dos testes; injeção de SQL ou processo comprometido continuam capazes de trocar de tenant.
+3. **Aprovado (2026-10-12), sobre como as migrations semeiam dados sob RLS (X6):** migrations nunca semeiam dados de tenant. Dados de referência globais entram por tabela global aprovada (somente leitura para a aplicação); dados de tenant entram por uma operação administrativa separada, fora das migrations.
 4. Se o Neon permite revogar o lock de aconselhamento de `PUBLIC` e como o ledger é criado lá; autenticação do runner contra banco remoto (TLS, senha, identidade): nada disso foi verificado nem implementado.
 5. Papel do carregador Python.
 6. Mudança do runner para não criar o ledger.
