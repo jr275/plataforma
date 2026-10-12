@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { brand } from "@/config/brand";
+import { AppShell } from "@/components/shell/app-shell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,19 +15,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Plataforma — protótipo (dados fictícios)",
-  description: "Protótipo visual com dados fictícios. Ambiente de teste, não indexável.",
+  title: { default: `${brand.name} — protótipo`, template: `%s · ${brand.name}` },
+  description: "Protótipo visual com dados demonstrativos. Ambiente de teste, não indexável.",
   // Regra 5: ambientes de teste saem com noindex.
   robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`} style={{ colorScheme: "dark" }}>
+      <body className="min-h-full">
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }
