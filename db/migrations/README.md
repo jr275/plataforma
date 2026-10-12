@@ -1,6 +1,6 @@
 # Migrations SQL (autoridade única do esquema)
 
-Aqui vivem as migrations do produto, escritas à mão em SQL (ADR-011). O Drizzle **não** gera nem aplica migrations. Este diretório está **vazio de propósito**: um diretório sem migrations é um estado válido e não significa que o esquema do produto esteja inicializado. Nenhuma migration de produto existe ainda.
+Aqui vivem as migrations do produto, escritas à mão em SQL (ADR-011). O Drizzle **não** gera nem aplica migrations. Um diretório sem migrations é um estado válido e não significa que o esquema do produto esteja inicializado. A primeira fatia (ADR-014) tem duas migrations: `0001_tenant` (esquema `plataforma`, função de contexto e a tabela `tenant`, sem acesso da aplicação) e `0002_opportunity` (primeira tabela do data plane, com RLS forçada). Elas só foram aplicadas em cluster **descartável** (`pnpm test:schema`); nenhum banco persistente ou de produção recebeu o esquema.
 
 O runner é `scripts/db-migrate.sh` (Bash + `psql`; nenhuma dependência nova). Os testes são `scripts/test-migrations.sh` (runner) e `scripts/test-security.sh` (verificações de catálogo), contra um PostgreSQL 16 descartável.
 
