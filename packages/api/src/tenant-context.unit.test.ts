@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ConnectionAcquireTimeoutError,
+  ConnectionCleanupError,
   InvalidTenantIdError,
   NestedTenantContextError,
   TenantAccessDeniedError,
@@ -1021,5 +1022,227 @@ describe("limites de execução por transação (com dublê)", () => {
       await withTenant(r.pool, id(), A, async () => { if (throws) throw new Error("boom"); return 1; }).catch(() => undefined);
       expect(r.clients[0]!.listenerCount("error")).toBe(0);
     }
+  });
+});
+
+// Fase 20E-5: posse da conexão quando o registro/remoção do ouvinte falha, e preservação do primeiro erro de conexão. Dublê
+// de cliente (EventEmitter): prova a lógica de posse e causalidade; o comportamento do servidor e do driver real está em
+// tenant-context.db.test.ts. A garantia de tipos (U4) é verificada pelo `tsc` (`pnpm typecheck`), não pelo vitest.
+describe("posse da conexão e erros do cliente (com dublê)", () => {
+  function make(over: { on?: () => unknown; removeListener?: () => unknown; release?: () => void; script?: (text: string) => unknown } = {}) {
+    const calls: string[] = [];
+    const released: unknown[] = [];
+    let connects = 0;
+    const client = Object.assign(new EventEmitter(), {
+      dead: false,
+      async query(text: string) {
+        calls.push(text.split(/\s+/)[0] ?? "");
+        if (client.dead) throw new Error("Client has encountered a connection error and is not queryable");
+        const custom = over.script ? await over.script(text) : undefined;
+        if (custom !== undefined) return custom as never;
+        if (text === "COMMIT") return { rows: [], rowCount: null, command: "COMMIT" } as never;
+        return { rows: [{ privileged: false }], rowCount: 1 } as never;
+      },
+      release(error?: unknown) {
+        released.push(error);
+        over.release?.();
+      },
+    });
+    if (over.on) (client as unknown as { on: unknown }).on = over.on;
+    if (over.removeListener) (client as unknown as { removeListener: unknown }).removeListener = over.removeListener;
+    const pool: PoolLike = {
+      async connect() {
+        connects += 1;
+        return client as unknown as ClientLike;
+      },
+    };
+    return { pool, client, calls, released, connects: () => connects };
+  }
+  const id = () => devIdentity([A]);
+
+  it("U1: `on` lança: nenhum SQL, a função não roda, o erro de registro é preservado e a conexão é descartada uma vez", async () => {
+    const registro = new Error("on falhou");
+    const m = make({ on: () => { throw registro; } });
+    let ran = false;
+    const error = await withTenant(m.pool, id(), A, async () => { ran = true; }).then(() => "RESOLVEU", (e: unknown) => e);
+    expect(error).toBe(registro);
+    expect(ran).toBe(false);
+    expect(m.calls).toEqual([]); // nem BEGIN nem ROLLBACK
+    expect(m.released).toEqual([true]);
+    expect(m.connects()).toBe(1);
+  });
+
+  it("U1b: cliente incoerente em tempo de execução (só `on`): TypeError antes de qualquer SQL e conexão descartada", async () => {
+    const m = make();
+    delete (m.client as unknown as { removeListener?: unknown }).removeListener; // sem removeListener no objeto nem no protótipo
+    Object.setPrototypeOf(m.client, null);
+    (m.client as unknown as { on: unknown }).on = () => undefined;
+    const error = await withTenant(m.pool, id(), A, async () => "x").then(() => "RESOLVEU", (e: unknown) => e);
+    expect(error).toBeInstanceOf(TypeError);
+    expect(m.calls).toEqual([]);
+    expect(m.released).toEqual([true]);
+  });
+
+  it("U2: `removeListener` lança depois do sucesso: a transação já foi confirmada, a conexão é descartada e o erro é explícito", async () => {
+    const remocao = new Error("remove falhou");
+    const m = make({ removeListener: () => { throw remocao; } });
+    const error = (await withTenant(m.pool, id(), A, async () => "valor").then(() => "RESOLVEU", (e: unknown) => e)) as ConnectionCleanupError;
+    expect(error).toBeInstanceOf(ConnectionCleanupError);
+    expect(error.cause).toBe(remocao);
+    expect(error.committed).toBe(true);
+    expect(error.code).toBe("TENANT_CONNECTION_CLEANUP");
+    expect(error.code).not.toMatch(/^[0-9A-Z]{5}$/);
+    expect(m.calls).toEqual(["BEGIN", "SELECT", "COMMIT"]); // foi confirmada
+    expect(m.released).toEqual([true]); // não devolvida como saudável; exatamente um release
+  });
+
+  it("U2b: o `release` lança depois do sucesso: erro explícito de limpeza, sem segundo release", async () => {
+    const m = make({ release: () => { throw new Error("release falhou"); } });
+    const error = await withTenant(m.pool, id(), A, async () => "valor").then(() => "RESOLVEU", (e: unknown) => e);
+    expect(error).toBeInstanceOf(ConnectionCleanupError);
+    expect(m.released).toHaveLength(1);
+  });
+
+  it("U3: a função lança e a remoção do ouvinte também: o erro primário prevalece, a falha de limpeza fica acessível, conexão descartada", async () => {
+    const primario = new Error("boom-primario");
+    const remocao = new Error("remove falhou");
+    const m = make({ removeListener: () => { throw remocao; } });
+    const error = await withTenant(m.pool, id(), A, async () => { throw primario; }).then(() => "RESOLVEU", (e: unknown) => e);
+    expect(error).toBe(primario); // a mesma identidade
+    expect((error as { cleanupError?: unknown }).cleanupError).toBe(remocao);
+    expect(Object.keys(error as object)).not.toContain("cleanupError"); // não enumerável
+    expect(m.calls).toContain("ROLLBACK");
+    expect(m.released).toEqual([true]);
+  });
+
+  it("U3b: primário congelado ou que não é objeto: continua sendo o erro lançado e a conexão é descartada", async () => {
+    for (const primario of [Object.freeze(new Error("congelado")), "texto", 42, null]) {
+      const m = make({ removeListener: () => { throw new Error("remove falhou"); } });
+      const error = await withTenant(m.pool, id(), A, async () => { throw primario; }).then(() => "RESOLVEU", (e: unknown) => e);
+      expect(error).toBe(primario);
+      expect(m.released).toEqual([true]);
+    }
+  });
+
+  it("U3c: a função lança e o release também: o erro primário prevalece, com a falha em cleanupError", async () => {
+    const primario = new Error("boom");
+    const m = make({ release: () => { throw new Error("release falhou"); } });
+    const error = await withTenant(m.pool, id(), A, async () => { throw primario; }).then(() => "RESOLVEU", (e: unknown) => e);
+    expect(error).toBe(primario);
+    expect((error as { cleanupError?: Error }).cleanupError?.message).toBe("release falhou");
+    expect(m.released).toHaveLength(1);
+  });
+
+  it("U4: o contrato de tipos: `on` e `removeListener` juntos ou nenhum (verificado pelo tsc, não só em execução)", () => {
+    const base = { async query() { return { rows: [], rowCount: 0 }; }, release() {} };
+    const nenhum: ClientLike = { ...base };
+    const ambos: ClientLike = { ...base, on() { return undefined; }, removeListener() { return undefined; } };
+    // @ts-expect-error só `on`: registraria um ouvinte sem como removê-lo
+    const sóOn: ClientLike = { ...base, on() { return undefined; } };
+    // @ts-expect-error só `removeListener`: sem como registrar
+    const sóRemove: ClientLike = { ...base, removeListener() { return undefined; } };
+    expect([nenhum, ambos, sóOn, sóRemove]).toHaveLength(4);
+  });
+
+  it("U5: o PRIMEIRO erro de conexão vira a causa do COMMIT que falha; o resultado segue 'unknown'", async () => {
+    const m = make();
+    const primeiro = new Error("terminating connection due to administrator command");
+    const segundo = new Error("Connection terminated unexpectedly");
+    const error = (await withTenant(m.pool, id(), A, async () => {
+      m.client.dead = true;
+      m.client.emit("error", primeiro);
+      m.client.emit("error", segundo);
+      return "retornou";
+    }).then(() => "RESOLVEU", (e: unknown) => e)) as TransactionNotCommittedError;
+    expect(error).toBeInstanceOf(TransactionNotCommittedError);
+    expect(error.outcome).toBe("unknown"); // o evento não prova commit nem rollback
+    expect(error.cause).toBe(primeiro); // o primeiro, não o segundo nem a rejeição genérica
+    expect(m.released).toEqual([true]);
+  });
+
+  it("U5b: um erro de conexão observado NÃO altera o resultado de um COMMIT que o servidor confirmou", async () => {
+    const m = make();
+    const valor = await withTenant(m.pool, id(), A, async () => {
+      m.client.emit("error", new Error("erro observado, mas o cliente continua consultável"));
+      return "valor";
+    });
+    expect(valor).toBe("valor");
+    expect(m.calls).toEqual(["BEGIN", "SELECT", "COMMIT"]);
+    expect(m.released).toEqual([true]); // AUD-001: confirmado, mas a conexão com erro observado é descartada (não reclassifica o resultado)
+  });
+
+  it("T1: erro observado e ROLLBACK de limpeza bem-sucedido: o erro primário prevalece e a conexão é descartada uma vez, sem depender do pool", async () => {
+    const m = make();
+    const primario = new Error("falha-primaria");
+    const error = await withTenant(m.pool, id(), A, async () => {
+      m.client.emit("error", new Error("erro de conexão observado")); // o cliente continua consultável: o ROLLBACK responde
+      throw primario;
+    }).then(() => "RESOLVEU", (e: unknown) => e);
+    expect(error).toBe(primario);
+    expect(m.calls).toEqual(["BEGIN", "SELECT", "ROLLBACK"]); // o ROLLBACK foi aceito; o evento sozinho não prova rollback
+    expect(m.released).toEqual([true]);
+  });
+
+  it("T3: erro observado antes de uma falha de consulta: erro primário preservado, release(true) exatamente uma vez", async () => {
+    const m = make({ script: (t) => { if (t.startsWith("SELECT 1")) throw new Error("consulta falhou"); return undefined; } });
+    const error = (await withTenant(m.pool, id(), A, async (db) => {
+      m.client.emit("error", new Error("evento"));
+      await db.query("SELECT 1");
+    }).then(() => "RESOLVEU", (e: unknown) => e)) as Error;
+    expect(error.message).toBe("consulta falhou");
+    expect(m.released).toEqual([true]);
+  });
+
+  it("T4a: erro observado, COMMIT confirmado e removeListener lança: ConnectionCleanupError (committed), um release(true)", async () => {
+    const remocao = new Error("remove falhou");
+    const m = make({ removeListener: () => { throw remocao; } });
+    const error = (await withTenant(m.pool, id(), A, async () => {
+      m.client.emit("error", new Error("evento"));
+      return "v";
+    }).then(() => "RESOLVEU", (e: unknown) => e)) as ConnectionCleanupError;
+    expect(error).toBeInstanceOf(ConnectionCleanupError);
+    expect(error.committed).toBe(true);
+    expect(error.cause).toBe(remocao);
+    expect(m.calls).toEqual(["BEGIN", "SELECT", "COMMIT"]);
+    expect(m.released).toEqual([true]);
+  });
+
+  it("T4b: erro observado, falha primária e release lança: primário preservado com cleanupError, um único release(true)", async () => {
+    const primario = new Error("primario");
+    const falhaRelease = new Error("release falhou");
+    const m = make({ release: () => { throw falhaRelease; } });
+    const error = await withTenant(m.pool, id(), A, async () => {
+      m.client.emit("error", new Error("evento"));
+      throw primario;
+    }).then(() => "RESOLVEU", (e: unknown) => e);
+    expect(error).toBe(primario);
+    expect((error as { cleanupError?: unknown }).cleanupError).toBe(falhaRelease);
+    expect(m.released).toEqual([true]);
+  });
+
+  it("T4c: erro emitido DEPOIS do COMMIT e antes da limpeza (ainda sob controle do wrapper): valor devolvido e release(true)", async () => {
+    const m = make({ script: (t) => { if (t === "COMMIT") { m.client.emit("error", new Error("evento pós-COMMIT")); } return undefined; } });
+    const valor = await withTenant(m.pool, id(), A, async () => "v");
+    expect(valor).toBe("v");
+    expect(m.released).toEqual([true]);
+  });
+
+  it("U5c: sem evento, a causa do COMMIT rejeitado continua sendo a própria rejeição", async () => {
+    const rejeicao = new Error("commit rejeitado");
+    const m = make({ script: (t) => { if (t === "COMMIT") throw rejeicao; return undefined; } });
+    const error = (await withTenant(m.pool, id(), A, async () => "v").then(() => "RESOLVEU", (e: unknown) => e)) as TransactionNotCommittedError;
+    expect(error.cause).toBe(rejeicao);
+  });
+
+  it("U6: depois da liberação o ouvinte temporário já saiu: um erro posterior pertence ao ouvinte do POOL, não ao withTenant", async () => {
+    const m = make();
+    await withTenant(m.pool, id(), A, async () => "x");
+    expect(m.client.listenerCount("error")).toBe(0);
+    // sem ouvinte, o EventEmitter lança: o withTenant não engole o que vem depois de devolver a conexão
+    expect(() => m.client.emit("error", new Error("cliente ocioso morreu"))).toThrow("cliente ocioso morreu");
+    const doPool: Error[] = [];
+    m.client.on("error", (e: Error) => doPool.push(e)); // o que o pool faz ao receber a conexão de volta
+    m.client.emit("error", new Error("de novo"));
+    expect(doPool).toHaveLength(1);
   });
 });

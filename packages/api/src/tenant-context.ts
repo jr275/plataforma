@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
   ConnectionAcquireTimeoutError,
+  ConnectionCleanupError,
   NestedTenantContextError,
   TenantAccessDeniedError,
   TenantDbClosedError,
@@ -19,17 +20,27 @@ export interface QueryResultLike<R> {
   command?: string;
 }
 
-export interface ClientLike {
+interface ClientCore {
   query(text: string, values?: unknown[]): Promise<QueryResultLike<any>>;
   release(error?: Error | boolean): void;
-  /**
-   * Opcional (o `pg` os tem, pois o cliente é um EventEmitter). Enquanto withTenant usa o cliente, ele ouve 'error': o servidor
-   * pode encerrar a sessão (por exemplo, por idle_in_transaction_session_timeout) e o cliente então emite 'error'; um
-   * 'error' sem ouvinte derruba o processo (medido: `uncaughtException`). Dublês sem esses métodos continuam válidos.
-   */
-  on?(event: "error", listener: (error: Error) => void): unknown;
-  removeListener?(event: "error", listener: (error: Error) => void): unknown;
 }
+
+/**
+ * Eventos do cliente. Enquanto withTenant usa o cliente, ele ouve 'error': o servidor pode encerrar a sessão (por exemplo,
+ * por idle_in_transaction_session_timeout) e o cliente então emite 'error'; um 'error' sem ouvinte derruba o processo
+ * (medido: `uncaughtException`). `on` e `removeListener` andam JUNTOS: registrar sem poder remover acumularia ouvintes.
+ */
+export interface ClientEvents {
+  on(event: "error", listener: (error: Error) => void): unknown;
+  removeListener(event: "error", listener: (error: Error) => void): unknown;
+}
+
+/**
+ * Um cliente tem os dois métodos de evento (o do `pg` tem: é um EventEmitter) ou nenhum (dublês simples). Só `on` ou só
+ * `removeListener` é recusado pelo tipo; em tempo de execução (JavaScript) um cliente assim lança TypeError antes de qualquer
+ * SQL e a conexão é descartada.
+ */
+export type ClientLike = ClientCore & (ClientEvents | { on?: undefined; removeListener?: undefined });
 
 export interface PoolLike {
   connect(): Promise<ClientLike>;
@@ -208,15 +219,35 @@ function scopedDb(client: ClientLike) {
  * diferente de "COMMIT" (inclusive ausente ou de formato inesperado) falha fechada. Uma rejeição do COMMIT vira
  * "unknown": pode ter sido o servidor ou o transporte, e o resultado gravado não é conhecido. Sem nova tentativa.
  */
-async function commit(client: ClientLike): Promise<void> {
+async function commit(client: ClientLike, connectionError: () => Error | undefined): Promise<void> {
   let outcome: QueryResultLike<unknown>;
   try {
     outcome = await client.query("COMMIT");
   } catch (cause) {
-    throw new TransactionNotCommittedError("unknown", { cause });
+    // Se o cliente já havia emitido um erro de conexão, ELE é a causa original (a rejeição do COMMIT, "not queryable", é só
+    // consequência). Continua "unknown": o evento não prova se a transação foi confirmada ou desfeita.
+    throw new TransactionNotCommittedError("unknown", { cause: connectionError() ?? cause });
   }
   if (outcome?.command !== "COMMIT") {
     throw new TransactionNotCommittedError(outcome?.command === "ROLLBACK" ? "rolled_back" : "unknown");
+  }
+}
+
+function clientEvents(client: ClientLike): ClientEvents | undefined {
+  const hasOn = typeof client.on === "function";
+  const hasRemove = typeof client.removeListener === "function";
+  if (hasOn && hasRemove) return client as ClientEvents;
+  if (!hasOn && !hasRemove) return undefined;
+  throw new TypeError("cliente inconsistente: 'on' e 'removeListener' precisam existir juntos ou nenhum dos dois");
+}
+
+/** Deixa a falha de limpeza acessível no erro primário SEM substituí-lo (propriedade não enumerável; ignorada se não der). */
+function attachCleanupError(primary: unknown, cleanupError: unknown): void {
+  if ((typeof primary !== "object" && typeof primary !== "function") || primary === null) return;
+  try {
+    Object.defineProperty(primary, "cleanupError", { value: cleanupError, enumerable: false, configurable: true, writable: true });
+  } catch {
+    // objeto congelado ou não extensível: não há onde anexar
   }
 }
 
@@ -240,6 +271,10 @@ async function commit(client: ClientLike): Promise<void> {
  *  7. confirma (o valor da função só é devolvido se o servidor respondeu COMMIT: resposta ROLLBACK ou COMMIT rejeitado lança
  *     TransactionNotCommittedError) ou desfaz, e devolve a conexão ao pool (descartada se o ROLLBACK falhar). Depois de um
  *     COMMIT que não confirmou, o ROLLBACK de limpeza é emitido mesmo assim (inofensivo se já não há transação).
+ *  8. posse da conexão: do fim da aquisição ao `release`, todo caminho termina em UM release (`true` se o estado for incerto,
+ *     por exemplo se registrar ou remover o ouvinte de 'error' falhar). O primeiro 'error' do cliente vira a causa de um COMMIT
+ *     que falhe (resultado "unknown"). Falha de limpeza: o erro primário prevalece (`cleanupError`); sem falha primária é
+ *     ConnectionCleanupError (a transação já foi confirmada).
  * A ordem "consultas pendentes terminam antes do ROLLBACK" vem da fila em ordem do driver `pg` (verificada no `pg` 8.23.1);
  * com outro driver (Neon, pooler externo) isso não foi verificado.
  * Limites documentados: o RLS só aplica o valor de app.tenant_id; SQL arbitrário dentro da função ainda pode trocar o
@@ -260,13 +295,32 @@ export async function withTenant<T>(
   if (!identity.tenantIds.includes(tenantId)) throw new TenantAccessDeniedError();
 
   const client = await acquireClient(pool, acquireTimeoutMs);
+  // A PARTIR DAQUI a conexão é de withTenant: todo caminho termina em UM release (true se o estado for incerto).
   let broken = false;
   let scope: ReturnType<typeof scopedDb> | undefined;
-  // Sessão encerrada pelo servidor durante o uso: o 'error' do cliente não pode ficar sem ouvinte (derruba o processo). O
-  // erro não se perde: o próximo comando rejeita ("not queryable"), o ROLLBACK de limpeza falha e a conexão é descartada.
-  const onClientError = (_error: Error): void => undefined;
-  client.on?.("error", onClientError);
+  let events: ClientEvents | undefined;
+  let listening = false; // o ouvinte está registrado (e portanto precisa ser removido)
+  let prepared = false; // registro do ouvinte resolvido: antes disso o estado da conexão é incerto
+  let begun = false; // o BEGIN foi enviado: só então há o que desfazer
+  // Sessão encerrada pelo servidor durante o uso: o 'error' do cliente não pode ficar sem ouvinte (derruba o processo) e o
+  // PRIMEIRO erro fica guardado: é a causa original se o COMMIT depois falhar. O evento sozinho não prova se a transação foi
+  // confirmada, desfeita nem se consultas pendentes foram canceladas.
+  let connectionError: Error | undefined;
+  const onClientError = (error: Error): void => {
+    connectionError ??= error;
+    // Decisão própria do wrapper, independente de como o pool trata clientes com erro: uma conexão que emitiu `error`
+    // enquanto estava sob nosso controle nunca volta ao pool como saudável. Não altera o resultado da transação.
+    broken = true;
+  };
+  let outcome: { ok: true; value: T } | { ok: false; error: unknown };
   try {
+    events = clientEvents(client);
+    if (events) {
+      events.on("error", onClientError);
+      listening = true;
+    }
+    prepared = true;
+    begun = true;
     await client.query("BEGIN");
     const ctx = await client.query(
       "SELECT set_config('app.tenant_id', $1, true) AS ctx, " +
@@ -282,19 +336,46 @@ export async function withTenant<T>(
     const result = await currentScope.run(opened.state, () => fn(opened.db));
     opened.close();
     if (opened.pending() > 0) throw new UnsettledTenantOperationError();
-    await commit(client);
-    return result;
+    await commit(client, () => connectionError);
+    outcome = { ok: true, value: result };
   } catch (error) {
     scope?.close();
-    try {
-      await client.query("ROLLBACK");
-    } catch {
-      broken = true; // a conexão não pôde desfazer: é descartada em vez de voltar ao pool
+    if (!prepared) {
+      broken = true; // o registro do ouvinte falhou: nenhum SQL foi enviado e o estado da conexão é incerto
+    } else if (begun) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        broken = true; // a conexão não pôde desfazer: é descartada em vez de voltar ao pool
+      }
     }
-    throw error;
-  } finally {
-    scope?.close();
-    client.removeListener?.("error", onClientError);
-    client.release(broken);
+    outcome = { ok: false, error };
   }
+  // Limpeza: nunca lança daqui; o que falhar vira `cleanupError`, a conexão é descartada e o release acontece uma vez.
+  scope?.close();
+  let cleanupFailed = false;
+  let cleanupError: unknown;
+  if (listening && events) {
+    try {
+      events.removeListener("error", onClientError);
+    } catch (error) {
+      broken = true; // não dá para provar que o ouvinte saiu: a conexão não volta ao pool
+      cleanupFailed = true;
+      cleanupError = error;
+    }
+  }
+  try {
+    client.release(broken);
+  } catch (error) {
+    if (!cleanupFailed) {
+      cleanupFailed = true;
+      cleanupError = error;
+    }
+  }
+  if (outcome.ok) {
+    if (cleanupFailed) throw new ConnectionCleanupError(cleanupError); // a transação já foi confirmada
+    return outcome.value;
+  }
+  if (cleanupFailed) attachCleanupError(outcome.error, cleanupError); // o erro primário prevalece
+  throw outcome.error;
 }

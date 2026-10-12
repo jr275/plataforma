@@ -560,3 +560,134 @@ describe("limites de execução locais à transação, contra PostgreSQL real", 
     expect((await app.query("SELECT current_setting('lock_timeout') AS l")).rows[0].l).toBe("0");
   });
 });
+
+// Fase 20E-5 contra o PostgreSQL REAL e o cliente `pg` real: a causa original de uma sessão encerrada, a posse da conexão
+// (decisão própria do wrapper, SEM depender do descarte automático do pg-pool) e o contrato do ouvinte do pool depois da
+// liberação. Encerrar a sessão é feito pelo superusuário descartável (pg_terminate_backend), só nestes testes.
+describe("erros de conexão e posse da conexão contra PostgreSQL real", () => {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const gone = async (pid: number) => (await privileged.query("SELECT 1 FROM pg_stat_activity WHERE pid = $1", [pid])).rowCount === 0;
+  const waitGone = async (pid: number) => {
+    const deadline = Date.now() + 10_000;
+    while (!(await gone(pid))) {
+      if (Date.now() > deadline) throw new Error("a sessão não terminou no prazo do teste");
+      await sleep(25);
+    }
+  };
+  const killSession = async (pid: number) => {
+    await privileged.query("SELECT pg_terminate_backend($1)", [pid]);
+    await waitGone(pid);
+  };
+  const uncaught: unknown[] = [];
+  const onUncaught = (e: unknown) => uncaught.push(e);
+
+  it("U5: a sessão é encerrada durante a transação: a falha de finalização mantém a causa ORIGINAL (a mesma identidade do evento) e a conexão é descartada", async () => {
+    uncaught.length = 0;
+    process.on("uncaughtException", onUncaught);
+    const pool = new pg.Pool({ ...base(), user: "menlo_app", max: 1 });
+    const eventos: Error[] = [];
+    pool.on("connect", (c: pg.PoolClient) => c.on("error", (e: Error) => eventos.push(e))); // só observa; o withTenant tem o seu
+    try {
+      const error = await withTenant(pool, devIdentity([A, B]), A, async (db) => {
+        const pid = (await db.query<{ p: number }>("SELECT pg_backend_pid() AS p")).rows[0]!.p;
+        await killSession(pid);
+        return "retornou";
+      }).then((v) => `RESOLVEU COM ${String(v)}`, (e: unknown) => e);
+      await sleep(100);
+      expect(error).toBeInstanceOf(TransactionNotCommittedError);
+      expect((error as TransactionNotCommittedError).outcome).toBe("unknown"); // nunca committed nem rolled_back sem evidência
+      expect(eventos.length).toBeGreaterThan(0); // o cliente emitiu o erro de conexão
+      expect((error as TransactionNotCommittedError).cause).toBe(eventos[0]); // a causa é o erro ORIGINAL, não a rejeição genérica
+      expect(pool.totalCount).toBe(0); // conexão descartada
+      expect(uncaught).toEqual([]); // nenhuma exceção não tratada
+    } finally {
+      process.off("uncaughtException", onUncaught);
+      await pool.end().catch(() => undefined);
+    }
+  });
+
+  it("U6: um erro DEPOIS da liberação pertence ao ouvinte do pool: ele é chamado e o processo não cai", async () => {
+    uncaught.length = 0;
+    process.on("uncaughtException", onUncaught);
+    const pool = new pg.Pool({ ...base(), user: "menlo_app", max: 1 });
+    const doPool: Error[] = [];
+    pool.on("error", (e: Error) => doPool.push(e)); // o requisito documentado: o pool PRECISA ter este ouvinte
+    try {
+      let pid = -1;
+      await withTenant(pool, devIdentity([A, B]), A, async (db) => {
+        pid = (await db.query<{ p: number }>("SELECT pg_backend_pid() AS p")).rows[0]!.p;
+      });
+      await killSession(pid); // a sessão ociosa, já devolvida ao pool, é encerrada
+      const deadline = Date.now() + 5000;
+      while (doPool.length === 0 && Date.now() < deadline) await sleep(25);
+      expect(doPool.length).toBeGreaterThan(0);
+      expect(uncaught).toEqual([]);
+      expect(pool.totalCount).toBe(0);
+    } finally {
+      process.off("uncaughtException", onUncaught);
+      await pool.end().catch(() => undefined);
+    }
+  });
+
+  it("contrato próprio do wrapper (sem pg-pool): cliente pg real e release de teste: conexão encerrada ⇒ release(true); saudável ⇒ release(false)", async () => {
+    const registro: unknown[] = [];
+    const clientes: pg.Client[] = [];
+    const adaptador: PoolLike = {
+      async connect() {
+        const c = new pg.Client({ ...base(), user: "menlo_app" });
+        await c.connect();
+        clientes.push(c);
+        return Object.assign(c, {
+          release: (erro?: Error | boolean) => {
+            registro.push(erro);
+            void c.end().catch(() => undefined);
+          },
+        }) as never;
+      },
+    };
+    try {
+      const falha = await withTenant(adaptador, devIdentity([A, B]), A, async (db) => {
+        const pid = (await db.query<{ p: number }>("SELECT pg_backend_pid() AS p")).rows[0]!.p;
+        await killSession(pid);
+        return "x";
+      }).then((v) => `RESOLVEU COM ${String(v)}`, (e: unknown) => e);
+      expect(falha).toBeInstanceOf(TransactionNotCommittedError);
+      expect(registro).toEqual([true]); // decisão do wrapper: descarte
+      registro.length = 0;
+      const ok = await withTenant(adaptador, devIdentity([A, B]), A, async () => "ok");
+      expect(ok).toBe("ok");
+      expect(registro).toEqual([false]); // conexão saudável: devolvida
+    } finally {
+      await Promise.all(clientes.map((c) => c.end().catch(() => undefined)));
+    }
+  });
+
+  it("AUD-001: erro emitido por um cliente pg real que continua consultável: COMMIT confirmado pelo servidor, valor devolvido e release(true) decidido pelo wrapper", async () => {
+    const registro: unknown[] = [];
+    const clientes: pg.Client[] = [];
+    const adaptador: PoolLike = {
+      async connect() {
+        const c = new pg.Client({ ...base(), user: "menlo_app" });
+        await c.connect();
+        clientes.push(c);
+        return Object.assign(c, {
+          release: (erro?: Error | boolean) => {
+            registro.push(erro);
+            void c.end().catch(() => undefined);
+          },
+        }) as never;
+      },
+    };
+    try {
+      const valor = await withTenant(adaptador, devIdentity([A, B]), A, async (db) => {
+        await db.query("SELECT 1");
+        clientes[0]!.emit("error", new Error("erro observado, sessão ainda saudável")); // o servidor ainda responde
+        return "confirmado";
+      });
+      expect(valor).toBe("confirmado"); // o COMMIT respondeu COMMIT: o evento não reclassifica o resultado
+      expect(registro).toEqual([true]); // mas a conexão não volta como saudável
+    } finally {
+      await Promise.all(clientes.map((c) => c.end().catch(() => undefined)));
+    }
+  });
+});

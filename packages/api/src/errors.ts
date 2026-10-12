@@ -91,3 +91,18 @@ export class ConnectionAcquireTimeoutError extends Error {
     this.acquireTimeoutMs = acquireTimeoutMs;
   }
 }
+
+/**
+ * A transação FOI confirmada (o COMMIT respondeu COMMIT), mas a limpeza da conexão depois dela falhou (remover o ouvinte
+ * de 'error' ou devolver a conexão ao pool lançou). A conexão é descartada. Só é lançado quando não houve falha primária: com
+ * uma falha primária, o erro dela prevalece e a falha de limpeza fica em `cleanupError`. O `code` nunca coincide com um
+ * SQLSTATE. Quem recebe este erro NÃO deve repetir a operação: ela já foi gravada.
+ */
+export class ConnectionCleanupError extends Error {
+  readonly code = "TENANT_CONNECTION_CLEANUP";
+  readonly committed = true;
+  constructor(cause: unknown) {
+    super("a transação foi CONFIRMADA, mas a limpeza da conexão falhou (a conexão foi descartada); não repita a operação", { cause });
+    this.name = "ConnectionCleanupError";
+  }
+}
