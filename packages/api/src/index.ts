@@ -21,3 +21,18 @@ export {
   type TenantDb,
   type WithTenantOptions,
 } from "./tenant-context";
+export {
+  OPPORTUNITY_INTENTS,
+  OPPORTUNITY_KINDS,
+  OPPORTUNITY_LEVELS,
+  OPPORTUNITY_STATUSES,
+  getOpportunity,
+  listOpportunities,
+  setOpportunityStatus,
+  type ListOpportunitiesOptions,
+  type Opportunity,
+  type OpportunityIntent,
+  type OpportunityKind,
+  type OpportunityLevel,
+  type OpportunityStatus,
+} from "./opportunities";

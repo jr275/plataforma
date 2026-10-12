@@ -84,3 +84,8 @@ jobs:
         env:
           RLS_HARNESS_PG_BIN_DIR: /usr/lib/postgresql/16/bin
         run: pnpm test:api
+
+      - name: Esquema de produto (migrations reais, isolamento e funções de oportunidades) contra PostgreSQL 16 real
+        env:
+          RLS_HARNESS_PG_BIN_DIR: /usr/lib/postgresql/16/bin
+        run: pnpm test:schema

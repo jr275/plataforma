@@ -38,10 +38,10 @@ if [[ -d .github/workflows ]]; then
 fi
 
 # --- CI: os testes reais de PostgreSQL precisam realmente rodar no workflow ----------------------
-for cmd in "pnpm check:consistency" "pnpm turbo typecheck lint build" "pnpm test:rls" "pnpm test:migrations" "pnpm test:security" "pnpm test:bootstrap" "pnpm test:gate" "pnpm test:hardening" "pnpm test:api"; do
+for cmd in "pnpm check:consistency" "pnpm turbo typecheck lint build" "pnpm test:rls" "pnpm test:migrations" "pnpm test:security" "pnpm test:bootstrap" "pnpm test:gate" "pnpm test:hardening" "pnpm test:api" "pnpm test:schema"; do
   grep -q -F -- "run: $cmd" .github/workflows/ci.yml 2>/dev/null || fail "o workflow .github/workflows/ci.yml não executa '$cmd'"
 done
-for sc in test:rls test:migrations test:security test:bootstrap test:gate test:hardening test:api check:catalog db:migrate db:bootstrap; do
+for sc in test:rls test:migrations test:security test:bootstrap test:gate test:hardening test:api test:schema check:catalog db:migrate db:bootstrap; do
   [[ -n "$(node -p "require('./package.json').scripts?.['$sc'] ?? ''")" ]] || fail "script '$sc' ausente em package.json"
 done
 
