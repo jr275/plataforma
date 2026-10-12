@@ -79,3 +79,8 @@ jobs:
         env:
           RLS_HARNESS_PG_BIN_DIR: /usr/lib/postgresql/16/bin
         run: pnpm test:hardening
+
+      - name: Testes de packages/api (contexto de tenant) contra PostgreSQL 16 real
+        env:
+          RLS_HARNESS_PG_BIN_DIR: /usr/lib/postgresql/16/bin
+        run: pnpm test:api

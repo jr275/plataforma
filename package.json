@@ -16,6 +16,7 @@
     "test:bootstrap": "bash scripts/test-bootstrap.sh",
     "test:gate": "bash scripts/test-gate.sh",
     "test:hardening": "bash scripts/test-hardening.sh",
+    "test:api": "bash scripts/test-api.sh",
     "db:bootstrap": "bash scripts/db-bootstrap.sh",
     "check:catalog": "bash scripts/check-catalog.sh",
     "db:migrate": "bash scripts/db-migrate.sh"
