@@ -4,7 +4,7 @@ Plataforma multi-tenant de SEO programático, GEO e base de conhecimento. A RE/M
 
 Stack: pnpm + Turborepo, TypeScript, Next.js (App Router), Tailwind + shadcn/ui, Drizzle, Zod, Neon Postgres. O Python (motor de oportunidades, Search Console) fica fora deste repo por enquanto e conversa com o produto só pelo Postgres (ADR-007). Não reescrever o Python.
 
-Verificar: `pnpm turbo typecheck lint build`.
+Verificar: `pnpm check:consistency`, `pnpm turbo typecheck lint build` e, para a segurança de tenant, `pnpm test:rls`, `pnpm test:migrations`, `pnpm test:security`, `pnpm test:bootstrap`, `pnpm test:gate` e `pnpm test:hardening` (PostgreSQL 16 descartável local; ver `db/test-fixtures/rls/README.md`, `db/migrations/README.md` e `db/checks/README.md`).
 
 ## Regras inegociáveis
 

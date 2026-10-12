@@ -8,7 +8,17 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
-    "test": "turbo test"
+    "test": "turbo test",
+    "test:rls": "bash scripts/test-rls.sh",
+    "check:consistency": "bash scripts/check-consistency.sh",
+    "test:migrations": "bash scripts/test-migrations.sh",
+    "test:security": "bash scripts/test-security.sh",
+    "test:bootstrap": "bash scripts/test-bootstrap.sh",
+    "test:gate": "bash scripts/test-gate.sh",
+    "test:hardening": "bash scripts/test-hardening.sh",
+    "db:bootstrap": "bash scripts/db-bootstrap.sh",
+    "check:catalog": "bash scripts/check-catalog.sh",
+    "db:migrate": "bash scripts/db-migrate.sh"
   },
   "devDependencies": {
     "turbo": "^2.11.7",

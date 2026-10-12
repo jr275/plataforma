@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Privilégio mínimo: o workflow só lê o repositório. Sem segredos, sem deploy, sem push.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, lint, build e RLS (PostgreSQL 16)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # A versão do pnpm vem do campo "packageManager" do package.json.
+      - uses: pnpm/action-setup@v4
+
+      # Node 24 LTS: .nvmrc é a única fonte da versão.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalar dependências (lockfile congelado)
+        run: pnpm install --frozen-lockfile
+
+      - name: Consistência do repositório (autoridade do esquema e runtime)
+        run: pnpm check:consistency
+
+      - name: Typecheck, lint e build
+        run: pnpm turbo typecheck lint build
+
+      # PostgreSQL 16 explícito: o pacote postgresql-16 do Ubuntu 24.04 (noble). O harness cria o
+      # próprio cluster descartável com esses binários; não usa o serviço do sistema nem rede.
+      - name: Instalar binários do PostgreSQL 16
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-16
+          /usr/lib/postgresql/16/bin/postgres --version
+
+      - name: Testes de RLS contra PostgreSQL 16 real
+        env:
+          RLS_HARNESS_PG_BIN_DIR: /usr/lib/postgresql/16/bin
+        run: pnpm test:rls
+
+      - name: Testes do runner de migrations contra PostgreSQL 16 real
+        env:
+          RLS_HARNESS_PG_BIN_DIR: /usr/lib/postgresql/16/bin
+        run: pnpm test:migrations
+
+      - name: Verificações de catálogo de segurança contra PostgreSQL 16 real
+        env:
+          RLS_HARNESS_PG_BIN_DIR: /usr/lib/postgresql/16/bin
+        run: pnpm test:security
+
+      - name: Bootstrap de papéis contra PostgreSQL 16 real
+        env:
+          RLS_HARNESS_PG_BIN_DIR: /usr/lib/postgresql/16/bin
+        run: pnpm test:bootstrap
+
+      - name: Gate de segurança transacional contra PostgreSQL 16 real
+        env:
+          RLS_HARNESS_PG_BIN_DIR: /usr/lib/postgresql/16/bin
+        run: pnpm test:gate
+
+      - name: Regressão de integridade do runner e do gate contra PostgreSQL 16 real
+        env:
+          RLS_HARNESS_PG_BIN_DIR: /usr/lib/postgresql/16/bin
+        run: pnpm test:hardening
