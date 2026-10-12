@@ -69,11 +69,16 @@ describe("guarda estática do contexto de tenant", () => {
     expect(all).toEqual([]);
   });
 
-  it("o ponto único usa exatamente uma chamada, sempre com is_local = true", () => {
+  it("o ponto único só usa set_config local à transação (is_local = true): uma chamada do tenant e uma, parametrizada, dos limites", () => {
     const text = readFileSync(join(repoRoot, CONTEXT_FILE), "utf8");
     const calls = text.match(/set_config\s*\(/gi) ?? [];
-    expect(calls.length).toBe(1);
+    expect(calls.length).toBe(2); // 1: app.tenant_id; 2: o construtor dos limites de execução (Fase 20E-3)
     expect(text).toMatch(/set_config\('app\.tenant_id', \$1, true\)/);
+    expect(text).toMatch(/set_config\('\$\{guc\}', \$\$\{values\.length\}, true\)/); // limites: parâmetro e is_local = true
+    // os nomes dos limites vêm de constantes: exatamente estes três, nenhum app.* e nenhum `false`
+    const gucs = [...text.matchAll(/\["[a-zA-Z]+Ms", "([a-z_]+)"\]/g)].map((m) => m[1]);
+    expect(gucs).toEqual(["statement_timeout", "lock_timeout", "idle_in_transaction_session_timeout"]);
     expect(text).not.toMatch(/\bset\s+(?:local\s+|session\s+)?app\./i);
+    expect(text).not.toMatch(/set_config\([^)]*,\s*false\)/);
   });
 });
