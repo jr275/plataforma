@@ -235,6 +235,10 @@ importers:
         version: 5.9.3
 
   packages/api:
+    dependencies:
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
     devDependencies:
       '@types/node':
         specifier: ^24.19.2

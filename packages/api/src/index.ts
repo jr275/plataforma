@@ -1,3 +1,5 @@
+export { AuthenticationError, type AuthFailureReason } from "./errors";
+export { bearerToken, createSupabaseAuthenticator, supabaseJwks, type SupabaseAuthConfig, type SupabaseAuthenticator, type SupportedAlgorithm } from "./auth/supabase";
 export { devIdentity } from "./dev-identity";
 export {
   ConnectionAcquireTimeoutError,

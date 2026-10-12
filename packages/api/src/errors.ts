@@ -106,3 +106,16 @@ export class ConnectionCleanupError extends Error {
     this.name = "ConnectionCleanupError";
   }
 }
+
+export type AuthFailureReason = "malformed" | "signature" | "expired" | "not_yet_valid" | "claims" | "tenant_claim" | "key_unavailable";
+
+/** O token foi recusado. A mensagem nunca contém o token nem as claims; `reason` diz a categoria (sem detalhes úteis a um atacante). */
+export class AuthenticationError extends Error {
+  readonly code = "AUTH_INVALID_TOKEN";
+  readonly reason: AuthFailureReason;
+  constructor(reason: AuthFailureReason, options?: { cause?: unknown }) {
+    super(`autenticação recusada (${reason})`, options);
+    this.name = "AuthenticationError";
+    this.reason = reason;
+  }
+}

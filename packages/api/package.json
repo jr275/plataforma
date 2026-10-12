@@ -16,5 +16,8 @@
     "pg": "^8.23.1",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "jose": "^6.2.12"
   }
 }

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 // criam uma VerifiedIdentity. NÃO prova isolamento: prova que nenhum outro arquivo do repositório tenta estabelecê-lo.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const CONTEXT_FILE = "packages/api/src/tenant-context.ts";
-const IDENTITY_FILES = new Set(["packages/api/src/identity.ts", "packages/api/src/dev-identity.ts"]);
+const IDENTITY_FILES = new Set(["packages/api/src/identity.ts", "packages/api/src/dev-identity.ts", "packages/api/src/auth/supabase.ts"]);
 
 const CONTEXT_PATTERNS: RegExp[] = [
   /set_config/i,

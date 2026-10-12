@@ -1,6 +1,6 @@
 # ADR-015: Autenticação com Supabase e origem da associação usuário↔tenant
 
-**Status:** PROPOSED (2026-10-12). O dono do produto indicou o Supabase como provedor de login (chat, 2026-10-12) e autorizou a redação deste ADR. **Nada está aprovado nem implementado**: não há dependência, código de verificação de token, tabela de associação nem variável de ambiente. `devIdentity` continua sendo a única identidade e só vale em desenvolvimento.
+**Status:** PARCIALMENTE ACEITO (2026-10-12). O dono do produto respondeu no chat (2026-10-12): (1) banco do produto **Neon**; (2) origem da associação **opção A** (claim assinada); (3) **sim** ao uso de uma biblioteca de verificação de JWT. Implementado: o autenticador do lado do servidor (`packages/api/src/auth/supabase.ts`, com a biblioteca `jose`) e seus testes sem rede. **Não implementado e não aprovado:** o cliente do Supabase para Next, a tela de login, a renovação de sessão, qualquer variável de ambiente ou chamada ao Supabase real, e a tabela `tenant_member` (opção B). `devIdentity` segue sendo a identidade de desenvolvimento.
 
 ## Contexto
 
@@ -44,8 +44,12 @@ Se o dono preferir o Postgres do Supabase, uma ADR própria precisa antes provar
 - O primeiro autenticador real fecha a lacuna "sem provedor de login", mas **não** resolve L1 (SQL arbitrário sob `menlo_app` troca de tenant) nem prova o isolamento dos dados de produto.
 - A revogação de acesso, na opção A, tem o atraso do prazo do token.
 
-## Decisões necessárias do dono do produto
-1. Banco do produto: Neon (recomendado aqui) ou Postgres do Supabase.
-2. Origem da associação: A (claim assinada, recomendada para começar) ou B (tabela, exige papel novo).
-3. Aprovar o uso de uma biblioteca de verificação de JWT e, depois, do cliente do Supabase para Next.
-4. Autorizar a implementação do autenticador (módulo e testes) quando 1 a 3 estiverem decididos.
+## Decisões do dono do produto
+1. **Aprovado (2026-10-12):** banco do produto Neon; o Supabase fica só com a autenticação.
+2. **Aprovado (2026-10-12):** opção A (claim assinada `app_metadata.tenant_ids`); a B fica para quando houver convite, papéis por tenant ou revogação imediata.
+3. **Aprovado (2026-10-12):** uma biblioteca de verificação de JWT (`jose`). O cliente do Supabase para Next **ainda precisa de aprovação própria**.
+
+## Em aberto
+- O cliente do Supabase para Next, a tela de login e a renovação de sessão (fatia seguinte).
+- Como o administrador escreve `app_metadata.tenant_ids` com a chave de serviço (procedimento fora do runtime, ainda não desenhado).
+- Itens do ADR-013 (item 4) específicos do Neon: lock de aconselhamento, ledger e TLS no banco remoto.
