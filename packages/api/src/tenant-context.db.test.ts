@@ -597,7 +597,13 @@ describe("erros de conexão e posse da conexão contra PostgreSQL real", () => {
       expect(error).toBeInstanceOf(TransactionNotCommittedError);
       expect((error as TransactionNotCommittedError).outcome).toBe("unknown"); // nunca committed nem rolled_back sem evidência
       expect(eventos.length).toBeGreaterThan(0); // o cliente emitiu o erro de conexão
-      expect((error as TransactionNotCommittedError).cause).toBe(eventos[0]); // a causa é o erro ORIGINAL, não a rejeição genérica
+      // A causa é o erro ORIGINAL da conexão, nunca a rejeição genérica ("not queryable"). A ordem varia por plataforma: no macOS
+      // o evento de conexão vem antes do COMMIT falhar (a causa é o próprio evento); no Linux o servidor entrega o FATAL 57P01 como
+      // a rejeição do COMMIT e o ECONNRESET só chega depois, como evento. Nos dois casos o primeiro erro real observado é a causa.
+      const cause = (error as TransactionNotCommittedError).cause as { code?: string; message?: string };
+      expect(cause).toBeInstanceOf(Error);
+      expect(cause === eventos[0] || cause.code === "57P01").toBe(true);
+      expect(cause.message).not.toMatch(/not queryable/);
       expect(pool.totalCount).toBe(0); // conexão descartada
       expect(uncaught).toEqual([]); // nenhuma exceção não tratada
     } finally {
