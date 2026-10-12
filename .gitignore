@@ -7,3 +7,14 @@ dist
 .vercel
 *.tsbuildinfo
 .DS_Store
+# Segredos
+.env
+.env.*
+client_secret*.json
+token.json
+# Dados e ambiente local
+saida/
+.venv/
+__pycache__/
+*.bak
+*.bak2
