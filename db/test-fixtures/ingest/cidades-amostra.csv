@@ -1,0 +1,12 @@
+ibge_code,name,uf,region
+1100015,Alta Floresta D'Oeste,RO,Norte
+1100023,Ariquemes,RO,Norte
+3550308,São Paulo,SP,Sudeste
+3304557,Rio de Janeiro,RJ,Sudeste
+5300108,Brasília,DF,Centro-Oeste
+2201919,Bom Princípio do Piauí,PI,Nordeste
+5101837,Boa Esperança do Norte,MT,Centro-Oeste
+1100015,Alta Floresta D'Oeste (repetida),RO,Norte
+,Sem código,SP,Sudeste
+999,Código curto,SP,Sudeste
+4106902,Curitiba,XX,Sul

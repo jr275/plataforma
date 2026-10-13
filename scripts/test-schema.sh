@@ -32,12 +32,12 @@ su() { "${PSQL[@]}" -d "$DB" -c "$1" 2>&1; }
 o="$(bash "$BOOT" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --user rls_bootstrap --dbname "$DB" 2>&1)"; rc=$?
 expect "bootstrap provisiona e verifica o ambiente" eq "$rc" 0
 OUT="$(bash "$RUNNER" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --dbname "$DB" --user "$MIG" --app-role "$APP" 2>&1)"; rc=$?
-expect "o runner aplica 0001 e 0002 com o gate de segurança ativo (código 0)" eq "$rc" 0
+expect "o runner aplica 0001 a 0004 com o gate de segurança ativo (código 0)" eq "$rc" 0
 [[ "$rc" -eq 0 ]] || echo "$OUT" | tail -8
-expect "o ledger tem exatamente as migrations 1 e 2" eq "$(su "SELECT string_agg(seq::text, ',' ORDER BY seq) FROM plataforma_migrations.ledger")" "1,2"
+expect "o ledger tem exatamente as migrations 1 a 4" eq "$(su "SELECT string_agg(seq::text, ',' ORDER BY seq) FROM plataforma_migrations.ledger")" "1,2,3,4"
 OUT2="$(bash "$RUNNER" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --dbname "$DB" --user "$MIG" --app-role "$APP" 2>&1)"; rc=$?
 expect "reaplicar não muda nada (código 0)" eq "$rc" 0
-expect "as migrations não semeiam dados de tenant" eq "$(su "SELECT (SELECT count(*) FROM plataforma.tenant) + (SELECT count(*) FROM plataforma.opportunity)")" 0
+expect "as migrations não semeiam dados de tenant" eq "$(su "SELECT (SELECT count(*) FROM plataforma.tenant) + (SELECT count(*) FROM plataforma.opportunity) + (SELECT count(*) FROM plataforma.import_run) + (SELECT count(*) FROM plataforma.import_record) + (SELECT count(*) FROM plataforma.city)")" 0
 
 # --- seed de teste (superusuário descartável) ----------------------------------------------------
 "${PSQL[@]}" -d "$DB" -v ON_ERROR_STOP=1 -f "$ROOT/db/test-fixtures/product/10_seed.sql" >/dev/null 2>&1
@@ -64,9 +64,38 @@ expect "tenant inexistente é rejeitado pela chave estrangeira" has "$(su "INSER
 expect "não existe coluna de nota ou pontuação (regra 5)" eq "$(su "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'plataforma' AND table_name = 'opportunity' AND column_name ~* '(score|rating|nota|pontu)'")" 0
 expect "RLS está ligada e forçada em opportunity" eq "$(su "SELECT relrowsecurity::text || relforcerowsecurity::text FROM pg_class WHERE oid = 'plataforma.opportunity'::regclass")" "truetrue"
 expect "nenhum privilégio para PUBLIC nas tabelas do produto" eq "$(su "SELECT count(*) FROM information_schema.role_table_grants WHERE table_schema = 'plataforma' AND grantee = 'PUBLIC'")" 0
+# --- importação e cidades (ADR-017): isolamento, imutabilidade e integridade ---------------------
+RA=c0000000-0000-4000-8000-00000000000a; RB=c0000000-0000-4000-8000-00000000000b
+SHA=$(printf 'a%.0s' $(seq 64))
+su "INSERT INTO plataforma.import_run (id, tenant_id, kind, source_name, file_name, file_sha256, origin, mapping, status, total_rows, accepted_rows, finished_at, created_by) VALUES
+  ('$RA', '$A', 'csv', 'teste', 'a.csv', '$SHA', 'test', '{}', 'succeeded', 1, 1, now(), 'seed'),
+  ('$RB', '$B', 'csv', 'teste', 'b.csv', '$SHA', 'test', '{}', 'succeeded', 1, 1, now(), 'seed');
+  INSERT INTO plataforma.import_record (tenant_id, run_id, row_number, raw, outcome) VALUES ('$A', '$RA', 1, '{}', 'accepted'), ('$B', '$RB', 1, '{}', 'accepted');
+  INSERT INTO plataforma.city (tenant_id, ibge_code, name, uf, source_run_id) VALUES ('$A', '1100015', 'Cidade A', 'RO', '$RA'), ('$B', '1100015', 'Cidade B', 'RO', '$RB');" >/dev/null
+expect "o mesmo código IBGE existe nos dois tenants (único POR tenant)" eq "$(su "SELECT count(*) FROM plataforma.city WHERE ibge_code = '1100015'")" 2
+for t in import_run import_record city; do
+  expect "$t: tenant A enxerga só a própria linha" eq "$(app_sql "$A" "SELECT count(*) FROM plataforma.$t" | tr '\n' ' ')" "1 "
+  expect "$t: tenant B enxerga só a própria linha" eq "$(app_sql "$B" "SELECT count(*) FROM plataforma.$t" | tr '\n' ' ')" "1 "
+  expect "$t: sem contexto de tenant, zero linhas" eq "$(app_sql "" "SELECT count(*) FROM plataforma.$t" | tr '\n' ' ')" "0 "
+  expect "$t: a aplicação não tem DELETE" has "$(app_sql "$A" "DELETE FROM plataforma.$t")" "permission denied"
+  expect "RLS ligada e forçada em $t" eq "$(su "SELECT relrowsecurity::text || relforcerowsecurity::text FROM pg_class WHERE oid = 'plataforma.$t'::regclass")" "truetrue"
+done
+expect "A não lê a execução de B pelo id" eq "$(app_sql "$A" "SELECT count(*) FROM plataforma.import_run WHERE id = '$RB'" | tr '\n' ' ')" "0 "
+expect "INSERT de cidade em outro tenant é rejeitado pela política" has "$(app_sql "$A" "INSERT INTO plataforma.city (tenant_id, ibge_code, name, uf, source_run_id) VALUES ('$B', '1100023', 'x', 'RO', '$RB')")" "row-level security"
+expect "cidade de A não pode apontar para a execução de B (FK composta)" has "$(app_sql "$A" "INSERT INTO plataforma.city (tenant_id, ibge_code, name, uf, source_run_id) VALUES ('$A', '1100023', 'x', 'RO', '$RB')")" "foreign key"
+expect "registro de A não pode apontar para a execução de B (FK composta)" has "$(app_sql "$A" "INSERT INTO plataforma.import_record (tenant_id, run_id, row_number, raw, outcome) VALUES ('$A', '$RB', 2, '{}', 'accepted')")" "foreign key"
+expect "UPDATE de cidade de outro tenant não afeta nenhuma linha" eq "$(app_sql "$A" "WITH u AS (UPDATE plataforma.city SET name = 'hack' WHERE tenant_id = '$B' RETURNING 1) SELECT count(*) FROM u" | tr '\n' ' ')" "0 "
+expect "import_record é imutável para a aplicação (sem UPDATE)" has "$(app_sql "$A" "UPDATE plataforma.import_record SET outcome = 'rejected'")" "permission denied"
+expect "reimportar o mesmo código no mesmo tenant é recusado (único por tenant)" has "$(app_sql "$A" "INSERT INTO plataforma.city (tenant_id, ibge_code, name, uf, source_run_id) VALUES ('$A', '1100015', 'dup', 'RO', '$RA')")" "duplicate key"
+expect "UPSERT por (tenant, ibge_code) atualiza em vez de duplicar" eq "$(app_sql "$A" "INSERT INTO plataforma.city (tenant_id, ibge_code, name, uf, source_run_id) VALUES ('$A', '1100015', 'Novo nome', 'RO', '$RA') ON CONFLICT (tenant_id, ibge_code) DO UPDATE SET name = EXCLUDED.name; SELECT count(*) || name FROM plataforma.city GROUP BY name" | tr '\n' ' ')" "1Novo nome "
+expect "contagens inconsistentes na execução são recusadas por CHECK" has "$(su "UPDATE plataforma.import_run SET total_rows = 5 WHERE id = '$RA'")" "violates check constraint"
+expect "código IBGE fora de 7 dígitos é recusado por CHECK" has "$(su "INSERT INTO plataforma.city (tenant_id, ibge_code, name, uf, source_run_id) VALUES ('$A', '123', 'x', 'RO', '$RA')")" "violates check constraint"
+expect "execução 'failed' exige mensagem de erro" has "$(su "UPDATE plataforma.import_run SET status = 'failed' WHERE id = '$RA'")" "violates check constraint"
+
 c="$(bash "$ROOT/scripts/check-catalog.sh" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --dbname "$DB" --user "$MIG" --app-role "$APP" --executor-role "$MIG" 2>&1)"; rc=$?
 expect "as verificações de catálogo de segurança passam com o esquema real" eq "$rc" 0
 expect "o gate avalia a tabela real (não é vacuoso)" has "$c" "plataforma.opportunity"
+expect "o gate avalia as tabelas de importação e cidade" has "$c" "plataforma.city"
 
 # --- packages/api: funções de oportunidades por withTenant -----------------------------------------
 ( cd "$ROOT/packages/api" && PLATAFORMA_TEST_PG_SOCKET_DIR="$TMP" PLATAFORMA_TEST_PG_PORT="$PORT" PLATAFORMA_TEST_PG_DATABASE="$DB" \

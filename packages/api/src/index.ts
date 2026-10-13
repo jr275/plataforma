@@ -38,3 +38,20 @@ export {
   type OpportunityLevel,
   type OpportunityStatus,
 } from "./opportunities";
+export { CsvParseError, detectDelimiter, parseCsv, type Delimiter, type ParsedCsv } from "./ingest/csv";
+export {
+  CITY_FIELDS,
+  MappingError,
+  REGIONS,
+  UFS,
+  classifyCityRows,
+  ibgeCheckDigitOk,
+  validateMapping,
+  type CityMapping,
+  type ClassifiedRow,
+  type Classification,
+  type Issue,
+  type RowOutcome,
+} from "./ingest/cities";
+export { MAX_IMPORT_ROWS, runCityImport, type CityImportInput, type ImportOrigin, type ImportResult, type ImportStatus } from "./ingest/run";
+export { countCities, getImportRun, listCities, listImportRecords, listImportRuns, type City, type ImportRecordView, type ImportRunSummary } from "./ingest/read";
