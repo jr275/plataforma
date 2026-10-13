@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAppState } from "@/components/app-state";
@@ -8,9 +9,20 @@ import { cn } from "@/lib/utils";
 import { BrandMark } from "./brand-mark";
 
 /** Conteúdo único da navegação, usado na barra fixa (desktop, recolhível) e na gaveta (telas estreitas). */
-export function SidebarContent({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
-  const pathname = usePathname();
-  const active = activeNavId(pathname);
+export function SidebarContent(props: { onNavigate?: () => void; collapsed?: boolean }) {
+  // O caminho só existe no cliente para rotas com parâmetro dinâmico; dentro de Suspense a casca continua instantânea (sem item ativo até hidratar).
+  return (
+    <Suspense fallback={<SidebarView {...props} active={undefined} />}>
+      <SidebarWithPath {...props} />
+    </Suspense>
+  );
+}
+
+function SidebarWithPath(props: { onNavigate?: () => void; collapsed?: boolean }) {
+  return <SidebarView {...props} active={activeNavId(usePathname())} />;
+}
+
+function SidebarView({ onNavigate, collapsed = false, active }: { onNavigate?: () => void; collapsed?: boolean; active: string | undefined }) {
   return (
     <div className="flex h-full flex-col">
       <div className={cn("pt-3.5 pb-3", collapsed ? "px-2.5" : "px-3")}>
