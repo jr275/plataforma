@@ -14,6 +14,33 @@ import { GATES, evaluateCity, type ExistingPage, type GateResult, type Generatio
 export const MAX_GENERATION_ITEMS = 500;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Prazo padrão (minutos) depois do qual uma execução ainda em `running` é considerada abandonada. */
+export const DEFAULT_STALE_AFTER_MINUTES = 15;
+/** Critério de ACEITE do lote piloto (não uma proibição: reprocessar uma única página continua permitido). */
+export const PILOT_MIN_VALID = 10;
+
+/** O escopo pede cidades que não existem neste tenant. Lançado ANTES de abrir a execução: nada foi gravado. */
+export class GenerationScopeError extends Error {
+  readonly code = "GENERATION_SCOPE";
+  readonly missingIds: readonly string[];
+  constructor(missingIds: readonly string[]) {
+    super(`o escopo cita ${missingIds.length} cidade(s) que não existe(m) neste tenant: ${missingIds.join(", ")}`);
+    this.name = "GenerationScopeError";
+    this.missingIds = missingIds;
+  }
+}
+
+/** Já existe uma execução de geração em andamento neste tenant. Nada foi gravado; tente de novo quando ela terminar. */
+export class GenerationBusyError extends Error {
+  readonly code = "GENERATION_BUSY";
+  readonly activeRunId: string;
+  constructor(activeRunId: string) {
+    super(`já existe uma execução de geração em andamento neste tenant (${activeRunId}); aguarde ela terminar e tente de novo`);
+    this.name = "GenerationBusyError";
+    this.activeRunId = activeRunId;
+  }
+}
+
 export type GenerationScope = { readonly uf: string; readonly limit: number } | { readonly cityIds: readonly string[] };
 
 export interface GenerationInput {
@@ -21,6 +48,8 @@ export interface GenerationInput {
   /** Caminhos que existem no site (hubs, por exemplo). Sem destino, o render não emite link. */
   readonly knownPaths?: readonly string[];
   readonly template?: CityTemplate;
+  /** Minutos sem fechamento a partir dos quais uma execução em `running` é abandonada (padrão 15). */
+  readonly staleAfterMinutes?: number;
   /** SÓ PARA TESTES: injeta falhas para provar o isolamento por item e o reprocessamento. */
   readonly faults?: { readonly item?: (cityId: string) => void | Promise<void>; readonly close?: () => void | Promise<void> };
 }
@@ -44,6 +73,25 @@ function validateScope(scope: GenerationScope): void {
   }
   if (!(UFS as readonly string[]).includes(scope.uf)) throw new TypeError("UF inválida");
   if (!Number.isInteger(scope.limit) || scope.limit < 1 || scope.limit > MAX_GENERATION_ITEMS) throw new TypeError(`limit deve ser inteiro de 1 a ${MAX_GENERATION_ITEMS}`);
+}
+
+export function meetsPilotAcceptance(r: Pick<GenerationResult, "generated" | "unchanged">): boolean {
+  return r.generated + r.unchanged >= PILOT_MIN_VALID;
+}
+
+/**
+ * Recuperação de execuções ABANDONADAS (processo que morreu entre abrir e fechar). Regra: `running` + `started_at` mais antigo que o
+ * prazo => `failed` com motivo "abandonada". Transições de estado: running -> succeeded | partial | failed (terminais); o fechamento
+ * só vale se a execução ainda está `running`, então uma execução abandonada que volta a andar NÃO consegue fechar nem gravar.
+ */
+export async function recoverStaleGenerationRuns(db: TenantDb, staleAfterMinutes: number = DEFAULT_STALE_AFTER_MINUTES): Promise<string[]> {
+  if (!Number.isInteger(staleAfterMinutes) || staleAfterMinutes < 1) throw new TypeError("staleAfterMinutes deve ser inteiro >= 1");
+  const r = await db.query<{ id: string }>(
+    `UPDATE plataforma.generation_run
+        SET status = 'failed', finished_at = now(), error = 'abandonada: sem fechamento em ' || $1::text || ' minutos'
+      WHERE status = 'running' AND started_at < now() - make_interval(mins => $1)
+      RETURNING id`, [staleAfterMinutes]);
+  return r.rows.map((x) => x.id);
 }
 
 const safeMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/postgres(ql)?:\/\/\S+/gi, "[url removida]").slice(0, 1000);
@@ -90,6 +138,13 @@ async function loadContext(db: TenantDb, candidates: readonly Candidate[], templ
   return { template, knownPaths: new Set(knownPaths), pathOwners, titleOwners, metaOwners, existingByEntity: existing };
 }
 
+function isUniqueViolation(e: unknown, constraint: string): boolean {
+  const x = e as { code?: string; constraint?: string; cause?: unknown } | null;
+  if (!x) return false;
+  if (x.code === "23505" && x.constraint === constraint) return true;
+  return x.cause !== undefined && x.cause !== e ? isUniqueViolation(x.cause, constraint) : false;
+}
+
 const gatesJson = (g: readonly GateResult[]): string => JSON.stringify(g);
 
 export async function runGeneration(pool: PoolLike, identity: VerifiedIdentity, tenantId: string, input: GenerationInput): Promise<GenerationResult> {
@@ -97,13 +152,34 @@ export async function runGeneration(pool: PoolLike, identity: VerifiedIdentity, 
   const template = input.template ?? CITY_OVERVIEW;
   const knownPaths = input.knownPaths ?? [];
 
-  const runId = await withTenant(pool, identity, tenantId, async (db) => {
-    const r = await db.query<{ id: string }>(
-      `INSERT INTO plataforma.generation_run (tenant_id, template_key, template_version, template_hash, scope, created_by)
-       VALUES (plataforma.current_tenant_id(), $1, $2, $3, $4::jsonb, $5) RETURNING id`,
-      [template.key, template.version, templateHash(template), JSON.stringify(input.scope), identity.userId]);
-    return r.rows[0]!.id;
+  // 0. Pré-voo (uma transação curta): recupera execuções abandonadas e confere que TODOS os ids pedidos existem neste tenant.
+  const staleAfter = input.staleAfterMinutes ?? DEFAULT_STALE_AFTER_MINUTES;
+  const missing = await withTenant(pool, identity, tenantId, async (db) => {
+    await recoverStaleGenerationRuns(db, staleAfter);
+    if (!("cityIds" in input.scope)) return [] as string[];
+    const found = await db.query<{ id: string }>(`SELECT id FROM plataforma.city WHERE id = ANY($1::uuid[])`, [[...input.scope.cityIds]]);
+    const have = new Set(found.rows.map((x) => x.id.toLowerCase()));
+    return input.scope.cityIds.filter((i) => !have.has(i.toLowerCase()));
   });
+  if (missing.length > 0) throw new GenerationScopeError(missing);
+
+  // 1. Abre a execução. O índice parcial (0007) permite uma só em andamento por tenant: a segunda é recusada com erro claro.
+  let runId: string;
+  try {
+    runId = await withTenant(pool, identity, tenantId, async (db) => {
+      const r = await db.query<{ id: string }>(
+        `INSERT INTO plataforma.generation_run (tenant_id, template_key, template_version, template_hash, scope, created_by)
+         VALUES (plataforma.current_tenant_id(), $1, $2, $3, $4::jsonb, $5) RETURNING id`,
+        [template.key, template.version, templateHash(template), JSON.stringify(input.scope), identity.userId]);
+      return r.rows[0]!.id;
+    });
+  } catch (e) {
+    if (isUniqueViolation(e, "generation_run_one_running_idx")) {
+      const active = await withTenant(pool, identity, tenantId, async (db) => (await db.query<{ id: string }>(`SELECT id FROM plataforma.generation_run WHERE status = 'running' LIMIT 1`)).rows[0]?.id);
+      throw new GenerationBusyError(active ?? "desconhecida");
+    }
+    throw e;
+  }
 
   try {
     return await withTenant(pool, identity, tenantId, async (db) => {
@@ -142,9 +218,11 @@ export async function runGeneration(pool: PoolLike, identity: VerifiedIdentity, 
       const generated = count("generated"), unchanged = count("unchanged"), blocked = count("blocked");
       const status = generated + unchanged === 0 ? "failed" : blocked > 0 ? "partial" : "succeeded";
       const error = status === "failed" ? "nenhum item foi gerado nem confirmado como inalterado" : null;
-      await db.query(
-        `UPDATE plataforma.generation_run SET status = $2, total_items = $3, generated_items = $4, unchanged_items = $5, blocked_items = $6, error = $7, finished_at = now() WHERE id = $1`,
+      const closed = await db.query(
+        `UPDATE plataforma.generation_run SET status = $2, total_items = $3, generated_items = $4, unchanged_items = $5, blocked_items = $6, error = $7, finished_at = now() WHERE id = $1 AND status = 'running'`,
         [runId, status, items.length, generated, unchanged, blocked, error]);
+      // Se a execução já foi encerrada (abandonada e recuperada por outra), NADA do que esta fez pode valer: desfaz a transação inteira.
+      if (closed.rowCount !== 1) throw new Error("execução abandonada: já foi encerrada por outra execução; nada foi gravado");
       return { runId, status: status as GenerationResult["status"], total: items.length, generated, unchanged, blocked, items, ...(error ? { error } : {}) };
     });
   } catch (e) {

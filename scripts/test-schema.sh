@@ -32,9 +32,9 @@ su() { "${PSQL[@]}" -d "$DB" -c "$1" 2>&1; }
 o="$(bash "$BOOT" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --user rls_bootstrap --dbname "$DB" 2>&1)"; rc=$?
 expect "bootstrap provisiona e verifica o ambiente" eq "$rc" 0
 OUT="$(bash "$RUNNER" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --dbname "$DB" --user "$MIG" --app-role "$APP" 2>&1)"; rc=$?
-expect "o runner aplica 0001 a 0006 com o gate de segurança ativo (código 0)" eq "$rc" 0
+expect "o runner aplica 0001 a 0007 com o gate de segurança ativo (código 0)" eq "$rc" 0
 [[ "$rc" -eq 0 ]] || echo "$OUT" | tail -8
-expect "o ledger tem exatamente as migrations 1 a 6" eq "$(su "SELECT string_agg(seq::text, ',' ORDER BY seq) FROM plataforma_migrations.ledger")" "1,2,3,4,5,6"
+expect "o ledger tem exatamente as migrations 1 a 7" eq "$(su "SELECT string_agg(seq::text, ',' ORDER BY seq) FROM plataforma_migrations.ledger")" "1,2,3,4,5,6,7"
 OUT2="$(bash "$RUNNER" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --dbname "$DB" --user "$MIG" --app-role "$APP" 2>&1)"; rc=$?
 expect "reaplicar não muda nada (código 0)" eq "$rc" 0
 expect "as migrations não semeiam dados de tenant" eq "$(su "SELECT (SELECT count(*) FROM plataforma.tenant) + (SELECT count(*) FROM plataforma.opportunity) + (SELECT count(*) FROM plataforma.import_run) + (SELECT count(*) FROM plataforma.import_record) + (SELECT count(*) FROM plataforma.city) + (SELECT count(*) FROM plataforma.generation_run) + (SELECT count(*) FROM plataforma.page) + (SELECT count(*) FROM plataforma.page_version) + (SELECT count(*) FROM plataforma.generation_item)")" 0
@@ -44,7 +44,7 @@ expect "as migrations não semeiam dados de tenant" eq "$(su "SELECT (SELECT cou
 expect "o seed de teste foi carregado (2 tenants, 5 oportunidades)" eq "$(su "SELECT (SELECT count(*) FROM plataforma.tenant) || '/' || (SELECT count(*) FROM plataforma.opportunity)")" "2/5"
 
 "${PSQL[@]}" -d "$DB" -v ON_ERROR_STOP=1 -f "$ROOT/db/test-fixtures/generation/10_tenants.sql" >/dev/null 2>&1
-expect "os tenants exclusivos da geração foram carregados (C e D)" eq "$(su "SELECT count(*) FROM plataforma.tenant WHERE slug LIKE 'geracao-%'")" 2
+expect "os tenants exclusivos da geração foram carregados (C a J)" eq "$(su "SELECT count(*) FROM plataforma.tenant WHERE slug LIKE 'geracao-%'")" 8
 
 # --- isolamento entre tenants, como menlo_app ----------------------------------------------------
 expect "tenant A só enxerga as 3 oportunidades de A" eq "$(app_sql "$A" "SELECT count(*) FROM plataforma.opportunity WHERE tenant_id = '$A'; SELECT count(*) FROM plataforma.opportunity" | tr '\n' ' ')" "3 3 "
@@ -109,6 +109,9 @@ expect "page_version é imutável para a aplicação (sem UPDATE)" has "$(app_sq
 expect "generation_item é imutável para a aplicação (sem UPDATE)" has "$(app_sql "$A" "UPDATE plataforma.generation_item SET outcome = 'generated'")" "permission denied"
 expect "generation_run: contagens que não somam são recusadas por CHECK" has "$(su "INSERT INTO plataforma.generation_run (tenant_id, template_key, template_version, template_hash, scope, status, total_items, generated_items, finished_at, created_by) VALUES ('$A', 'city-overview', 1, '$SHA', '{}', 'succeeded', 5, 1, now(), 't')")" "violates check constraint"
 expect "generation_run: teto de 500 itens por execução" has "$(su "INSERT INTO plataforma.generation_run (tenant_id, template_key, template_version, template_hash, scope, status, total_items, generated_items, finished_at, created_by) VALUES ('$A', 'city-overview', 1, '$SHA', '{}', 'succeeded', 501, 501, now(), 't')")" "violates check constraint"
+expect "generation_run: um tenant não pode ter duas execuções em andamento (índice parcial da 0007)" has "$(su "INSERT INTO plataforma.generation_run (tenant_id, template_key, template_version, template_hash, scope, created_by) VALUES ('$A', 'city-overview', 1, '$SHA', '{}', 't'), ('$A', 'city-overview', 1, '$SHA', '{}', 't')")" "generation_run_one_running_idx"
+expect "generation_run: execuções em andamento de tenants diferentes convivem" eq "$(su "INSERT INTO plataforma.generation_run (tenant_id, template_key, template_version, template_hash, scope, created_by) VALUES ('$A', 'city-overview', 1, '$SHA', '{}', 't'), ('$B', 'city-overview', 1, '$SHA', '{}', 't') RETURNING 1" | head -1)" 1
+su "DELETE FROM plataforma.generation_run WHERE status = 'running'" >/dev/null
 expect "page: o caminho só aceita o formato de URL esperado" has "$(su "INSERT INTO plataforma.page (tenant_id, entity_kind, entity_id, path, latest_version, status) SELECT '$A', 'city', id, '/Maiuscula Errada', 1, 'draft' FROM plataforma.city WHERE tenant_id = '$A' LIMIT 1")" "violates check constraint"
 
 # --- packages/api: funções de oportunidades por withTenant -----------------------------------------
