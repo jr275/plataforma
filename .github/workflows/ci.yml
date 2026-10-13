@@ -42,6 +42,9 @@ jobs:
       - name: Typecheck, lint e build
         run: pnpm turbo typecheck lint build
 
+      - name: Testes unitários e de interface (packages/api e apps/web, sem banco)
+        run: pnpm turbo test
+
       # PostgreSQL 16 explícito: o pacote postgresql-16 do Ubuntu 24.04 (noble). O harness cria o
       # próprio cluster descartável com esses binários; não usa o serviço do sistema nem rede.
       - name: Instalar binários do PostgreSQL 16

@@ -20,7 +20,8 @@
     "test:schema": "bash scripts/test-schema.sh",
     "db:bootstrap": "bash scripts/db-bootstrap.sh",
     "check:catalog": "bash scripts/check-catalog.sh",
-    "db:migrate": "bash scripts/db-migrate.sh"
+    "db:migrate": "bash scripts/db-migrate.sh",
+    "dev:local": "bash scripts/dev-local.sh"
   },
   "devDependencies": {
     "turbo": "^2.11.7",
