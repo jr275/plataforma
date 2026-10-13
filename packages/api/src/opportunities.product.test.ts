@@ -16,8 +16,17 @@ function env(name: string): string {
 }
 
 let pool: pg.Pool;
+/** Conexão de teste: um URI remoto com TLS (Neon, via scripts/test-neon.sh) ou o socket do cluster descartável (scripts/test-schema.sh). */
+function poolConfig(): pg.PoolConfig {
+  const url = process.env.PLATAFORMA_TEST_PG_URL;
+  if (url) {
+    const u = new URL(url);
+    return { host: u.hostname, port: Number(u.port || 5432), user: decodeURIComponent(u.username), password: decodeURIComponent(u.password), database: u.pathname.slice(1), ssl: { rejectUnauthorized: true }, max: 2 };
+  }
+  return { host: env("PLATAFORMA_TEST_PG_SOCKET_DIR"), port: Number(env("PLATAFORMA_TEST_PG_PORT")), database: env("PLATAFORMA_TEST_PG_DATABASE"), user: "menlo_app", max: 2 };
+}
 beforeAll(() => {
-  pool = new pg.Pool({ host: env("PLATAFORMA_TEST_PG_SOCKET_DIR"), port: Number(env("PLATAFORMA_TEST_PG_PORT")), database: env("PLATAFORMA_TEST_PG_DATABASE"), user: "menlo_app", max: 2 });
+  pool = new pg.Pool(poolConfig());
   pool.on("error", () => undefined);
 });
 afterAll(async () => {

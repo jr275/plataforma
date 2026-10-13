@@ -209,3 +209,7 @@ Nenhum texto anterior foi reescrito nesta fase.
 5. Papel do carregador Python.
 6. Mudança do runner para não criar o ledger.
 7. Pré-requisitos de produção: credenciais reais fora do repositório e rotação, o G11 resolvido, auditoria de uso do papel administrativo, e a primeira execução real do CI (o workflow nunca rodou no GitHub).
+
+## Verificação no Neon (2026-10-12; parcial do item 4)
+
+Fatos observados no projeto de desenvolvimento `plataforma-dev` (PostgreSQL 16.15, São Paulo; ver `docs/audits/MVP_STAGE1_NEON_2026-10-12.md`): o runner e o gate rodaram com os três papéis (`scripts/neon-bootstrap.sh`, `scripts/db-migrate.sh --remote-conn-env`); as migrations `0001` e `0002` aplicaram e reaplicaram sem mudança; o isolamento entre tenants foi testado no Neon; o servidor recusa conexão sem TLS e o certificado valida com `sslmode=verify-full`. **Desvios:** o papel que cria um papel recebe `ADMIN OPTION` sobre ele (R3, aceito só nesse padrão exato); o dono do Neon tem `BYPASSRLS`; `menlo_app` **pode** executar `pg_advisory_lock` e não se testou se o Neon permite revogar isso. **Continua não verificado:** a revogação das travas de aconselhamento, produção e a autenticação do runner fora do desenvolvimento.

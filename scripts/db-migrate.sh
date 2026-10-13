@@ -23,7 +23,7 @@ set -Eeuo pipefail
 die_usage() { echo "ERRO DE USO: $*" >&2; exit 2; }
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-SOCKET_DIR="" PORT="" DBNAME="" DBUSER="" LOCK_TIMEOUT="30s" PSQL_BIN="" EXECUTOR="" EXPECT_HEAD="" INIT=0
+REMOTE_ENV="" SOCKET_DIR="" PORT="" DBNAME="" DBUSER="" LOCK_TIMEOUT="30s" PSQL_BIN="" EXECUTOR="" EXPECT_HEAD="" INIT=0
 APP_ROLE="" GLOBAL_ALLOW="" NO_GATE=0 LEDGER_SCHEMA="plataforma_migrations"
 MIG_DIR="$ROOT/db/migrations"
 
@@ -35,6 +35,7 @@ while [[ $# -gt 0 ]]; do
     --global-allow)   [[ $# -ge 2 ]] || die_usage "$1 exige valor"; GLOBAL_ALLOW="$2"; shift 2 ;;
     --no-security-gate) NO_GATE=1; shift ;;
     --expect-head)    [[ $# -ge 2 ]] || die_usage "$1 exige valor"; EXPECT_HEAD="$2"; shift 2 ;;
+    --remote-conn-env) [[ $# -ge 2 ]] || die_usage "$1 exige valor"; REMOTE_ENV="$2"; shift 2 ;;
     --socket-dir)     [[ $# -ge 2 ]] || die_usage "$1 exige valor"; SOCKET_DIR="$2"; shift 2 ;;
     --port)           [[ $# -ge 2 ]] || die_usage "$1 exige valor"; PORT="$2"; shift 2 ;;
     --dbname)         [[ $# -ge 2 ]] || die_usage "$1 exige valor"; DBNAME="$2"; shift 2 ;;
@@ -46,12 +47,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -n "$SOCKET_DIR" ]] || die_usage "--socket-dir é obrigatório (diretório do socket Unix, caminho absoluto)"
-[[ "$SOCKET_DIR" == /* ]] || die_usage "--socket-dir deve ser um caminho absoluto de diretório de socket Unix (TCP não é suportado)"
-[[ -d "$SOCKET_DIR" ]] || die_usage "--socket-dir não existe: $SOCKET_DIR"
-[[ "$PORT" =~ ^[0-9]{1,5}$ ]] || die_usage "--port é obrigatório e numérico"
-[[ "$DBNAME" =~ ^[a-z_][a-z0-9_]*$ ]] || die_usage "--dbname é obrigatório (minúsculas, dígitos e _)"
-[[ "$DBUSER" =~ ^[a-z_][a-z0-9_]*$ ]] || die_usage "--user é obrigatório (minúsculas, dígitos e _)"
+if [[ -n "$REMOTE_ENV" ]]; then
+  # Modo remoto (ex.: Neon): a conexão vem de uma variável de ambiente NOMEADA (URI libpq com TLS); nada de socket, porta,
+  # banco ou usuário na linha de comando, e o bypass do gate nunca é aceito.
+  [[ -z "$SOCKET_DIR" && -z "$PORT" && -z "$DBNAME" && -z "$DBUSER" ]] || die_usage "--remote-conn-env não combina com --socket-dir, --port, --dbname nem --user"
+  [[ "$NO_GATE" -eq 0 ]] || die_usage "--no-security-gate não é aceito em banco remoto"
+else
+  [[ -n "$SOCKET_DIR" ]] || die_usage "--socket-dir é obrigatório (diretório do socket Unix, caminho absoluto)"
+  [[ "$SOCKET_DIR" == /* ]] || die_usage "--socket-dir deve ser um caminho absoluto de diretório de socket Unix (TCP não é suportado)"
+  [[ -d "$SOCKET_DIR" ]] || die_usage "--socket-dir não existe: $SOCKET_DIR"
+  [[ "$PORT" =~ ^[0-9]{1,5}$ ]] || die_usage "--port é obrigatório e numérico"
+  [[ "$DBNAME" =~ ^[a-z_][a-z0-9_]*$ ]] || die_usage "--dbname é obrigatório (minúsculas, dígitos e _)"
+  [[ "$DBUSER" =~ ^[a-z_][a-z0-9_]*$ ]] || die_usage "--user é obrigatório (minúsculas, dígitos e _)"
+fi
 [[ "$LOCK_TIMEOUT" =~ ^[0-9]+(ms|s|min)$ ]] || die_usage "--lock-timeout inválido (ex.: 30s, 500ms, 2min)"
 if [[ "$INIT" -eq 1 ]]; then
   [[ "$EXECUTOR" =~ ^[a-z_][a-z0-9_]*$ ]] || die_usage "--init-ledger exige --executor PAPEL (minúsculas, dígitos e _)"
@@ -77,6 +85,16 @@ fi
 for v in $(env | sed -n 's/^\(PG[A-Z_]*\)=.*/\1/p'); do unset "$v"; done
 unset DATABASE_URL
 export PGCONNECT_TIMEOUT=10
+if [[ -n "$REMOTE_ENV" ]]; then
+  # shellcheck source=lib/remote-conn.sh
+  source "$ROOT/scripts/lib/remote-conn.sh"
+  remote_conn_export "$REMOTE_ENV" || die_usage "conexão remota inválida (variável $REMOTE_ENV)"
+  DBNAME="$PGDATABASE"; DBUSER="$PGUSER"
+  [[ "$DBNAME" =~ ^[a-z_][a-z0-9_]*$ && "$DBUSER" =~ ^[a-z_][a-z0-9_]*$ ]] || die_usage "banco e usuário do URI remoto precisam ser minúsculas, dígitos e _"
+  CONN=()
+else
+  CONN=(-h "$SOCKET_DIR" -p "$PORT" -U "$DBUSER" -d "$DBNAME")
+fi
 
 # --- bypass explícito do gate: só em cluster descartável COMPROVADO -----------------------------
 # O gate é obrigatório. --no-security-gate só é aceito quando o servidor alvo prova ser um cluster descartável criado por
@@ -91,7 +109,7 @@ if [[ "$INIT" -eq 0 && "$NO_GATE" -eq 1 ]]; then
   MARKER_CONTENT="$(cat "$MARKER_FILE" 2>/dev/null || true)"
   [[ "$MARKER_CONTENT" =~ ^plataforma-disposable-cluster\ v1\ ([0-9a-f]{32})$ ]] || die_usage "--no-security-gate recusado: o marcador de cluster descartável é inválido"
   MARKER_NONCE="${BASH_REMATCH[1]}"
-  SERVER_PROOF="$("$PSQL_BIN" -X -q -t -A -h "$SOCKET_DIR" -p "$PORT" -U "$DBUSER" -d "$DBNAME" -w -v ON_ERROR_STOP=1 \
+  SERVER_PROOF="$("$PSQL_BIN" -X -q -t -A ${CONN[@]+"${CONN[@]}"} -w -v ON_ERROR_STOP=1 \
       -c "SELECT coalesce(current_setting('plataforma.disposable_nonce', true), '') || '|' || current_setting('listen_addresses')" 2>/dev/null)" \
     || { echo "FALHA [conexão/execução]: não foi possível conectar ao servidor para comprovar que é descartável (--no-security-gate)" >&2; exit 4; }
   [[ "$SERVER_PROOF" == "$MARKER_NONCE|" ]] || die_usage "--no-security-gate recusado: o servidor alvo não corresponde ao marcador de cluster descartável (nonce divergente ou servidor com rede)"
@@ -486,7 +504,7 @@ SQL
 # --- execução -----------------------------------------------------------------------------------
 OUT="$WORK/out.txt"; ERR="$WORK/err.txt"
 rc=0
-"$PSQL_BIN" -X -q -t -A -h "$SOCKET_DIR" -p "$PORT" -U "$DBUSER" -d "$DBNAME" -w -f "$SCRIPT" >"$OUT" 2>"$ERR" || rc=$?
+"$PSQL_BIN" -X -q -t -A ${CONN[@]+"${CONN[@]}"} -w -f "$SCRIPT" >"$OUT" 2>"$ERR" || rc=$?
 
 sanitize() { sed "s#$WORK/snap/#<migrations>/#g; s#$WORK/run.psql#<runner-script>#g"; }
 sanitize < "$ERR" >&2 || true
@@ -497,13 +515,13 @@ sanitize < "$ERR" >&2 || true
 verify_committed() {
   local got expected="" seq name reported names
   if [[ "$INIT" -eq 1 ]]; then
-    got="$("$PSQL_BIN" -X -q -t -A -h "$SOCKET_DIR" -p "$PORT" -U "$DBUSER" -d "$DBNAME" -w -v ON_ERROR_STOP=1 \
+    got="$("$PSQL_BIN" -X -q -t -A ${CONN[@]+"${CONN[@]}"} -w -v ON_ERROR_STOP=1 \
         -c "SET search_path = pg_catalog, pg_temp" -c "SELECT to_regclass('plataforma_migrations.ledger') IS NOT NULL AND to_regclass('plataforma_migrations.run_lock') IS NOT NULL" 2>/dev/null)" \
       || { echo "FALHA [conexão/execução]: não foi possível verificar o ledger no banco depois da execução" >&2; exit 4; }
     [[ "$got" == "t" ]] || { echo "FALHA [verificação]: o ledger não existe no banco depois de --init-ledger" >&2; exit 1; }
     return 0
   fi
-  got="$("$PSQL_BIN" -X -q -t -A -h "$SOCKET_DIR" -p "$PORT" -U "$DBUSER" -d "$DBNAME" -w -v ON_ERROR_STOP=1 \
+  got="$("$PSQL_BIN" -X -q -t -A ${CONN[@]+"${CONN[@]}"} -w -v ON_ERROR_STOP=1 \
       -c "SET search_path = pg_catalog, pg_temp" \
       -c "SELECT coalesce(string_agg(seq::text || ':' || filename || ':' || sha256, '|' ORDER BY seq), '') FROM plataforma_migrations.ledger" 2>/dev/null)" \
     || { echo "FALHA [conexão/execução]: não foi possível verificar o ledger no banco depois da execução" >&2; exit 4; }

@@ -9,19 +9,23 @@
 set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 die() { echo "ERRO DE USO: $*" >&2; exit 2; }
-SOCKET_DIR="" PORT="" DBNAME="" DBUSER="" APP_ROLE="menlo_app" LEDGER_SCHEMA="plataforma_migrations" GLOBAL_ALLOW="" EXECUTOR_ROLE="" PSQL_BIN=""
+REMOTE_ENV="" SOCKET_DIR="" PORT="" DBNAME="" DBUSER="" APP_ROLE="menlo_app" LEDGER_SCHEMA="plataforma_migrations" GLOBAL_ALLOW="" EXECUTOR_ROLE="" PSQL_BIN=""
 while [[ $# -gt 0 ]]; do
   [[ $# -ge 2 ]] || die "$1 exige valor"
   case "$1" in
-    --socket-dir) SOCKET_DIR="$2" ;; --port) PORT="$2" ;; --dbname) DBNAME="$2" ;; --user) DBUSER="$2" ;;
+    --remote-conn-env) REMOTE_ENV="$2" ;; --socket-dir) SOCKET_DIR="$2" ;; --port) PORT="$2" ;; --dbname) DBNAME="$2" ;; --user) DBUSER="$2" ;;
     --app-role) APP_ROLE="$2" ;; --ledger-schema) LEDGER_SCHEMA="$2" ;; --global-allow) GLOBAL_ALLOW="$2" ;; --executor-role) EXECUTOR_ROLE="$2" ;; --psql) PSQL_BIN="$2" ;;
     *) die "argumento desconhecido: $1" ;;
   esac
   shift 2
 done
-[[ "$SOCKET_DIR" == /* && -d "$SOCKET_DIR" ]] || die "--socket-dir deve ser um diretório de socket Unix existente (caminho absoluto)"
-[[ "$PORT" =~ ^[0-9]{1,5}$ ]] || die "--port é obrigatório e numérico"
-[[ "$DBNAME" =~ ^[a-z_][a-z0-9_]*$ && "$DBUSER" =~ ^[a-z_][a-z0-9_]*$ ]] || die "--dbname e --user são obrigatórios (minúsculas, dígitos e _)"
+if [[ -n "$REMOTE_ENV" ]]; then
+  [[ -z "$SOCKET_DIR" && -z "$PORT" && -z "$DBNAME" && -z "$DBUSER" ]] || die "--remote-conn-env não combina com --socket-dir, --port, --dbname nem --user"
+else
+  [[ "$SOCKET_DIR" == /* && -d "$SOCKET_DIR" ]] || die "--socket-dir deve ser um diretório de socket Unix existente (caminho absoluto)"
+  [[ "$PORT" =~ ^[0-9]{1,5}$ ]] || die "--port é obrigatório e numérico"
+  [[ "$DBNAME" =~ ^[a-z_][a-z0-9_]*$ && "$DBUSER" =~ ^[a-z_][a-z0-9_]*$ ]] || die "--dbname e --user são obrigatórios (minúsculas, dígitos e _)"
+fi
 [[ "$APP_ROLE" =~ ^[a-z_][a-z0-9_]*$ && "$LEDGER_SCHEMA" =~ ^[a-z_][a-z0-9_]*$ ]] || die "--app-role e --ledger-schema inválidos"
 [[ -z "$EXECUTOR_ROLE" || "$EXECUTOR_ROLE" =~ ^[a-z_][a-z0-9_]*$ ]] || die "--executor-role inválido"
 [[ -z "$GLOBAL_ALLOW" || "$GLOBAL_ALLOW" =~ ^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*(,[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*)*$ ]] || die "--global-allow inválido (esquema.tabela,esquema.tabela)"
@@ -32,6 +36,14 @@ unset DATABASE_URL
 export PGCONNECT_TIMEOUT=10
 # Somente leitura por construção: qualquer escrita nesta conexão falha.
 export PGOPTIONS="-c default_transaction_read_only=on"
+if [[ -n "$REMOTE_ENV" ]]; then
+  # shellcheck source=lib/remote-conn.sh
+  source "$ROOT/scripts/lib/remote-conn.sh"
+  remote_conn_export "$REMOTE_ENV" || die "conexão remota inválida (variável $REMOTE_ENV)"
+  CONN=()
+else
+  CONN=(-h "$SOCKET_DIR" -p "$PORT" -U "$DBUSER" -d "$DBNAME")
+fi
 OUT="$(mktemp "${TMPDIR:-/tmp}/plataforma-catalog.XXXXXX")"; trap 'rm -f -- "$OUT" "$OUT.err" "$OUT.sql"' EXIT
 # A consulta de db/checks/security_gate.sql é embutida em um único SELECT; search_path fixo (ver o comentário do arquivo).
 {
@@ -41,7 +53,7 @@ OUT="$(mktemp "${TMPDIR:-/tmp}/plataforma-catalog.XXXXXX")"; trap 'rm -f -- "$OU
   echo ') q ORDER BY ord;'
 } > "$OUT.sql"
 rc=0
-"$PSQL_BIN" -X -q -t -A -h "$SOCKET_DIR" -p "$PORT" -U "$DBUSER" -d "$DBNAME" -w -v ON_ERROR_STOP=1 \
+"$PSQL_BIN" -X -q -t -A ${CONN[@]+"${CONN[@]}"} -w -v ON_ERROR_STOP=1 \
   -v "app_role=$APP_ROLE" -v "ledger_schema=$LEDGER_SCHEMA" -v "global_allow=$GLOBAL_ALLOW" -v "executor_role=$EXECUTOR_ROLE" -v "check_stale=on" \
   -f "$OUT.sql" >"$OUT" 2>"$OUT.err" || rc=$?
 cat "$OUT"
