@@ -81,7 +81,9 @@ PY
 # Tenants exclusivos dos testes de geração de páginas (C a H), também pelo executor, SÓ no branch temporário.
 ( remote_conn_export T_MIG >/dev/null; "$PSQL_BIN" -X -q -t -A -w -v ON_ERROR_STOP=1 -f "$ROOT/db/test-fixtures/generation/10_tenants.sql" >/dev/null 2>&1 ) || echo "ATENÇÃO: o seed de tenants da geração falhou" >&2
 ( remote_conn_export T_APP >/dev/null; "$PSQL_BIN" -X -q -t -A -w -v ON_ERROR_STOP=1 -f "$SEED_DIR/opportunities.sql" >/dev/null 2>&1 ) || echo "ATENÇÃO: o seed de oportunidades pela aplicação falhou" >&2
-expect "o seed pela aplicação (escrita por tenant) gravou 5 oportunidades" eq "$(run_as T_MIG "SELECT count(*) FROM plataforma.tenant")" "2"
+# 3 oportunidades do tenant A + 2 do B, lidas PELA APLICAÇÃO (cada uma no contexto do próprio tenant): o branch copia o main, que já tem outros tenants,
+# então contar todos os tenants não serve como prova do seed.
+expect "o seed pela aplicação (escrita por tenant) gravou 5 oportunidades (3 do A e 2 do B)" eq "$(( $(app_sql "$A" "SELECT count(*) FROM plataforma.opportunity" | tr -d ' \n') + $(app_sql "$B" "SELECT count(*) FROM plataforma.opportunity" | tr -d ' \n') ))" "5"
 expect "tenant A só enxerga as próprias 3 oportunidades" eq "$(app_sql "$A" "SELECT count(*) FROM plataforma.opportunity" | tr '\n' ' ')" "3 "
 expect "tenant B só enxerga as próprias 2 oportunidades" eq "$(app_sql "$B" "SELECT count(*) FROM plataforma.opportunity" | tr '\n' ' ')" "2 "
 expect "sem contexto de tenant: zero linhas (falha fechada)" eq "$(app_sql "" "SELECT count(*) FROM plataforma.opportunity" | tr '\n' ' ')" "0 "
