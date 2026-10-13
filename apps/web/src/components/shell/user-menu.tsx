@@ -12,7 +12,7 @@ import { Modal } from "@/components/ui/modal";
 const item = "flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 outline-none data-[highlighted]:bg-accent";
 
 /** Menu do usuário do protótipo. Não há autenticação: o "usuário demo" é só um rótulo local. */
-export function UserMenu() {
+export function UserMenu({ onPrimary = false }: { onPrimary?: boolean }) {
   const router = useRouter();
   const { prefs, resetDemo, notify } = useAppState();
   const auth = useAuth();
@@ -22,7 +22,7 @@ export function UserMenu() {
   return (
     <>
       <Menu.Root>
-        <Menu.Trigger aria-label={`Menu de ${prefs.displayName}`} className="grid size-8 place-items-center rounded-full bg-secondary text-xs font-semibold transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[popup-open]:bg-accent">
+        <Menu.Trigger aria-label={`Menu de ${prefs.displayName}`} className={`grid size-8 place-items-center text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${onPrimary ? "bg-white text-primary hover:bg-white/85" : "bg-secondary hover:bg-accent data-[popup-open]:bg-accent"}`}>
           {initials}
         </Menu.Trigger>
         <Menu.Portal>

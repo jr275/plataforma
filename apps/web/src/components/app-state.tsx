@@ -10,7 +10,7 @@ const STORAGE_KEY = "skos.demo.v1";
 export type Toast = { id: number; message: string };
 export type ChatMessage = { id: string; role: "user" | "assistant"; text: string; refs?: readonly { label: string; href: string }[] };
 export type AgentRun = { id: string; when: string; output: string };
-export type Prefs = { displayName: string; density: "comfortable" | "compact"; sidebarCollapsed: boolean; defaultWorkspaceId: string };
+export type Prefs = { displayName: string; density: "comfortable" | "compact"; theme: "light" | "dark"; sidebarCollapsed: boolean; defaultWorkspaceId: string };
 
 type Persisted = {
   workspaceId: string;
@@ -23,7 +23,7 @@ type Persisted = {
   prefs: Prefs;
 };
 
-const defaultPrefs = (workspaceId: string): Prefs => ({ displayName: "Usuário demo", density: "comfortable", sidebarCollapsed: false, defaultWorkspaceId: workspaceId });
+const defaultPrefs = (workspaceId: string): Prefs => ({ displayName: "Usuário demo", density: "comfortable", theme: "light", sidebarCollapsed: false, defaultWorkspaceId: workspaceId });
 const emptyState = (workspaceId: string): Persisted => ({
   workspaceId,
   opportunityStatus: {},
@@ -69,6 +69,7 @@ export function parseStored(raw: string | null, workspaceIds: readonly string[],
     prefs: {
       displayName: typeof prefs.displayName === "string" && prefs.displayName.trim() ? prefs.displayName.slice(0, 60) : base.prefs.displayName,
       density: prefs.density === "compact" ? "compact" : "comfortable",
+      theme: prefs.theme === "dark" ? "dark" : "light",
       sidebarCollapsed: prefs.sidebarCollapsed === true,
       defaultWorkspaceId,
     },
@@ -139,6 +140,12 @@ export function AppStateProvider({ base, initialId, children }: { base: readonly
   useEffect(() => {
     document.documentElement.dataset.density = saved.prefs.density;
   }, [saved.prefs.density]);
+
+  useEffect(() => {
+    // O tema vem da preferência local; o script do layout já o aplicou antes da pintura para não piscar.
+    document.documentElement.classList.toggle("dark", saved.prefs.theme === "dark");
+    document.documentElement.style.colorScheme = saved.prefs.theme;
+  }, [saved.prefs.theme]);
 
   const dismissToast = useCallback((id: number) => {
     const t = toastTimers.current.get(id);

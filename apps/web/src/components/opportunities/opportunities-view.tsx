@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { ResourceList } from "@/components/ui/resource-list";
 import type { Opportunity, OpportunityStatus } from "@/data/demo/types";
-import { levelTone, statusLabel, statusTone } from "@/lib/opportunity";
+import { statusLabel, statusTone } from "@/lib/opportunity";
 
 const STATUSES: readonly OpportunityStatus[] = ["candidate", "in_review", "ready", "blocked", "dismissed"];
 const KINDS: readonly Opportunity["kind"][] = ["página", "cluster", "FAQ", "comparativo"];
@@ -94,15 +94,8 @@ export function OpportunitiesView() {
           id: o.id,
           href: `/opportunities/${o.id}`,
           title: `${o.rank}. ${o.title}`,
-          subtitle: `${o.kind} · ${o.intent}`,
-          badges: (
-            <>
-              <Badge tone={levelTone[o.demand]}>Demanda {o.demand}</Badge>
-              <Badge tone={levelTone[o.competition]}>Concorrência {o.competition}</Badge>
-              <Badge tone={levelTone[o.evidence]}>Evidência {o.evidence}</Badge>
-              <Badge tone={statusTone[o.status]}>{statusLabel[o.status]}</Badge>
-            </>
-          ),
+          subtitle: `${o.kind} · ${o.intent} · demanda ${o.demand} · concorrência ${o.competition} · evidência ${o.evidence}`,
+          badges: <Badge tone={statusTone[o.status]}>{statusLabel[o.status]}</Badge>,
         }))}
         empty={
           <EmptyState

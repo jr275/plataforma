@@ -19,7 +19,7 @@ export function SidebarContent({ onNavigate, collapsed = false }: { onNavigate?:
       <nav aria-label="Navegação principal" className={cn("min-h-0 flex-1 overflow-y-auto pb-4", collapsed ? "px-2" : "px-2")}>
         {navigation.map((group) => (
           <div key={group.id} className="mt-4 first:mt-0">
-            {group.label && !collapsed ? <p className="px-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground/80 uppercase">{group.label}</p> : null}
+            {group.label && !collapsed ? <p className="px-2 pb-1.5 font-mono text-[10px] font-medium tracking-[0.1em] text-muted-foreground uppercase">{group.label}</p> : null}
             {group.label && collapsed ? <div className="mx-2 mb-1 h-px bg-sidebar-border" aria-hidden="true" /> : null}
             <ul className="space-y-0.5">
               {group.items.map((item) => {
@@ -34,12 +34,12 @@ export function SidebarContent({ onNavigate, collapsed = false }: { onNavigate?:
                       aria-label={collapsed ? item.label : undefined}
                       aria-current={isActive ? "page" : undefined}
                       className={cn(
-                        "group flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "group flex h-8 items-center gap-2.5 px-2 text-[13px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         collapsed && "justify-center",
-                        isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                        isActive ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                       )}
                     >
-                      <Icon className={cn("size-4 shrink-0", isActive ? "text-brand" : "text-muted-foreground group-hover:text-foreground")} aria-hidden="true" />
+                      <Icon className={cn("size-4 shrink-0", isActive ? "text-sidebar-primary-foreground" : "text-muted-foreground group-hover:text-foreground")} aria-hidden="true" />
                       {collapsed ? null : <span className="truncate">{item.label}</span>}
                     </Link>
                   </li>

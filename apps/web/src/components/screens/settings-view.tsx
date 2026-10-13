@@ -48,6 +48,14 @@ export function SettingsView() {
               </select>
             </Field>
             <fieldset>
+              <legend className="mb-1.5 text-[13px] font-medium">Tema</legend>
+              <div className="flex gap-4 text-sm">
+                {(["light", "dark"] as const).map((t) => (
+                  <label key={t} className="flex items-center gap-2"><input type="radio" name="theme" checked={draft.theme === t} onChange={() => setDraft({ ...draft, theme: t })} className="accent-[var(--brand)]" />{t === "light" ? "Claro" : "Escuro"}</label>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset>
               <legend className="mb-1.5 text-[13px] font-medium">Densidade das listas</legend>
               <div className="flex gap-4 text-sm">
                 {(["comfortable", "compact"] as const).map((d) => (
