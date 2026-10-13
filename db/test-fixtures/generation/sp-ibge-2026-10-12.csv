@@ -1,0 +1,646 @@
+ibge_code,name,uf,region,population,population_year
+3500105,Adamantina,SP,Sudeste,35701,2026
+3500204,Adolfo,SP,Sudeste,4529,2026
+3500303,Aguaí,SP,Sudeste,32884,2026
+3500402,Águas da Prata,SP,Sudeste,7457,2026
+3500501,Águas de Lindóia,SP,Sudeste,18277,2026
+3500550,Águas de Santa Bárbara,SP,Sudeste,7508,2026
+3500600,Águas de São Pedro,SP,Sudeste,2933,2026
+3500709,Agudos,SP,Sudeste,39084,2026
+3500758,Alambari,SP,Sudeste,6411,2026
+3500808,Alfredo Marcondes,SP,Sudeste,4591,2026
+3500907,Altair,SP,Sudeste,3456,2026
+3501004,Altinópolis,SP,Sudeste,17234,2026
+3501103,Alto Alegre,SP,Sudeste,3866,2026
+3501152,Alumínio,SP,Sudeste,17621,2026
+3501202,Álvares Florence,SP,Sudeste,3980,2026
+3501301,Álvares Machado,SP,Sudeste,28508,2026
+3501400,Álvaro de Carvalho,SP,Sudeste,4906,2026
+3501509,Alvinlândia,SP,Sudeste,2915,2026
+3501608,Americana,SP,Sudeste,248392,2026
+3501707,Américo Brasiliense,SP,Sudeste,33663,2026
+3501806,Américo de Campos,SP,Sudeste,5986,2026
+3501905,Amparo,SP,Sudeste,69859,2026
+3502002,Analândia,SP,Sudeste,4703,2026
+3502101,Andradina,SP,Sudeste,61761,2026
+3502200,Angatuba,SP,Sudeste,24628,2026
+3502309,Anhembi,SP,Sudeste,5767,2026
+3502408,Anhumas,SP,Sudeste,4126,2026
+3502507,Aparecida,SP,Sudeste,33067,2026
+3502606,Aparecida d'Oeste,SP,Sudeste,4101,2026
+3502705,Apiaí,SP,Sudeste,24831,2026
+3502754,Araçariguama,SP,Sudeste,22448,2026
+3502804,Araçatuba,SP,Sudeste,208987,2026
+3502903,Araçoiaba da Serra,SP,Sudeste,33989,2026
+3503000,Aramina,SP,Sudeste,5543,2026
+3503109,Arandu,SP,Sudeste,7099,2026
+3503158,Arapeí,SP,Sudeste,2350,2026
+3503208,Araraquara,SP,Sudeste,254508,2026
+3503307,Araras,SP,Sudeste,136113,2026
+3503356,Arco-Íris,SP,Sudeste,2092,2026
+3503406,Arealva,SP,Sudeste,8299,2026
+3503505,Areias,SP,Sudeste,3614,2026
+3503604,Areiópolis,SP,Sudeste,10229,2026
+3503703,Ariranha,SP,Sudeste,7592,2026
+3503802,Artur Nogueira,SP,Sudeste,53686,2026
+3503901,Arujá,SP,Sudeste,90644,2026
+3503950,Aspásia,SP,Sudeste,1876,2026
+3504008,Assis,SP,Sudeste,105051,2026
+3504107,Atibaia,SP,Sudeste,168162,2026
+3504206,Auriflama,SP,Sudeste,13841,2026
+3504305,Avaí,SP,Sudeste,4489,2026
+3504404,Avanhandava,SP,Sudeste,11435,2026
+3504503,Avaré,SP,Sudeste,96764,2026
+3504602,Bady Bassitt,SP,Sudeste,29738,2026
+3504701,Balbinos,SP,Sudeste,3975,2026
+3504800,Bálsamo,SP,Sudeste,9946,2026
+3504909,Bananal,SP,Sudeste,10089,2026
+3505005,Barão de Antonina,SP,Sudeste,3644,2026
+3505104,Barbosa,SP,Sudeste,5598,2026
+3505203,Bariri,SP,Sudeste,32406,2026
+3505302,Barra Bonita,SP,Sudeste,35102,2026
+3505351,Barra do Chapéu,SP,Sudeste,5252,2026
+3505401,Barra do Turvo,SP,Sudeste,6868,2026
+3505500,Barretos,SP,Sudeste,127276,2026
+3505609,Barrinha,SP,Sudeste,33414,2026
+3505708,Barueri,SP,Sudeste,336015,2026
+3505807,Bastos,SP,Sudeste,21968,2026
+3505906,Batatais,SP,Sudeste,59999,2026
+3506003,Bauru,SP,Sudeste,394028,2026
+3506102,Bebedouro,SP,Sudeste,78298,2026
+3506201,Bento de Abreu,SP,Sudeste,2638,2026
+3506300,Bernardino de Campos,SP,Sudeste,11906,2026
+3506359,Bertioga,SP,Sudeste,67941,2026
+3506409,Bilac,SP,Sudeste,7473,2026
+3506508,Birigui,SP,Sudeste,123655,2026
+3506607,Biritiba Mirim,SP,Sudeste,30599,2026
+3506706,Boa Esperança do Sul,SP,Sudeste,13093,2026
+3506805,Bocaina,SP,Sudeste,11492,2026
+3506904,Bofete,SP,Sudeste,10735,2026
+3507001,Boituva,SP,Sudeste,64240,2026
+3507100,Bom Jesus dos Perdões,SP,Sudeste,22648,2026
+3507159,Bom Sucesso de Itararé,SP,Sudeste,3609,2026
+3507209,Borá,SP,Sudeste,935,2026
+3507308,Boracéia,SP,Sudeste,4852,2026
+3507407,Borborema,SP,Sudeste,14396,2026
+3507456,Borebi,SP,Sudeste,2814,2026
+3507506,Botucatu,SP,Sudeste,151600,2026
+3507605,Bragança Paulista,SP,Sudeste,186631,2026
+3507704,Braúna,SP,Sudeste,5487,2026
+3507753,Brejo Alegre,SP,Sudeste,2605,2026
+3507803,Brodowski,SP,Sudeste,26446,2026
+3507902,Brotas,SP,Sudeste,24571,2026
+3508009,Buri,SP,Sudeste,20783,2026
+3508108,Buritama,SP,Sudeste,17712,2026
+3508207,Buritizal,SP,Sudeste,4467,2026
+3508306,Cabrália Paulista,SP,Sudeste,4358,2026
+3508405,Cabreúva,SP,Sudeste,48815,2026
+3508504,Caçapava,SP,Sudeste,100422,2026
+3508603,Cachoeira Paulista,SP,Sudeste,32579,2026
+3508702,Caconde,SP,Sudeste,17192,2026
+3508801,Cafelândia,SP,Sudeste,16908,2026
+3508900,Caiabu,SP,Sudeste,3715,2026
+3509007,Caieiras,SP,Sudeste,98810,2026
+3509106,Caiuá,SP,Sudeste,5612,2026
+3509205,Cajamar,SP,Sudeste,99249,2026
+3509254,Cajati,SP,Sudeste,29267,2026
+3509304,Cajobi,SP,Sudeste,9191,2026
+3509403,Cajuru,SP,Sudeste,24247,2026
+3509452,Campina do Monte Alegre,SP,Sudeste,6101,2026
+3509502,Campinas,SP,Sudeste,1189761,2026
+3509601,Campo Limpo Paulista,SP,Sudeste,79890,2026
+3509700,Campos do Jordão,SP,Sudeste,47932,2026
+3509809,Campos Novos Paulista,SP,Sudeste,5013,2026
+3509908,Cananéia,SP,Sudeste,12493,2026
+3509957,Canas,SP,Sudeste,5084,2026
+3510005,Cândido Mota,SP,Sudeste,30144,2026
+3510104,Cândido Rodrigues,SP,Sudeste,2966,2026
+3510153,Canitar,SP,Sudeste,6647,2026
+3510203,Capão Bonito,SP,Sudeste,47415,2026
+3510302,Capela do Alto,SP,Sudeste,23939,2026
+3510401,Capivari,SP,Sudeste,51415,2026
+3510500,Caraguatatuba,SP,Sudeste,143291,2026
+3510609,Carapicuíba,SP,Sudeste,398772,2026
+3510708,Cardoso,SP,Sudeste,11462,2026
+3510807,Casa Branca,SP,Sudeste,28773,2026
+3510906,Cássia dos Coqueiros,SP,Sudeste,2866,2026
+3511003,Castilho,SP,Sudeste,20545,2026
+3511102,Catanduva,SP,Sudeste,119368,2026
+3511201,Catiguá,SP,Sudeste,7097,2026
+3511300,Cedral,SP,Sudeste,13454,2026
+3511409,Cerqueira César,SP,Sudeste,22329,2026
+3511508,Cerquilho,SP,Sudeste,46547,2026
+3511607,Cesário Lange,SP,Sudeste,19813,2026
+3511706,Charqueada,SP,Sudeste,15827,2026
+3511904,Clementina,SP,Sudeste,7082,2026
+3512001,Colina,SP,Sudeste,18914,2026
+3512100,Colômbia,SP,Sudeste,6822,2026
+3512209,Conchal,SP,Sudeste,29220,2026
+3512308,Conchas,SP,Sudeste,15314,2026
+3512407,Cordeirópolis,SP,Sudeste,25390,2026
+3512506,Coroados,SP,Sudeste,5509,2026
+3512605,Coronel Macedo,SP,Sudeste,4249,2026
+3512704,Corumbataí,SP,Sudeste,4305,2026
+3512803,Cosmópolis,SP,Sudeste,61196,2026
+3512902,Cosmorama,SP,Sudeste,9064,2026
+3513009,Cotia,SP,Sudeste,291704,2026
+3513108,Cravinhos,SP,Sudeste,34356,2026
+3513207,Cristais Paulista,SP,Sudeste,9651,2026
+3513306,Cruzália,SP,Sudeste,2118,2026
+3513405,Cruzeiro,SP,Sudeste,76381,2026
+3513504,Cubatão,SP,Sudeste,114681,2026
+3513603,Cunha,SP,Sudeste,22467,2026
+3513702,Descalvado,SP,Sudeste,32685,2026
+3513801,Diadema,SP,Sudeste,403802,2026
+3513850,Dirce Reis,SP,Sudeste,1637,2026
+3513900,Divinolândia,SP,Sudeste,11296,2026
+3514007,Dobrada,SP,Sudeste,9011,2026
+3514106,Dois Córregos,SP,Sudeste,24839,2026
+3514205,Dolcinópolis,SP,Sudeste,2257,2026
+3514304,Dourado,SP,Sudeste,8154,2026
+3514403,Dracena,SP,Sudeste,46800,2026
+3514502,Duartina,SP,Sudeste,12534,2026
+3514601,Dumont,SP,Sudeste,9804,2026
+3514700,Echaporã,SP,Sudeste,6288,2026
+3514809,Eldorado,SP,Sudeste,13062,2026
+3514908,Elias Fausto,SP,Sudeste,18226,2026
+3514924,Elisiário,SP,Sudeste,3191,2026
+3514957,Embaúba,SP,Sudeste,2346,2026
+3515004,Embu das Artes,SP,Sudeste,260113,2026
+3515103,Embu-Guaçu,SP,Sudeste,69041,2026
+3515129,Emilianópolis,SP,Sudeste,3061,2026
+3515152,Engenheiro Coelho,SP,Sudeste,20377,2026
+3515186,Espírito Santo do Pinhal,SP,Sudeste,40547,2026
+3515194,Espírito Santo do Turvo,SP,Sudeste,4211,2026
+3515202,Estrela d'Oeste,SP,Sudeste,9733,2026
+3515301,Estrela do Norte,SP,Sudeste,2752,2026
+3515350,Euclides da Cunha Paulista,SP,Sudeste,7833,2026
+3515400,Fartura,SP,Sudeste,17069,2026
+3515509,Fernandópolis,SP,Sudeste,73706,2026
+3515608,Fernando Prestes,SP,Sudeste,6092,2026
+3515657,Fernão,SP,Sudeste,1695,2026
+3515707,Ferraz de Vasconcelos,SP,Sudeste,186816,2026
+3515806,Flora Rica,SP,Sudeste,1475,2026
+3515905,Floreal,SP,Sudeste,2739,2026
+3516002,Flórida Paulista,SP,Sudeste,13179,2026
+3516101,Florínea,SP,Sudeste,4053,2026
+3516200,Franca,SP,Sudeste,366534,2026
+3516309,Francisco Morato,SP,Sudeste,171806,2026
+3516408,Franco da Rocha,SP,Sudeste,150648,2026
+3516507,Gabriel Monteiro,SP,Sudeste,2815,2026
+3516606,Gália,SP,Sudeste,6394,2026
+3516705,Garça,SP,Sudeste,43051,2026
+3516804,Gastão Vidigal,SP,Sudeste,3175,2026
+3516853,Gavião Peixoto,SP,Sudeste,4815,2026
+3516903,General Salgado,SP,Sudeste,10426,2026
+3517000,Getulina,SP,Sudeste,10321,2026
+3517109,Glicério,SP,Sudeste,4145,2026
+3517208,Guaiçara,SP,Sudeste,11496,2026
+3517307,Guaimbê,SP,Sudeste,5611,2026
+3517406,Guaíra,SP,Sudeste,40547,2026
+3517505,Guapiaçu,SP,Sudeste,22562,2026
+3517604,Guapiara,SP,Sudeste,17197,2026
+3517703,Guará,SP,Sudeste,18711,2026
+3517802,Guaraçaí,SP,Sudeste,7423,2026
+3517901,Guaraci,SP,Sudeste,10566,2026
+3518008,Guarani d'Oeste,SP,Sudeste,1999,2026
+3518107,Guarantã,SP,Sudeste,6532,2026
+3518206,Guararapes,SP,Sudeste,31902,2026
+3518305,Guararema,SP,Sudeste,32785,2026
+3518404,Guaratinguetá,SP,Sudeste,122100,2026
+3518503,Guareí,SP,Sudeste,15299,2026
+3518602,Guariba,SP,Sudeste,38740,2026
+3518701,Guarujá,SP,Sudeste,294780,2026
+3518800,Guarulhos,SP,Sudeste,1351284,2026
+3518859,Guatapará,SP,Sudeste,7485,2026
+3518909,Guzolândia,SP,Sudeste,4243,2026
+3519006,Herculândia,SP,Sudeste,9329,2026
+3519055,Holambra,SP,Sudeste,15832,2026
+3519071,Hortolândia,SP,Sudeste,250195,2026
+3519105,Iacanga,SP,Sudeste,10661,2026
+3519204,Iacri,SP,Sudeste,6189,2026
+3519253,Iaras,SP,Sudeste,8362,2026
+3519303,Ibaté,SP,Sudeste,33204,2026
+3519402,Ibirá,SP,Sudeste,11976,2026
+3519501,Ibirarema,SP,Sudeste,6439,2026
+3519600,Ibitinga,SP,Sudeste,62353,2026
+3519709,Ibiúna,SP,Sudeste,77936,2026
+3519808,Icém,SP,Sudeste,7992,2026
+3519907,Iepê,SP,Sudeste,7739,2026
+3520004,Igaraçu do Tietê,SP,Sudeste,23414,2026
+3520103,Igarapava,SP,Sudeste,26643,2026
+3520202,Igaratá,SP,Sudeste,11037,2026
+3520301,Iguape,SP,Sudeste,29900,2026
+3520400,Ilhabela,SP,Sudeste,36766,2026
+3520426,Ilha Comprida,SP,Sudeste,14237,2026
+3520442,Ilha Solteira,SP,Sudeste,26272,2026
+3520509,Indaiatuba,SP,Sudeste,271322,2026
+3520608,Indiana,SP,Sudeste,5208,2026
+3520707,Indiaporã,SP,Sudeste,4117,2026
+3520806,Inúbia Paulista,SP,Sudeste,3670,2026
+3520905,Ipaussu,SP,Sudeste,13936,2026
+3521002,Iperó,SP,Sudeste,38527,2026
+3521101,Ipeúna,SP,Sudeste,7051,2026
+3521150,Ipiguá,SP,Sudeste,7184,2026
+3521200,Iporanga,SP,Sudeste,4075,2026
+3521309,Ipuã,SP,Sudeste,14711,2026
+3521408,Iracemápolis,SP,Sudeste,22559,2026
+3521507,Irapuã,SP,Sudeste,6920,2026
+3521606,Irapuru,SP,Sudeste,7098,2026
+3521705,Itaberá,SP,Sudeste,18267,2026
+3521804,Itaí,SP,Sudeste,26023,2026
+3521903,Itajobi,SP,Sudeste,17576,2026
+3522000,Itaju,SP,Sudeste,3726,2026
+3522109,Itanhaém,SP,Sudeste,119274,2026
+3522158,Itaoca,SP,Sudeste,3503,2026
+3522208,Itapecerica da Serra,SP,Sudeste,163187,2026
+3522307,Itapetininga,SP,Sudeste,164687,2026
+3522406,Itapeva,SP,Sudeste,92454,2026
+3522505,Itapevi,SP,Sudeste,243967,2026
+3522604,Itapira,SP,Sudeste,74145,2026
+3522653,Itapirapuã Paulista,SP,Sudeste,4433,2026
+3522703,Itápolis,SP,Sudeste,40429,2026
+3522802,Itaporanga,SP,Sudeste,14231,2026
+3522901,Itapuí,SP,Sudeste,14080,2026
+3523008,Itapura,SP,Sudeste,3990,2026
+3523107,Itaquaquecetuba,SP,Sudeste,384436,2026
+3523206,Itararé,SP,Sudeste,45111,2026
+3523305,Itariri,SP,Sudeste,15917,2026
+3523404,Itatiba,SP,Sudeste,127729,2026
+3523503,Itatinga,SP,Sudeste,19493,2026
+3523602,Itirapina,SP,Sudeste,16473,2026
+3523701,Itirapuã,SP,Sudeste,5853,2026
+3523800,Itobi,SP,Sudeste,8242,2026
+3523909,Itu,SP,Sudeste,175483,2026
+3524006,Itupeva,SP,Sudeste,75776,2026
+3524105,Ituverava,SP,Sudeste,38379,2026
+3524204,Jaborandi,SP,Sudeste,6269,2026
+3524303,Jaboticabal,SP,Sudeste,73479,2026
+3524402,Jacareí,SP,Sudeste,251848,2026
+3524501,Jaci,SP,Sudeste,8003,2026
+3524600,Jacupiranga,SP,Sudeste,16183,2026
+3524709,Jaguariúna,SP,Sudeste,62764,2026
+3524808,Jales,SP,Sudeste,50132,2026
+3524907,Jambeiro,SP,Sudeste,6642,2026
+3525003,Jandira,SP,Sudeste,121848,2026
+3525102,Jardinópolis,SP,Sudeste,47354,2026
+3525201,Jarinu,SP,Sudeste,40433,2026
+3525300,Jaú,SP,Sudeste,137486,2026
+3525409,Jeriquara,SP,Sudeste,4021,2026
+3525508,Joanópolis,SP,Sudeste,13162,2026
+3525607,João Ramalho,SP,Sudeste,4470,2026
+3525706,José Bonifácio,SP,Sudeste,38111,2026
+3525805,Júlio Mesquita,SP,Sudeste,4297,2026
+3525854,Jumirim,SP,Sudeste,3139,2026
+3525904,Jundiaí,SP,Sudeste,465277,2026
+3526001,Junqueirópolis,SP,Sudeste,20991,2026
+3526100,Juquiá,SP,Sudeste,17121,2026
+3526209,Juquitiba,SP,Sudeste,27929,2026
+3526308,Lagoinha,SP,Sudeste,5191,2026
+3526407,Laranjal Paulista,SP,Sudeste,27075,2026
+3526506,Lavínia,SP,Sudeste,9967,2026
+3526605,Lavrinhas,SP,Sudeste,7365,2026
+3526704,Leme,SP,Sudeste,101734,2026
+3526803,Lençóis Paulista,SP,Sudeste,68724,2026
+3526902,Limeira,SP,Sudeste,301780,2026
+3527009,Lindóia,SP,Sudeste,7167,2026
+3527108,Lins,SP,Sudeste,76946,2026
+3527207,Lorena,SP,Sudeste,87551,2026
+3527256,Lourdes,SP,Sudeste,1957,2026
+3527306,Louveira,SP,Sudeste,55314,2026
+3527405,Lucélia,SP,Sudeste,20383,2026
+3527504,Lucianópolis,SP,Sudeste,2427,2026
+3527603,Luís Antônio,SP,Sudeste,12594,2026
+3527702,Luiziânia,SP,Sudeste,4730,2026
+3527801,Lupércio,SP,Sudeste,3993,2026
+3527900,Lutécia,SP,Sudeste,2696,2026
+3528007,Macatuba,SP,Sudeste,17157,2026
+3528106,Macaubal,SP,Sudeste,7575,2026
+3528205,Macedônia,SP,Sudeste,4067,2026
+3528304,Magda,SP,Sudeste,3210,2026
+3528403,Mairinque,SP,Sudeste,52092,2026
+3528502,Mairiporã,SP,Sudeste,98241,2026
+3528601,Manduri,SP,Sudeste,10148,2026
+3528700,Marabá Paulista,SP,Sudeste,4612,2026
+3528809,Maracaí,SP,Sudeste,12784,2026
+3528858,Marapoama,SP,Sudeste,3435,2026
+3528908,Mariápolis,SP,Sudeste,3514,2026
+3529005,Marília,SP,Sudeste,247992,2026
+3529104,Marinópolis,SP,Sudeste,1854,2026
+3529203,Martinópolis,SP,Sudeste,25260,2026
+3529302,Matão,SP,Sudeste,81144,2026
+3529401,Mauá,SP,Sudeste,429064,2026
+3529500,Mendonça,SP,Sudeste,6466,2026
+3529609,Meridiano,SP,Sudeste,4743,2026
+3529658,Mesópolis,SP,Sudeste,1992,2026
+3529708,Miguelópolis,SP,Sudeste,19591,2026
+3529807,Mineiros do Tietê,SP,Sudeste,11297,2026
+3529906,Miracatu,SP,Sudeste,18549,2026
+3530003,Mira Estrela,SP,Sudeste,3218,2026
+3530102,Mirandópolis,SP,Sudeste,28770,2026
+3530201,Mirante do Paranapanema,SP,Sudeste,15997,2026
+3530300,Mirassol,SP,Sudeste,66102,2026
+3530409,Mirassolândia,SP,Sudeste,4795,2026
+3530508,Mococa,SP,Sudeste,69415,2026
+3530607,Mogi das Cruzes,SP,Sudeste,472255,2026
+3530706,Mogi Guaçu,SP,Sudeste,160841,2026
+3530805,Mogi Mirim,SP,Sudeste,95929,2026
+3530904,Mombuca,SP,Sudeste,3844,2026
+3531001,Monções,SP,Sudeste,1941,2026
+3531100,Mongaguá,SP,Sudeste,65321,2026
+3531209,Monte Alegre do Sul,SP,Sudeste,8967,2026
+3531308,Monte Alto,SP,Sudeste,48787,2026
+3531407,Monte Aprazível,SP,Sudeste,22684,2026
+3531506,Monte Azul Paulista,SP,Sudeste,18314,2026
+3531605,Monte Castelo,SP,Sudeste,4311,2026
+3531704,Monteiro Lobato,SP,Sudeste,4206,2026
+3531803,Monte Mor,SP,Sudeste,68311,2026
+3531902,Morro Agudo,SP,Sudeste,28485,2026
+3532009,Morungaba,SP,Sudeste,14206,2026
+3532058,Motuca,SP,Sudeste,4063,2026
+3532108,Murutinga do Sul,SP,Sudeste,3734,2026
+3532157,Nantes,SP,Sudeste,2696,2026
+3532207,Narandiba,SP,Sudeste,5999,2026
+3532306,Natividade da Serra,SP,Sudeste,7164,2026
+3532405,Nazaré Paulista,SP,Sudeste,18729,2026
+3532504,Neves Paulista,SP,Sudeste,9981,2026
+3532603,Nhandeara,SP,Sudeste,9888,2026
+3532702,Nipoã,SP,Sudeste,4891,2026
+3532801,Nova Aliança,SP,Sudeste,6910,2026
+3532827,Nova Campina,SP,Sudeste,8630,2026
+3532843,Nova Canaã Paulista,SP,Sudeste,2053,2026
+3532868,Nova Castilho,SP,Sudeste,1070,2026
+3532900,Nova Europa,SP,Sudeste,9460,2026
+3533007,Nova Granada,SP,Sudeste,19741,2026
+3533106,Nova Guataporanga,SP,Sudeste,2187,2026
+3533205,Nova Independência,SP,Sudeste,4894,2026
+3533254,Novais,SP,Sudeste,4457,2026
+3533304,Nova Luzitânia,SP,Sudeste,2799,2026
+3533403,Nova Odessa,SP,Sudeste,64924,2026
+3533502,Novo Horizonte,SP,Sudeste,39548,2026
+3533601,Nuporanga,SP,Sudeste,7587,2026
+3533700,Ocauçu,SP,Sudeste,4423,2026
+3533809,Óleo,SP,Sudeste,2530,2026
+3533908,Olímpia,SP,Sudeste,57028,2026
+3534005,Onda Verde,SP,Sudeste,4969,2026
+3534104,Oriente,SP,Sudeste,6180,2026
+3534203,Orindiúva,SP,Sudeste,6167,2026
+3534302,Orlândia,SP,Sudeste,39099,2026
+3534401,Osasco,SP,Sudeste,761441,2026
+3534500,Oscar Bressane,SP,Sudeste,2500,2026
+3534609,Osvaldo Cruz,SP,Sudeste,32123,2026
+3534708,Ourinhos,SP,Sudeste,106941,2026
+3534757,Ouroeste,SP,Sudeste,10717,2026
+3534807,Ouro Verde,SP,Sudeste,7899,2026
+3534906,Pacaembu,SP,Sudeste,15322,2026
+3535002,Palestina,SP,Sudeste,11717,2026
+3535101,Palmares Paulista,SP,Sudeste,9627,2026
+3535200,Palmeira d'Oeste,SP,Sudeste,8951,2026
+3535309,Palmital,SP,Sudeste,19666,2026
+3535408,Panorama,SP,Sudeste,15239,2026
+3535507,Paraguaçu Paulista,SP,Sudeste,42014,2026
+3535606,Paraibuna,SP,Sudeste,17968,2026
+3535705,Paraíso,SP,Sudeste,6224,2026
+3535804,Paranapanema,SP,Sudeste,19901,2026
+3535903,Paranapuã,SP,Sudeste,4125,2026
+3536000,Parapuã,SP,Sudeste,10712,2026
+3536109,Pardinho,SP,Sudeste,7482,2026
+3536208,Pariquera-Açu,SP,Sudeste,19627,2026
+3536257,Parisi,SP,Sudeste,3056,2026
+3536307,Patrocínio Paulista,SP,Sudeste,14934,2026
+3536406,Paulicéia,SP,Sudeste,8303,2026
+3536505,Paulínia,SP,Sudeste,117554,2026
+3536570,Paulistânia,SP,Sudeste,2166,2026
+3536604,Paulo de Faria,SP,Sudeste,7354,2026
+3536703,Pederneiras,SP,Sudeste,46439,2026
+3536802,Pedra Bela,SP,Sudeste,6768,2026
+3536901,Pedranópolis,SP,Sudeste,2863,2026
+3537008,Pedregulho,SP,Sudeste,15732,2026
+3537107,Pedreira,SP,Sudeste,44433,2026
+3537156,Pedrinhas Paulista,SP,Sudeste,2829,2026
+3537206,Pedro de Toledo,SP,Sudeste,11650,2026
+3537305,Penápolis,SP,Sudeste,63523,2026
+3537404,Pereira Barreto,SP,Sudeste,24334,2026
+3537503,Pereiras,SP,Sudeste,9052,2026
+3537602,Peruíbe,SP,Sudeste,70891,2026
+3537701,Piacatu,SP,Sudeste,5638,2026
+3537800,Piedade,SP,Sudeste,54291,2026
+3537909,Pilar do Sul,SP,Sudeste,28496,2026
+3538006,Pindamonhangaba,SP,Sudeste,173267,2026
+3538105,Pindorama,SP,Sudeste,14689,2026
+3538204,Pinhalzinho,SP,Sudeste,15740,2026
+3538303,Piquerobi,SP,Sudeste,3279,2026
+3538501,Piquete,SP,Sudeste,12468,2026
+3538600,Piracaia,SP,Sudeste,26823,2026
+3538709,Piracicaba,SP,Sudeste,442635,2026
+3538808,Piraju,SP,Sudeste,30324,2026
+3538907,Pirajuí,SP,Sudeste,22726,2026
+3539004,Pirangi,SP,Sudeste,11093,2026
+3539103,Pirapora do Bom Jesus,SP,Sudeste,19005,2026
+3539202,Pirapozinho,SP,Sudeste,26125,2026
+3539301,Pirassununga,SP,Sudeste,75701,2026
+3539400,Piratininga,SP,Sudeste,15748,2026
+3539509,Pitangueiras,SP,Sudeste,34311,2026
+3539608,Planalto,SP,Sudeste,4449,2026
+3539707,Platina,SP,Sudeste,3050,2026
+3539806,Poá,SP,Sudeste,106288,2026
+3539905,Poloni,SP,Sudeste,5708,2026
+3540002,Pompéia,SP,Sudeste,20528,2026
+3540101,Pongaí,SP,Sudeste,3437,2026
+3540200,Pontal,SP,Sudeste,38206,2026
+3540259,Pontalinda,SP,Sudeste,4199,2026
+3540309,Pontes Gestal,SP,Sudeste,2407,2026
+3540408,Populina,SP,Sudeste,4179,2026
+3540507,Porangaba,SP,Sudeste,10915,2026
+3540606,Porto Feliz,SP,Sudeste,58837,2026
+3540705,Porto Ferreira,SP,Sudeste,54005,2026
+3540754,Potim,SP,Sudeste,20831,2026
+3540804,Potirendaba,SP,Sudeste,19189,2026
+3540853,Pracinha,SP,Sudeste,2581,2026
+3540903,Pradópolis,SP,Sudeste,17291,2026
+3541000,Praia Grande,SP,Sudeste,371190,2026
+3541059,Pratânia,SP,Sudeste,5280,2026
+3541109,Presidente Alves,SP,Sudeste,3820,2026
+3541208,Presidente Bernardes,SP,Sudeste,14830,2026
+3541307,Presidente Epitácio,SP,Sudeste,40267,2026
+3541406,Presidente Prudente,SP,Sudeste,235264,2026
+3541505,Presidente Venceslau,SP,Sudeste,35728,2026
+3541604,Promissão,SP,Sudeste,35957,2026
+3541653,Quadra,SP,Sudeste,3482,2026
+3541703,Quatá,SP,Sudeste,13423,2026
+3541802,Queiroz,SP,Sudeste,3380,2026
+3541901,Queluz,SP,Sudeste,9009,2026
+3542008,Quintana,SP,Sudeste,7291,2026
+3542107,Rafard,SP,Sudeste,9156,2026
+3542206,Rancharia,SP,Sudeste,29381,2026
+3542305,Redenção da Serra,SP,Sudeste,4656,2026
+3542404,Regente Feijó,SP,Sudeste,20671,2026
+3542503,Reginópolis,SP,Sudeste,7830,2026
+3542602,Registro,SP,Sudeste,62101,2026
+3542701,Restinga,SP,Sudeste,6480,2026
+3542800,Ribeira,SP,Sudeste,3151,2026
+3542909,Ribeirão Bonito,SP,Sudeste,11006,2026
+3543006,Ribeirão Branco,SP,Sudeste,18953,2026
+3543105,Ribeirão Corrente,SP,Sudeste,4727,2026
+3543204,Ribeirão do Sul,SP,Sudeste,4783,2026
+3543238,Ribeirão dos Índios,SP,Sudeste,2035,2026
+3543253,Ribeirão Grande,SP,Sudeste,7572,2026
+3543303,Ribeirão Pires,SP,Sudeste,119023,2026
+3543402,Ribeirão Preto,SP,Sudeste,734538,2026
+3543501,Riversul,SP,Sudeste,5611,2026
+3543600,Rifaina,SP,Sudeste,4198,2026
+3543709,Rincão,SP,Sudeste,9061,2026
+3543808,Rinópolis,SP,Sudeste,9314,2026
+3543907,Rio Claro,SP,Sudeste,210794,2026
+3544004,Rio das Pedras,SP,Sudeste,32386,2026
+3544103,Rio Grande da Serra,SP,Sudeste,45331,2026
+3544202,Riolândia,SP,Sudeste,10436,2026
+3544251,Rosana,SP,Sudeste,17366,2026
+3544301,Roseira,SP,Sudeste,11174,2026
+3544400,Rubiácea,SP,Sudeste,2739,2026
+3544509,Rubinéia,SP,Sudeste,4028,2026
+3544608,Sabino,SP,Sudeste,5179,2026
+3544707,Sagres,SP,Sudeste,2524,2026
+3544806,Sales,SP,Sudeste,6675,2026
+3544905,Sales Oliveira,SP,Sudeste,11708,2026
+3545001,Salesópolis,SP,Sudeste,15368,2026
+3545100,Salmourão,SP,Sudeste,4883,2026
+3545159,Saltinho,SP,Sudeste,8441,2026
+3545209,Salto,SP,Sudeste,141994,2026
+3545308,Salto de Pirapora,SP,Sudeste,45373,2026
+3545407,Salto Grande,SP,Sudeste,9229,2026
+3545506,Sandovalina,SP,Sudeste,3696,2026
+3545605,Santa Adélia,SP,Sudeste,14183,2026
+3545704,Santa Albertina,SP,Sudeste,6586,2026
+3545803,Santa Bárbara d'Oeste,SP,Sudeste,189562,2026
+3546009,Santa Branca,SP,Sudeste,14226,2026
+3546108,Santa Clara d'Oeste,SP,Sudeste,2710,2026
+3546207,Santa Cruz da Conceição,SP,Sudeste,4383,2026
+3546256,Santa Cruz da Esperança,SP,Sudeste,2173,2026
+3546306,Santa Cruz das Palmeiras,SP,Sudeste,29456,2026
+3546405,Santa Cruz do Rio Pardo,SP,Sudeste,47833,2026
+3546504,Santa Ernestina,SP,Sudeste,6291,2026
+3546603,Santa Fé do Sul,SP,Sudeste,36458,2026
+3546702,Santa Gertrudes,SP,Sudeste,23249,2026
+3546801,Santa Isabel,SP,Sudeste,54775,2026
+3546900,Santa Lúcia,SP,Sudeste,7111,2026
+3547007,Santa Maria da Serra,SP,Sudeste,5303,2026
+3547106,Santa Mercedes,SP,Sudeste,3020,2026
+3547205,Santana da Ponte Pensa,SP,Sudeste,1700,2026
+3547304,Santana de Parnaíba,SP,Sudeste,165193,2026
+3547403,Santa Rita d'Oeste,SP,Sudeste,2802,2026
+3547502,Santa Rita do Passa Quatro,SP,Sudeste,24938,2026
+3547601,Santa Rosa de Viterbo,SP,Sudeste,23697,2026
+3547650,Santa Salete,SP,Sudeste,1698,2026
+3547700,Santo Anastácio,SP,Sudeste,17884,2026
+3547809,Santo André,SP,Sudeste,784290,2026
+3547908,Santo Antônio da Alegria,SP,Sudeste,6947,2026
+3548005,Santo Antônio de Posse,SP,Sudeste,23945,2026
+3548054,Santo Antônio do Aracanguá,SP,Sudeste,8616,2026
+3548104,Santo Antônio do Jardim,SP,Sudeste,6248,2026
+3548203,Santo Antônio do Pinhal,SP,Sudeste,7333,2026
+3548302,Santo Expedito,SP,Sudeste,3075,2026
+3548401,Santópolis do Aguapeí,SP,Sudeste,3909,2026
+3548500,Santos,SP,Sudeste,429528,2026
+3548609,São Bento do Sapucaí,SP,Sudeste,12025,2026
+3548708,São Bernardo do Campo,SP,Sudeste,842558,2026
+3548807,São Caetano do Sul,SP,Sudeste,173216,2026
+3548906,São Carlos,SP,Sudeste,267441,2026
+3549003,São Francisco,SP,Sudeste,2617,2026
+3549102,São João da Boa Vista,SP,Sudeste,96365,2026
+3549201,São João das Duas Pontes,SP,Sudeste,2623,2026
+3549250,São João de Iracema,SP,Sudeste,1884,2026
+3549300,São João do Pau d'Alho,SP,Sudeste,2297,2026
+3549409,São Joaquim da Barra,SP,Sudeste,49948,2026
+3549508,São José da Bela Vista,SP,Sudeste,7640,2026
+3549607,São José do Barreiro,SP,Sudeste,3881,2026
+3549706,São José do Rio Pardo,SP,Sudeste,53437,2026
+3549805,São José do Rio Preto,SP,Sudeste,506466,2026
+3549904,São José dos Campos,SP,Sudeste,729153,2026
+3549953,São Lourenço da Serra,SP,Sudeste,16541,2026
+3550001,São Luiz do Paraitinga,SP,Sudeste,10485,2026
+3550100,São Manuel,SP,Sudeste,38099,2026
+3550209,São Miguel Arcanjo,SP,Sudeste,32943,2026
+3550308,São Paulo,SP,Sudeste,11911337,2026
+3550407,São Pedro,SP,Sudeste,40054,2026
+3550506,São Pedro do Turvo,SP,Sudeste,7334,2026
+3550605,São Roque,SP,Sudeste,81387,2026
+3550704,São Sebastião,SP,Sudeste,84514,2026
+3550803,São Sebastião da Grama,SP,Sudeste,10378,2026
+3550902,São Simão,SP,Sudeste,13533,2026
+3551009,São Vicente,SP,Sudeste,338253,2026
+3551108,Sarapuí,SP,Sudeste,10718,2026
+3551207,Sarutaiá,SP,Sudeste,3775,2026
+3551306,Sebastianópolis do Sul,SP,Sudeste,3194,2026
+3551405,Serra Azul,SP,Sudeste,13153,2026
+3551504,Serrana,SP,Sudeste,45734,2026
+3551603,Serra Negra,SP,Sudeste,31155,2026
+3551702,Sertãozinho,SP,Sudeste,132692,2026
+3551801,Sete Barras,SP,Sudeste,12895,2026
+3551900,Severínia,SP,Sudeste,14666,2026
+3552007,Silveiras,SP,Sudeste,6341,2026
+3552106,Socorro,SP,Sudeste,41633,2026
+3552205,Sorocaba,SP,Sudeste,766390,2026
+3552304,Sud Mennucci,SP,Sudeste,7461,2026
+3552403,Sumaré,SP,Sudeste,292307,2026
+3552502,Suzano,SP,Sudeste,321600,2026
+3552551,Suzanápolis,SP,Sudeste,3466,2026
+3552601,Tabapuã,SP,Sudeste,11497,2026
+3552700,Tabatinga,SP,Sudeste,15000,2026
+3552809,Taboão da Serra,SP,Sudeste,286201,2026
+3552908,Taciba,SP,Sudeste,6434,2026
+3553005,Taguaí,SP,Sudeste,13124,2026
+3553104,Taiaçu,SP,Sudeste,5737,2026
+3553203,Taiúva,SP,Sudeste,6804,2026
+3553302,Tambaú,SP,Sudeste,21620,2026
+3553401,Tanabi,SP,Sudeste,26116,2026
+3553500,Tapiraí,SP,Sudeste,8121,2026
+3553609,Tapiratiba,SP,Sudeste,11875,2026
+3553658,Taquaral,SP,Sudeste,2645,2026
+3553708,Taquaritinga,SP,Sudeste,53212,2026
+3553807,Taquarituba,SP,Sudeste,24995,2026
+3553856,Taquarivaí,SP,Sudeste,7223,2026
+3553906,Tarabai,SP,Sudeste,6631,2026
+3553955,Tarumã,SP,Sudeste,15375,2026
+3554003,Tatuí,SP,Sudeste,129640,2026
+3554102,Taubaté,SP,Sudeste,323380,2026
+3554201,Tejupá,SP,Sudeste,4098,2026
+3554300,Teodoro Sampaio,SP,Sudeste,22622,2026
+3554409,Terra Roxa,SP,Sudeste,7947,2026
+3554508,Tietê,SP,Sudeste,38749,2026
+3554607,Timburi,SP,Sudeste,2478,2026
+3554656,Torre de Pedra,SP,Sudeste,2049,2026
+3554706,Torrinha,SP,Sudeste,9484,2026
+3554755,Trabiju,SP,Sudeste,1728,2026
+3554805,Tremembé,SP,Sudeste,53734,2026
+3554904,Três Fronteiras,SP,Sudeste,7102,2026
+3554953,Tuiuti,SP,Sudeste,7002,2026
+3555000,Tupã,SP,Sudeste,65447,2026
+3555109,Tupi Paulista,SP,Sudeste,16307,2026
+3555208,Turiúba,SP,Sudeste,1832,2026
+3555307,Turmalina,SP,Sudeste,1652,2026
+3555356,Ubarana,SP,Sudeste,5461,2026
+3555406,Ubatuba,SP,Sudeste,97541,2026
+3555505,Ubirajara,SP,Sudeste,5310,2026
+3555604,Uchoa,SP,Sudeste,10698,2026
+3555703,União Paulista,SP,Sudeste,1629,2026
+3555802,Urânia,SP,Sudeste,8973,2026
+3555901,Uru,SP,Sudeste,1428,2026
+3556008,Urupês,SP,Sudeste,14104,2026
+3556107,Valentim Gentil,SP,Sudeste,14727,2026
+3556206,Valinhos,SP,Sudeste,132862,2026
+3556305,Valparaíso,SP,Sudeste,24830,2026
+3556354,Vargem,SP,Sudeste,10915,2026
+3556404,Vargem Grande do Sul,SP,Sudeste,41283,2026
+3556453,Vargem Grande Paulista,SP,Sudeste,52574,2026
+3556503,Várzea Paulista,SP,Sudeste,119923,2026
+3556602,Vera Cruz,SP,Sudeste,10256,2026
+3556701,Vinhedo,SP,Sudeste,79477,2026
+3556800,Viradouro,SP,Sudeste,17689,2026
+3556909,Vista Alegre do Alto,SP,Sudeste,8405,2026
+3556958,Vitória Brasil,SP,Sudeste,1830,2026
+3557006,Votorantim,SP,Sudeste,134103,2026
+3557105,Votuporanga,SP,Sudeste,100935,2026
+3557154,Zacarias,SP,Sudeste,2784,2026
+3557204,Chavantes,SP,Sudeste,12418,2026
+3557303,Estiva Gerbi,SP,Sudeste,11647,2026

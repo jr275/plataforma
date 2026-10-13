@@ -1,5 +1,5 @@
 // Tipos de ACESSO ao esquema de produto (ADR-011): o SQL escrito à mão em db/migrations é a autoridade; o Drizzle só tipa o
-// acesso e NUNCA gera nem aplica migrations. Manter em sincronia com as migrations (0001_tenant a 0004_city).
+// acesso e NUNCA gera nem aplica migrations. Manter em sincronia com as migrations (0001_tenant a 0006_page).
 import { bigint, index, integer, jsonb, pgSchema, smallint, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const plataforma = pgSchema("plataforma");
@@ -89,4 +89,77 @@ export const city = plataforma.table(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("city_tenant_uf_name_idx").on(t.tenantId, t.uf, t.name)],
+);
+
+export const generationRun = plataforma.table(
+  "generation_run",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id").notNull().references(() => tenant.id),
+    templateKey: text("template_key").notNull(),
+    templateVersion: integer("template_version").notNull(),
+    templateHash: text("template_hash").notNull(),
+    scope: jsonb("scope").notNull(),
+    status: text("status", { enum: ["running", "succeeded", "partial", "failed"] }).notNull().default("running"),
+    totalItems: integer("total_items").notNull().default(0),
+    generatedItems: integer("generated_items").notNull().default(0),
+    unchangedItems: integer("unchanged_items").notNull().default(0),
+    blockedItems: integer("blocked_items").notNull().default(0),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull(),
+  },
+  (t) => [index("generation_run_tenant_started_idx").on(t.tenantId, t.startedAt)],
+);
+
+export const page = plataforma.table(
+  "page",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id").notNull().references(() => tenant.id),
+    entityKind: text("entity_kind", { enum: ["city"] }).notNull(),
+    entityId: uuid("entity_id").notNull(),
+    path: text("path").notNull(),
+    latestVersion: integer("latest_version").notNull(),
+    status: text("status", { enum: ["draft", "blocked"] }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("page_tenant_path_idx").on(t.tenantId, t.path)], // UNIQUEs, FKs compostas e RLS vivem só nas migrations
+);
+
+export const pageVersion = plataforma.table(
+  "page_version",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id").notNull().references(() => tenant.id),
+    pageId: uuid("page_id").notNull(),
+    version: integer("version").notNull(),
+    runId: uuid("run_id").notNull(),
+    content: jsonb("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    templateKey: text("template_key").notNull(),
+    templateVersion: integer("template_version").notNull(),
+    templateHash: text("template_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("page_version_page_idx").on(t.tenantId, t.pageId, t.version)],
+);
+
+export const generationItem = plataforma.table(
+  "generation_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id").notNull().references(() => tenant.id),
+    runId: uuid("run_id").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    outcome: text("outcome", { enum: ["generated", "unchanged", "blocked"] }).notNull(),
+    gates: jsonb("gates").notNull(),
+    pageId: uuid("page_id"),
+    pageVersionId: uuid("page_version_id"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("generation_item_run_idx").on(t.tenantId, t.runId, t.outcome)],
 );
