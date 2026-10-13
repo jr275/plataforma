@@ -62,3 +62,29 @@ export function rightOf(a: TemporalInterval, b: TemporalInterval): TemporalInter
   if (!(hi(a.end) > b.end.at.getTime())) return undefined;
   return interval(lo(a.start) > b.end.at.getTime() ? a.start : b.end, a.end);
 }
+
+/** Interseção de dois intervalos conhecidos, ou `undefined` se não se sobrepõem. */
+export function intersect(a: TemporalInterval, b: TemporalInterval): TemporalInterval | undefined {
+  if (overlaps(a, b) !== true) return undefined;
+  const start = lo(a.start) >= lo(b.start) ? a.start : b.start;
+  const end = hi(a.end) <= hi(b.end) ? a.end : b.end;
+  return interval(start, end);
+}
+
+/** `a` menos a união dos `cuts`: os pedaços de `a` que nenhum corte cobre, em ordem cronológica. */
+export function subtract(a: TemporalInterval, cuts: readonly TemporalInterval[]): TemporalInterval[] {
+  let pieces: TemporalInterval[] = [a];
+  for (const cut of cuts) {
+    pieces = pieces.flatMap((p) => {
+      if (overlaps(p, cut) !== true) return [p];
+      return [leftOf(p, cut), rightOf(p, cut)].filter((x): x is TemporalInterval => x !== undefined);
+    });
+  }
+  return pieces.sort((x, y) => lo(x.start) - lo(y.start));
+}
+
+/** Cópia profunda (as datas do chamador nunca são compartilhadas com o repositório). */
+export function cloneInterval(i: TemporalInterval): TemporalInterval {
+  const c = (b: Bound): Bound => (b.kind === "instant" ? { kind: "instant", at: new Date(b.at.getTime()) } : { kind: b.kind });
+  return Object.freeze({ start: Object.freeze(c(i.start)), end: Object.freeze(c(i.end)) });
+}

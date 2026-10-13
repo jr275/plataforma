@@ -110,13 +110,14 @@ A Etapa 4 do MVP (geração em lote com gates, ADR-020) permanece pendente e con
 - **Observação e evidência** com validação (sha256, versão do parser, ingestão ≥ observação, origem http(s) ou referência interna sem esquema, derivação exige origem). **Confiança em 5 dimensões separadas, sem função de agregação** (um teste confere).
 - **Catálogo de domínio** genérico (tipos de entidade, tipos de relação com cardinalidade declarada, validação de entidade e de relação, mesmo tenant nas pontas).
 - **Repositório bi-temporal de referência (em memória):** valid time × transaction time independentes; correção retroativa que **não apaga** o conhecimento anterior (reconstruível por `knownAt`); idempotência; observação concorrente de outra fonte vira `CONFLICTING` sem sobrescrever; corroboração soma evidências; vencimento (`UNKNOWN_STALE`) e encerramento de vigência sem apagar; tempo de transação monotônico; isolamento por tenant; versões imutáveis.
+- **Imutabilidade:** a versão inicial só congelava o objeto de forma rasa (as datas eram compartilhadas); corrigida em seguida (ver correções).
 - **Mutações de sanidade:** ignorar o tempo de transação na consulta derrubou 6 testes; permitir `ABSENT` derrubou 1; código restaurado e comparado byte a byte. Um erro de projeto foi achado pelos testes: a corroboração descartava a evidência anterior (corrigido; agora soma).
 
 ### Não implementado (fora desta fatia)
 Persistência (esquema SQL, RLS, exclusão de sobreposição), pipeline de observações, Entity Resolution, Context Engine, geografia/POI/roteamento, governança agêntica, leads e consentimento, métricas, G.0 e catálogo imobiliário (Property ≠ Listing). Contratos ainda ausentes: `ResolutionDecision`, `IngestionRun` generalizado, `KnowledgeChange`, `AgentAction`, `GovernanceDecision`.
 
 ### Limites conhecidos
-O repositório **rejeita** validade com limite `unknown` (o contrato a representa); o conflito é conservador (marca versões inteiras); a corroboração soma evidências só quando a validade é idêntica; tudo é em memória, sem concorrência real. As fixtures de teste são sintéticas e não são evidência de desempenho em produção.
+O repositório **rejeita** validade com limite `unknown` (o contrato a representa); a corroboração soma evidências só quando a validade é idêntica; as evidências são identificadores sem verificação de existência; tudo é em memória, sem concorrência real. (O conflito, antes conservador, agora é segmentado no tempo; ver correções abaixo.) As fixtures de teste são sintéticas e não são evidência de desempenho em produção.
 
 ### Critérios de aceite após a Fatia 1 (substitui a tabela da seção 9 onde mudou)
 | # | Critério | Estado |
@@ -132,3 +133,6 @@ Demais critérios: sem mudança.
 
 ### Próxima unidade de trabalho recomendada
 **Fatia 2 (persistência temporal):** ADR próprio, migrations de entidade/fato/evidência com tempo de validade e de transação, RLS e testes de isolamento e de reconstrução temporal contra o PostgreSQL descartável e o Neon dev. Exige aprovação do dono antes de qualquer migration. Em paralelo, a Etapa 4 do MVP (geração de páginas com gates, ADR-020) segue pendente de três respostas do dono.
+
+### Correções pós-revisão (2026-10-13), commit seguinte à Fatia 1
+Defeitos comprovados por sonda e corrigidos: **P1** imutabilidade rasa (o chamador alterava as datas gravadas); **P2** conflito que contaminava o passado; **P3** prazo em conflitos e em repetições; **P4** isolamento por tenant só por convenção do chamador (agora o repositório é vinculado a um tenant); **P5** exportações genéricas (agora namespace `knowledge`). Testes: pacote `api` com 216 passando; mutações (devolver o `Date` interno; remover a checagem de tenant na escrita) derrubam os testes correspondentes e o código foi restaurado byte a byte.
