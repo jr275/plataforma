@@ -43,7 +43,10 @@ app_sql() { local ctx=""; [[ -n "$1" ]] && ctx="SELECT set_config('app.tenant_id
 # --- estado do banco (branch) ----------------------------------------------------------------------
 expect "o servidor é PostgreSQL 16" has "$(run_as T_APP "SHOW server_version")" "16."
 expect "o papel da aplicação não tem BYPASSRLS nem superusuário" eq "$(run_as T_APP "SELECT rolbypassrls::text||rolsuper::text FROM pg_roles WHERE rolname=current_user")" "falsefalse"
-expect "reaplicar as migrations não muda nada (executor, gate ativo)" has "$( (export NEON_MIGRATOR_URL="$T_MIG"; bash "$ROOT/scripts/db-migrate.sh" --remote-conn-env NEON_MIGRATOR_URL --app-role menlo_app 2>&1) )" "0 aplicada(s), 2 já atualizada(s)"
+# O branch copia o main, que pode estar atrás das migrations do repositório: a primeira execução aplica as pendentes (gate ativo).
+(export NEON_MIGRATOR_URL="$T_MIG"; bash "$ROOT/scripts/db-migrate.sh" --remote-conn-env NEON_MIGRATOR_URL --app-role menlo_app >/dev/null 2>&1)
+N_MIG="$(ls "$ROOT"/db/migrations/[0-9]*.sql | wc -l | tr -d ' ')"
+expect "reaplicar as migrations não muda nada (executor, gate ativo)" has "$( (export NEON_MIGRATOR_URL="$T_MIG"; bash "$ROOT/scripts/db-migrate.sh" --remote-conn-env NEON_MIGRATOR_URL --app-role menlo_app 2>&1) )" "0 aplicada(s), $N_MIG já atualizada(s)"
 expect "o gate de catálogo passa no banco real (avalia a tabela opportunity)" has "$( (export NEON_ADMIN_URL="$T_ADMIN"; bash "$ROOT/scripts/check-catalog.sh" --remote-conn-env NEON_ADMIN_URL --app-role menlo_app --executor-role plataforma_migrator 2>&1) )" "plataforma.opportunity"
 
 # --- conexão: TLS e falhas, sem vazar segredo ----------------------------------------------------
