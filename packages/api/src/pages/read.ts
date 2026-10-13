@@ -43,3 +43,67 @@ export async function listPageVersions(db: TenantDb, pageId: string): Promise<Pa
     `SELECT id, version, run_id, content_hash, content, template_key, template_version, created_at FROM plataforma.page_version WHERE page_id = $1 ORDER BY version DESC`, [pageId]);
   return r.rows.map((x) => Object.freeze({ id: x.id, version: x.version, runId: x.run_id, contentHash: x.content_hash, content: x.content, templateKey: x.template_key, templateVersion: x.template_version, createdAt: x.created_at }));
 }
+
+// ---- consultas para a interface (busca, detalhe de página e de execução) ------------------------------------------------------
+
+export interface PageListItem extends PageSummary { readonly cityName: string; readonly uf: string; readonly region: string | null; readonly population: number | null; readonly populationYear: number | null }
+export type PageSort = "path" | "updated" | "population";
+export interface PageSearch { readonly q?: string; readonly status?: "draft" | "blocked"; readonly uf?: string; readonly sort?: PageSort; readonly dir?: "asc" | "desc"; readonly limit?: number; readonly offset?: number }
+
+const SORT_SQL: Record<PageSort, string> = { path: "p.path", updated: "p.updated_at", population: "c.population" };
+const escapeLike = (s: string) => s.replace(/[\\%_]/g, (m) => `\\${m}`);
+
+interface PageListRow { id: string; entity_id: string; path: string; status: "draft" | "blocked"; latest_version: number; updated_at: Date; name: string; uf: string; region: string | null; population: string | null; population_year: number | null }
+const toListItem = (x: PageListRow): PageListItem => Object.freeze({ id: x.id, entityId: x.entity_id, path: x.path, status: x.status, latestVersion: x.latest_version, updatedAt: x.updated_at, cityName: x.name, uf: x.uf, region: x.region, population: x.population === null ? null : Number(x.population), populationYear: x.population_year });
+const PAGE_COLS = "p.id, p.entity_id, p.path, p.status, p.latest_version, p.updated_at, c.name, c.uf, c.region, c.population, c.population_year";
+
+/** Busca, filtro, ordenação e paginação de páginas (só colunas e direções de uma lista fechada; o texto vai por parâmetro). */
+export async function searchPages(db: TenantDb, search: PageSearch = {}): Promise<{ rows: PageListItem[]; total: number }> {
+  const limit = Math.min(Math.max(Math.trunc(search.limit ?? 25), 1), 100);
+  const offset = Math.max(Math.trunc(search.offset ?? 0), 0);
+  const sort = SORT_SQL[search.sort ?? "path"] ?? SORT_SQL.path;
+  const dir = search.dir === "desc" ? "DESC" : "ASC";
+  const q = (search.q ?? "").trim().slice(0, 80);
+  const where = `($1::text IS NULL OR c.name ILIKE $1 ESCAPE '\\' OR p.path ILIKE $1 ESCAPE '\\') AND ($2::text IS NULL OR p.status = $2) AND ($3::text IS NULL OR c.uf = $3)`;
+  const params = [q === "" ? null : `%${escapeLike(q)}%`, search.status ?? null, search.uf ? search.uf.toUpperCase() : null];
+  const from = `FROM plataforma.page p JOIN plataforma.city c ON c.id = p.entity_id AND c.tenant_id = p.tenant_id`;
+  const [rows, count] = await Promise.all([
+    db.query<PageListRow>(`SELECT ${PAGE_COLS} ${from} WHERE ${where} ORDER BY ${sort} ${dir} NULLS LAST, p.path LIMIT $4 OFFSET $5`, [...params, limit, offset]),
+    db.query<{ n: string }>(`SELECT count(*)::text AS n ${from} WHERE ${where}`, params),
+  ]);
+  return { rows: rows.rows.map(toListItem), total: Number(count.rows[0]!.n) };
+}
+
+export interface LatestAttempt { readonly runId: string; readonly startedAt: Date; readonly outcome: GenerationItemView["outcome"]; readonly gates: readonly GateResult[]; readonly error: string | null }
+export interface PageDetail { readonly page: PageListItem; readonly versions: readonly PageVersionView[]; readonly latestAttempt: LatestAttempt | undefined }
+
+/** Detalhe de uma página: dados da cidade de origem, todas as versões e o resultado dos gates da tentativa mais recente. */
+export async function getPageDetail(db: TenantDb, pageId: string): Promise<PageDetail | undefined> {
+  if (!UUID.test(pageId)) return undefined;
+  const p = await db.query<PageListRow>(`SELECT ${PAGE_COLS} FROM plataforma.page p JOIN plataforma.city c ON c.id = p.entity_id AND c.tenant_id = p.tenant_id WHERE p.id = $1`, [pageId]);
+  const row = p.rows[0];
+  if (!row) return undefined;
+  const page = toListItem(row);
+  const versions = await listPageVersions(db, pageId);
+  const a = await db.query<{ run_id: string; started_at: Date; outcome: GenerationItemView["outcome"]; gates: GateResult[]; error: string | null }>(
+    `SELECT i.run_id, r.started_at, i.outcome, i.gates, i.error FROM plataforma.generation_item i JOIN plataforma.generation_run r ON r.id = i.run_id WHERE i.entity_id = $1 ORDER BY r.started_at DESC, i.created_at DESC LIMIT 1`, [page.entityId]);
+  const at = a.rows[0];
+  return { page, versions, latestAttempt: at ? { runId: at.run_id, startedAt: at.started_at, outcome: at.outcome, gates: at.gates, error: at.error } : undefined };
+}
+
+export interface GenerationItemDetail extends GenerationItemView { readonly ibgeCode: string; readonly cityName: string; readonly uf: string; readonly pagePath: string | null }
+export interface GenerationRunDetail { readonly run: GenerationRunSummary; readonly scope: Record<string, unknown>; readonly items: readonly GenerationItemDetail[] }
+
+export async function getGenerationRunDetail(db: TenantDb, runId: string): Promise<GenerationRunDetail | undefined> {
+  if (!UUID.test(runId)) return undefined;
+  const r = await db.query<RunRow & { scope: Record<string, unknown> }>(`SELECT id, template_key, template_version, status, total_items, generated_items, unchanged_items, blocked_items, error, started_at, finished_at, created_by, scope FROM plataforma.generation_run WHERE id = $1`, [runId]);
+  const x = r.rows[0];
+  if (!x) return undefined;
+  const run: GenerationRunSummary = Object.freeze({ id: x.id, templateKey: x.template_key, templateVersion: x.template_version, status: x.status, totalItems: x.total_items, generatedItems: x.generated_items, unchangedItems: x.unchanged_items, blockedItems: x.blocked_items, error: x.error, startedAt: x.started_at, finishedAt: x.finished_at, createdBy: x.created_by });
+  const it = await db.query<{ entity_id: string; outcome: GenerationItemView["outcome"]; gates: GateResult[]; page_id: string | null; page_version_id: string | null; error: string | null; ibge_code: string; name: string; uf: string; path: string | null }>(
+    `SELECT i.entity_id, i.outcome, i.gates, i.page_id, i.page_version_id, i.error, c.ibge_code, c.name, c.uf, p.path
+       FROM plataforma.generation_item i JOIN plataforma.city c ON c.id = i.entity_id LEFT JOIN plataforma.page p ON p.id = i.page_id
+      WHERE i.run_id = $1 ORDER BY c.ibge_code`, [runId]);
+  const items = it.rows.map((y) => Object.freeze({ entityId: y.entity_id, outcome: y.outcome, gates: y.gates, pageId: y.page_id, pageVersionId: y.page_version_id, error: y.error, ibgeCode: y.ibge_code, cityName: y.name, uf: y.uf, pagePath: y.path }));
+  return { run, scope: x.scope, items };
+}
