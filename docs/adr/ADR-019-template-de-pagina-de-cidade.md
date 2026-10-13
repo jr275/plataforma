@@ -1,6 +1,6 @@
 # ADR-019: Template de página de cidade (versionado, executável, só com fatos rastreáveis)
 
-**Status:** PROPOSED (2026-10-12). Aguarda as decisões do dono do produto ao final. Nada aqui está implementado.
+**Status:** ACCEPTED (2026-10-12), nos pontos 2 e 4 por decisão expressa do dono no chat ("sim": URL `/cidades/{uf}/{slug}` e aceite do risco de conteúdo raso com lote inicial pequeno). Os pontos 1 e 3 (template em código; regras de título, meta e headings) foram implementados como propostos por serem reversíveis por nova versão do template; seguem abertos a ajuste. O ponto 5 (domínio) não bloqueia esta etapa.
 
 ## Contexto
 - Etapa 3 do MVP (critérios do dono, `docs/audits/MVP_BASELINE_2026-10-12.md`): template **executável, com versão, campos documentados, sem preenchimento fictício**; **duas cidades com conteúdo factual diferente**; regras explícitas para **título, meta, headings, URL e links**; **atualização sem duplicar URL**.
@@ -23,7 +23,7 @@ Uma função pura transforma `city` + `import_run` em `Fact[]`: `{ id, key, valu
 | Elemento | Regra |
 | --- | --- |
 | **URL** | `/cidades/{uf-minúsculo}/{slug}`; `slug` = nome sem acentos, minúsculo, hífens. Único por tenant (verificado por gate, etapa 4). Determinística: a mesma cidade gera sempre a mesma URL; reprocessar **atualiza**, não cria. Limite conhecido: se o IBGE renomear um município, a URL muda; o tratamento (redirecionamento) fica para a etapa 5. |
-| **Título** | `{Nome} ({UF}): população e localização`, no máximo 60 caracteres; se passar, cai para `{Nome} ({UF})`. |
+| **Título** | Com população: `{Nome} ({UF}): população e localização`; sem população: `{Nome} ({UF}): localização`; no máximo 60 caracteres, senão cai para `{Nome} ({UF})`. (Ajuste feito na implementação: o título não promete população que não existe.) |
 | **Meta descrição** | Frase fixa com nome, UF, região e, **se existir**, a população com o ano de referência; 70 a 155 caracteres. Sem população, a frase omite esse trecho. |
 | **Headings** | Um `h1` (`{Nome}, {UF}`) e `h2` fixos e na mesma ordem: "Visão geral", "População" (só se há população), "Localização", "Fonte dos dados". |
 | **Texto** | Frases fixas em pt-BR. **Nenhum algarismo no texto literal do template** (o validador do template recusa); todo número entra por token `{{fact:chave}}`, formatado em pt-BR. |
@@ -31,7 +31,7 @@ Uma função pura transforma `city` + `import_run` em `Fact[]`: `{ id, key, valu
 | **Proveniência** | A seção "Fonte dos dados" lista cada fato usado com fonte, ano e data da coleta. |
 
 ### 5. Campos do template (contrato documentado)
-Obrigatórios para renderizar: `name`, `uf`, `ibge_code`. Opcionais: `region`, `population`, `population_year`. Cada seção declara de quais campos depende; sem eles, a seção sai (não fica vazia). Uma cidade sem os obrigatórios **não renderiza** e o motivo é devolvido.
+Obrigatórios para renderizar: `name`, `uf`, `ibge_code`. Opcionais: `region`, `population`, `population_year`. Cada seção declara de quais campos depende; sem eles, a seção sai (não fica vazia). **População só entra com o ano de referência** (regra 1: fato precisa de validade); população sem ano não gera número na página. Uma cidade sem os obrigatórios **não renderiza** e o motivo é devolvido.
 
 ### 6. Prova esperada (testes)
 Duas cidades reais distintas geram títulos, metas, textos e fatos diferentes; mesma entrada gera saída idêntica (hash estável); cidade sem população omite as seções dependentes sem inventar; execução `test` é recusada; número no texto literal do template é recusado; link para destino desconhecido não é emitido; reprocessar mantém a URL.
