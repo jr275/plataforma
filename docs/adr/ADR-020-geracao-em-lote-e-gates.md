@@ -1,6 +1,6 @@
 # ADR-020: Geração de páginas em lote, histórico por versão e gates de qualidade
 
-**Status:** PROPOSED (2026-10-13). Nada aqui está implementado nem aplicado em banco algum. Aguarda as decisões do dono ao final.
+**Status:** ACCEPTED (2026-10-13) nos cinco pontos abaixo, por decisão expressa do dono no chat (histórico do ADR preservado: o texto original das seções 1 a 6 e as perguntas seguem abaixo, sem alteração; as mudanças de implementação estão no **Adendo**).
 
 ## Contexto
 - Etapa 4 do MVP (critérios do dono): ao menos **10 registros válidos** num lote; **execução registrada**; **repetição sem duplicar**; **bloqueio só dos registros inválidos**; detecção de **ausência de campo, URL duplicada, metadado inválido e link quebrado**; **reprocessamento sem perder histórico**.
@@ -60,3 +60,19 @@ Testes de isolamento entre dois tenants nas quatro tabelas (disposable PG e Neon
 3. Aprovar o teto de 500 cidades por execução.
 4. **Escolher o lote piloto** (10 a 20 cidades): proposta, as 20 maiores por população de **um** estado à sua escolha, ou uma lista que a RE/MAX indicar.
 5. Confirmar que, nesta etapa, as páginas ficam apenas como `draft` (nenhuma publicação sem a etapa 5 e aprovação explícita).
+
+## Decisões do dono (2026-10-13, chat)
+1. **Aprovado:** tabelas de execução, página e versão, com idempotência por hash e histórico preservado.
+2. **Aprovado:** os seis gates deste ADR, desde que implementados como verificações reais.
+3. **Aprovado:** teto de 500 cidades por execução, com lotes menores no piloto.
+4. **Piloto:** 20 cidades do estado de **São Paulo**, selecionadas pela **população oficial do IBGE** disponível no projeto (sem inventar ranking nem dado ausente).
+5. **Aprovado:** páginas geradas só como `draft`, sem publicação nem indexação automática.
+Autorizações operacionais da mesma mensagem: migrations só em PostgreSQL local descartável (nunca no Neon ou banco persistente), commits locais pequenos; push, deploy, publicação e operações financeiras seguem proibidos sem autorização explícita.
+Nenhuma condição adicional material deste ADR foi dispensada.
+
+## Adendo de implementação (2026-10-13)
+- **Gates:** os seis do ADR (`required_fields`, `url_unique`, `url_stable`, `metadata_valid`, `links_resolve`, `facts_traceable`). A **origem dos dados** (apenas `real`) é verificada em `required_fields`; a **consistência de renderização** é a reconferência independente de `facts_traceable` (todo fato com fonte, todo algarismo da prosa vindo de um fato). Um gate que não pode ser avaliado porque não houve conteúdo recebe `skipped` (extensão de `pass`/`fail`, para toda tentativa ter resultado auditável por gate).
+- **Versões só de conteúdo aprovado:** `page_version` guarda apenas conteúdo que passou em todos os gates (por isso não há coluna `gates_passed`). Tentativas reprovadas ficam em `generation_item.gates`, com o motivo. Página nova bloqueada não cria `page`; página existente cujo reprocessamento é bloqueado vai a `blocked` e mantém suas versões.
+- **Hash de conteúdo** (`contentHash`): projeção factual determinística (caminho, título, meta, `h1`, seções exceto "Fonte dos dados", links, e de cada fato usado `id`, valor e ano de referência, mais a versão do template). **Não inclui** data de coleta, identificador de execução nem hash do arquivo de origem (que mudaria para todas as cidades se uma única linha do arquivo mudasse).
+- **Migrations:** `0005_generation_run.sql` e `0006_page.sql` (`page`, `page_version`, `generation_item`). Não há migrations de reversão (ADR-011); a atomicidade da aplicação é a do runner (`test:migrations`).
+- **Falha:** cada item persiste dentro de um `SAVEPOINT`; falha de um item é registrada em `generation_item.error` e não afeta os demais. Falha da execução inteira a marca `failed` (transação separada) e reprocessar é seguro.
