@@ -62,6 +62,17 @@ describe("página de cidade", () => {
     expect(a.contentHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it("o hash NÃO depende de data de coleta, execução nem hash do arquivo de origem (reimportar o mesmo dado não cria versão)", () => {
+    const a = render(city({}));
+    const outraRun = { ...RUN, id: "c0000000-0000-4000-8000-0000000000ff", fileSha256: "b".repeat(64), finishedAt: new Date("2027-05-05T00:00:00Z") };
+    const f = buildCityFacts(city({ sourceRunId: outraRun.id }), outraRun);
+    if (!f.ok) throw new Error(f.reason);
+    const r = renderCityPage(CITY_OVERVIEW, f, { knownPaths: KNOWN });
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.page.contentHash).toBe(a.contentHash);
+    expect(JSON.stringify(r.page.sections.at(-1))).toContain("05/05/2027"); // a proveniência mostra a coleta nova, mas não entra no hash
+  });
+
   it("mudar um dado muda o conteúdo mas NÃO a URL (atualização sem duplicar)", () => {
     const antes = render(city({}));
     const depois = render(city({ population: 23000 }));

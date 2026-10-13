@@ -112,7 +112,7 @@ export interface RenderedPage {
   readonly template: { readonly key: string; readonly version: number; readonly hash: string };
   readonly cityId: string;
   readonly ibgeCode: string;
-  /** sha256 do conteúdo renderizado: idêntico entre reprocessamentos sem mudança de dado. */
+  /** sha256 da projeção factual do conteúdo (sem datas de coleta nem identificadores de execução): idêntico enquanto os fatos e o texto não mudam. */
   readonly contentHash: string;
 }
 export type RenderResult = { ok: true; page: RenderedPage } | { ok: false; reason: "missing_required" | "invalid_template" | "meta_out_of_bounds"; detail: string };
@@ -182,7 +182,15 @@ export function renderCityPage(template: CityTemplate, factsResult: Extract<Fact
   const links = linkCandidates.filter((l) => ctx.knownPaths.has(l.path));
 
   const path = cityPath(uf, name);
-  const body = { path, title, metaDescription, h1: `${name}, ${uf}`, sections, links, facts: usedFacts.map((f) => f.id), template: { key: template.key, version: template.version } };
+  // Projeção FACTUAL para o hash (idempotência, ADR-020): sem data de coleta, execução nem hash do arquivo de origem (que mudariam a
+  // cada reimportação ou por uma única linha alterada em outra cidade). Só o que define o conteúdo: texto, fatos (id, valor, ano) e versão.
+  const body = {
+    path, title, metaDescription, h1: `${name}, ${uf}`,
+    sections: sections.filter((s) => s.id !== "sources"),
+    links,
+    facts: usedFacts.map((f) => ({ id: f.id, value: f.value, asOf: f.asOf ?? null })),
+    template: { key: template.key, version: template.version },
+  };
   const page: RenderedPage = {
     path, canonicalPath: path, title, metaDescription, h1: body.h1, sections, links, factsUsed: usedFacts,
     template: { key: template.key, version: template.version, hash: templateHash(template) },

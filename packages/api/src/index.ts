@@ -76,3 +76,6 @@ export {
   type RenderedSection,
 } from "./pages/city-overview";
 export * as knowledge from "./knowledge";
+export { GATES, META_MAX, META_MIN, TITLE_MAX, checkFactsTraceable, checkLinks, checkMetadata, evaluateCity, type ExistingPage, type GateName, type GateResult, type GenerationContext, type ItemEvaluation } from "./pages/gates";
+export { MAX_GENERATION_ITEMS, runGeneration, selectCandidates, type GenerationInput, type GenerationItemSummary, type GenerationResult, type GenerationScope } from "./pages/generate";
+export { listGenerationItems, listGenerationRuns, listPageVersions, listPages, type GenerationItemView, type GenerationRunSummary, type PageSummary, type PageVersionView } from "./pages/read";
