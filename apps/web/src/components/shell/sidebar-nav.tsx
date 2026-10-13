@@ -53,6 +53,15 @@ function SidebarView({ onNavigate, collapsed = false, active }: { onNavigate?: (
                     >
                       <Icon className={cn("size-4 shrink-0", isActive ? "text-sidebar-primary-foreground" : "text-muted-foreground group-hover:text-foreground")} aria-hidden="true" />
                       {collapsed ? null : <span className="truncate">{item.label}</span>}
+                      {!collapsed && (item.status === "planned" || item.status === "blocked") ? (
+                        <span
+                          title={item.status === "blocked" ? "Bloqueado: depende de uma fonte com falha" : "Planejado: ainda sem backend"}
+                          className={cn("ml-auto font-mono text-[9.5px] tracking-wide uppercase", isActive ? "text-sidebar-primary-foreground/75" : item.status === "blocked" ? "text-destructive" : "text-muted-foreground/70")}
+                        >
+                          {item.status === "blocked" ? "bloq." : "plan."}
+                          <span className="sr-only">{item.status === "blocked" ? " (bloqueado)" : " (planejado)"}</span>
+                        </span>
+                      ) : null}
                     </Link>
                   </li>
                 );

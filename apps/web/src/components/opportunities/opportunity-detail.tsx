@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { findAcross } from "@/lib/find";
 import { levelTone, statusLabel, statusTone, transition } from "@/lib/opportunity";
+import { OpportunityIntelPanel } from "./opportunity-intel-panel";
 
 const factorHelp = {
   demand: "Quanto o universo de buscas pede por este tema.",
@@ -57,6 +58,8 @@ export function OpportunityDetail({ id }: { id: string }) {
         }
       />
       <OwnerNotice owner={owner} />
+
+      <OpportunityIntelPanel owner={owner} o={o} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
