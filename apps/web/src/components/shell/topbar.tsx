@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Menu as MenuIcon, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun } from "lucide-react";
 import { useAppState } from "@/components/app-state";
+import { isRealDataRoute } from "@/config/navigation";
 import { UserMenu } from "./user-menu";
 import { WorkspaceMenu } from "./workspace-menu";
 
 /** Barra superior em azul sólido (âncora de marca): busca, workspace, tema e usuário. */
 export function Topbar() {
   const { setNavOpen, setPaletteOpen, prefs, setPrefs } = useAppState();
+  const real = isRealDataRoute(usePathname());
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -47,11 +50,11 @@ export function Topbar() {
         <kbd className="hidden border border-white/35 px-1.5 text-[10px] sm:inline">⌘K</kbd>
       </button>
       <div className="ml-auto flex items-center gap-2">
-        <span className="hidden border border-white/40 px-2 py-0.5 font-mono text-[10px] tracking-[0.08em] uppercase md:inline">Dados demonstrativos</span>
+        <span className="hidden border border-white/40 px-2 py-0.5 font-mono text-[10px] tracking-[0.08em] uppercase md:inline">{real ? "Dado real" : "Dados demonstrativos"}</span>
         <button type="button" onClick={() => setPrefs({ theme: dark ? "light" : "dark" })} aria-label={dark ? "Usar o tema claro" : "Usar o tema escuro"} aria-pressed={dark} className={iconButton}>
           {dark ? <Sun className="size-4" aria-hidden="true" /> : <Moon className="size-4" aria-hidden="true" />}
         </button>
-        <WorkspaceMenu onPrimary />
+        {real ? null : <WorkspaceMenu onPrimary />}
         <UserMenu onPrimary />
       </div>
     </header>

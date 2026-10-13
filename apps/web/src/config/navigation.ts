@@ -4,6 +4,7 @@ import {
   Boxes,
   Bot,
   Database,
+  Workflow,
   FileStack,
   FlaskConical,
   Globe,
@@ -49,6 +50,7 @@ export const navigation: readonly NavGroup[] = [
       { id: "knowledge", label: "Knowledge", icon: BookOpenText, href: "/knowledge" },
       { id: "entities", label: "Entities", icon: Network, href: "/entities" },
       { id: "data-sources", label: "Data Sources", icon: Database, href: "/data-sources" },
+      { id: "data-flow", label: "Fluxo de dados", icon: Workflow, href: "/data-flow" },
     ],
   },
   {
@@ -81,4 +83,11 @@ export function activeNavId(pathname: string): string | undefined {
   return linked
     .filter((i) => i.href !== "/" && pathname.startsWith(`${i.href}/`))
     .sort((a, b) => (b.href?.length ?? 0) - (a.href?.length ?? 0))[0]?.id;
+}
+
+/** Rotas que leem dado REAL do banco (ADR-018). As demais ainda mostram dados de demonstração; o topo avisa qual é qual. */
+export const REAL_DATA_ROUTES: readonly string[] = ["/data-flow"];
+
+export function isRealDataRoute(pathname: string): boolean {
+  return REAL_DATA_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
 }

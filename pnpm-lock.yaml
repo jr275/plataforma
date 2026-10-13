@@ -178,6 +178,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@plataforma/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@plataforma/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -245,14 +248,14 @@ importers:
       jose:
         specifier: ^6.2.12
         version: 6.2.12
+      pg:
+        specifier: ^8.23.1
+        version: 8.23.1
     devDependencies:
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
       '@types/pg':
-        specifier: ^8.23.1
-        version: 8.23.1
-      pg:
         specifier: ^8.23.1
         version: 8.23.1
       tsx:
@@ -272,7 +275,7 @@ importers:
         version: 1.2.0
       drizzle-orm:
         specifier: ^0.45.4
-        version: 0.45.4(@neondatabase/serverless@1.2.0)
+        version: 0.45.4(@neondatabase/serverless@1.2.0)(@types/pg@8.23.1)(pg@8.23.1)
     devDependencies:
       drizzle-kit:
         specifier: ^0.31.0
@@ -5893,9 +5896,11 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.15
 
-  drizzle-orm@0.45.4(@neondatabase/serverless@1.2.0):
+  drizzle-orm@0.45.4(@neondatabase/serverless@1.2.0)(@types/pg@8.23.1)(pg@8.23.1):
     optionalDependencies:
       '@neondatabase/serverless': 1.2.0
+      '@types/pg': 8.23.1
+      pg: 8.23.1
 
   dunder-proto@1.0.1:
     dependencies:

@@ -3,8 +3,8 @@
 // scripts/neon-import-cities.sh):  tsx cli.ts --env-var NEON_APP_URL --tenant UUID --file caminho.csv --origin real --source IBGE
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
-import pg from "pg";
 import { devIdentity } from "../dev-identity";
+import { createAppPool } from "../pool";
 import { runCityImport, type ImportOrigin } from "./run";
 
 function arg(name: string): string {
@@ -24,9 +24,7 @@ async function main(): Promise<void> {
   const tenant = arg("tenant");
   const file = arg("file");
 
-  const u = new URL(url);
-  const pool = new pg.Pool({ host: u.hostname, port: Number(u.port || 5432), user: decodeURIComponent(u.username), password: decodeURIComponent(u.password), database: u.pathname.slice(1), ssl: { rejectUnauthorized: true }, max: 2 });
-  pool.on("error", () => undefined);
+  const pool = createAppPool(url, { max: 2 });
   try {
     const r = await runCityImport(pool, devIdentity([tenant]), tenant, {
       content: readFileSync(file), fileName: basename(file), sourceName: arg("source"), origin,

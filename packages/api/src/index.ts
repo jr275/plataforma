@@ -55,3 +55,4 @@ export {
 } from "./ingest/cities";
 export { MAX_IMPORT_ROWS, runCityImport, type CityImportInput, type ImportOrigin, type ImportResult, type ImportStatus } from "./ingest/run";
 export { countCities, getImportRun, listCities, listImportRecords, listImportRuns, type City, type ImportRecordView, type ImportRunSummary } from "./ingest/read";
+export { createAppPool } from "./pool";
