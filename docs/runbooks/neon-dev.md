@@ -19,6 +19,13 @@ NEON_MIGRATOR_URL="$(sed -n 's/^NEON_MIGRATOR_URL=//p' .env.neon.local)" \
 ```
 O gate de segurança roda dentro de cada migration e o bypass é recusado em banco remoto. Reaplicar é seguro (idempotente).
 
+## Criar tenant e carregar cidades (IBGE)
+```bash
+bash scripts/neon-create-tenant.sh --slug remax --name "RE/MAX (piloto)"      # imprime o uuid do tenant
+bash scripts/neon-import-cities.sh --tenant UUID_DO_TENANT                    # baixa do IBGE e importa como menlo_app
+```
+Ambos são idempotentes. A carga usa `NEON_APP_URL` (nunca é impressa) e grava a execução, os registros por linha e as cidades.
+
 ## Testar (isolamento, TLS, falhas, API)
 ```bash
 bash scripts/test-neon.sh --project-id autumn-art-97369869
