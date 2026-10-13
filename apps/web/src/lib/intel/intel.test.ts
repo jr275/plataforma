@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exemploData } from "@/data/demo/exemplo";
+import { exemplo as exemploData } from "@/data/demo/exemplo";
 import { rankArchetypes } from "./archetypes";
 import { UNVERIFIED_STATES, defaultBlueprint, evaluateGates, publicationStateOf } from "./blueprint";
 import { STAGES, UNVERIFIABLE_FROM, lifecycleOf, stageIndex } from "./lifecycle";

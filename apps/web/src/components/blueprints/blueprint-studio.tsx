@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppState } from "@/components/app-state";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ export function BlueprintStudio() {
   const oParam = useSearchParams().get("o");
   const active = current.opportunities.filter((o) => o.status !== "dismissed");
   const o = active.find((x) => x.id === oParam) ?? active[0];
-  const ranked = useMemo(() => (o ? rankArchetypes(current, o) : []), [current, o]);
+  const ranked = o ? rankArchetypes(current, o) : [];
   const [overrides, setOverrides] = useState<Record<string, Blueprint>>({});
   if (!o) return <StateNotice state="empty" title="Nenhuma oportunidade ativa para montar um blueprint." />;
 
