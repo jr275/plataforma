@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { useAppState } from "@/components/app-state";
@@ -9,103 +10,207 @@ import { Button } from "@/components/ui/button";
 import { Chip, ChipGroup, SearchField, norm } from "@/components/ui/filters";
 import { EmptyState } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
-import { ResourceList } from "@/components/ui/resource-list";
-import type { Opportunity, OpportunityStatus } from "@/data/demo/types";
-import { statusLabel, statusTone } from "@/lib/opportunity";
+import { DataStateBadge, Fact, Inspector, ScoreBar, Section, SortHeader, StateNotice } from "@/components/intel/primitives";
+import { ScoreBreakdown } from "@/components/intel/score-breakdown";
+import { useOpportunityIntel, type OpportunityIntel } from "@/components/intel/use-intel";
+import type { OpportunityStatus } from "@/data/demo/types";
+import { stageLabel } from "@/lib/intel/lifecycle";
+import { buyerStageOf, defaultWeights, type Weights } from "@/lib/intel/score";
+import { levelTone, statusLabel, statusTone } from "@/lib/opportunity";
+import { cn } from "@/lib/utils";
 
 const STATUSES: readonly OpportunityStatus[] = ["candidate", "in_review", "ready", "blocked", "dismissed"];
-const KINDS: readonly Opportunity["kind"][] = ["página", "cluster", "FAQ", "comparativo"];
+const INTENTS = [{ value: "informacional", label: "Informacional" }, { value: "comparação", label: "Comparação" }, { value: "transacional", label: "Transacional" }] as const;
+type SortKey = "score" | "demand" | "evidence" | "risk" | "stage";
+const levelRank = { alta: 3, média: 2, baixa: 1 } as const;
 
 export function OpportunitiesView() {
   const { current } = useAppState();
   const router = useRouter();
   const ref = useSearchParams().get("ref");
+  const [weights, setWeights] = useState<Weights>(defaultWeights);
+  const intel = useOpportunityIntel(current, weights);
   const [text, setText] = useState("");
   const [statuses, setStatuses] = useState<ReadonlySet<OpportunityStatus>>(new Set());
-  const [kind, setKind] = useState<Opportunity["kind"] | "">("");
+  const [intent, setIntent] = useState<(typeof INTENTS)[number]["value"] | "">("");
+  const [cluster, setCluster] = useState("");
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "score", dir: "desc" });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editWeights, setEditWeights] = useState(false);
 
   const entityLabels = useMemo(() => new Map(current.entities.map((e) => [e.id, e.label])), [current]);
-  const refLabel = useMemo(() => {
-    if (!ref) return undefined;
-    return entityLabels.get(ref) ?? current.sources.find((s) => s.id === ref)?.name;
-  }, [ref, current, entityLabels]);
+  const refLabel = ref ? (entityLabels.get(ref) ?? current.sources.find((s) => s.id === ref)?.name) : undefined;
+  const clusters = useMemo(() => [...new Set(current.queries.map((q) => q.cluster))], [current]);
 
   const rows = useMemo(() => {
     const q = norm(text.trim());
-    return [...current.opportunities]
-      .sort((a, b) => a.rank - b.rank)
-      .filter((o) => {
-        // Descartadas só aparecem quando o filtro "Descartada" está ativo.
+    const risk = (x: OpportunityIntel) => x.score.dimensions.find((d) => d.id === "evidenceRisk")?.value ?? 0;
+    const value: Record<SortKey, (x: OpportunityIntel) => number> = {
+      score: (x) => x.score.score,
+      demand: (x) => levelRank[x.o.demand],
+      evidence: (x) => levelRank[x.o.evidence],
+      risk,
+      stage: (x) => x.life.reached.size,
+    };
+    return intel
+      .filter(({ o, clusters: cs }) => {
         if (statuses.size === 0 ? o.status === "dismissed" : !statuses.has(o.status)) return false;
-        if (kind && o.kind !== kind) return false;
+        if (intent && o.intent !== intent) return false;
+        if (cluster && !cs.includes(cluster)) return false;
         if (ref && !o.entityIds.includes(ref) && !o.sourceIds.includes(ref)) return false;
         const entities = o.entityIds.map((id) => entityLabels.get(id) ?? "").join(" ");
-        return !q || norm(`${o.title} ${o.summary} ${o.intent} ${entities}`).includes(q);
-      });
-  }, [current, statuses, text, kind, ref, entityLabels]);
+        return !q || norm(`${o.title} ${o.summary} ${o.intent} ${entities} ${cs.join(" ")}`).includes(q);
+      })
+      .sort((a, b) => (sort.dir === "desc" ? -1 : 1) * (value[sort.key](a) - value[sort.key](b)) || a.o.rank - b.o.rank);
+  }, [intel, statuses, intent, cluster, ref, text, sort, entityLabels]);
 
-  const toggle = (s: OpportunityStatus) =>
-    setStatuses((prev) => {
-      const next = new Set(prev);
-      if (next.has(s)) next.delete(s);
-      else next.add(s);
-      return next;
-    });
-  const filtered = text.trim() !== "" || statuses.size > 0 || kind !== "" || Boolean(ref);
-  const clear = () => {
-    setText("");
-    setStatuses(new Set());
-    setKind("");
-    if (ref) router.replace("/opportunities");
-  };
+  const selected = rows.find((r) => r.o.id === selectedId) ?? null;
+  const toggle = (s: OpportunityStatus) => setStatuses((prev) => { const n = new Set(prev); if (n.has(s)) n.delete(s); else n.add(s); return n; });
+  const onSort = (key: SortKey) => setSort((s) => ({ key, dir: s.key === key && s.dir === "desc" ? "asc" : "desc" }));
+  const customWeights = Object.entries(weights).some(([k, v]) => defaultWeights()[k as keyof Weights] !== v);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
-        crumbs={[{ label: "Opportunities" }]}
-        title="Oportunidades"
-        description={`Onde o que o sistema sabe encontra uma demanda real de busca em ${current.workspace.name}. Fatores separados, sem nota única.`}
+        crumbs={[{ label: "Intelligence" }, { label: "Opportunity Discovery" }]}
+        title="Opportunity Discovery"
+        description="Oportunidades ranqueadas por um score explicável. Cada dimensão mostra de onde vem; o que não tem dado fica de fora e reduz a confiança."
+        badges={<><DataStateBadge state="demo" /><DataStateBadge state="derived" /><span className="text-xs text-muted-foreground">Dataset Exemplo Labs</span></>}
+        actions={<Button variant="outline" onClick={() => setEditWeights((v) => !v)} aria-pressed={editWeights}>{editWeights ? "Fechar pesos" : "Ajustar pesos"}</Button>}
       />
-      <div className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <SearchField className="sm:w-80" value={text} onChange={setText} label="Filtrar oportunidades" placeholder="Buscar por título ou entidade…" />
-          <div role="group" aria-label="Filtrar por estado" className="flex flex-wrap gap-1.5">
-            {STATUSES.map((s) => (
-              <Chip key={s} pressed={statuses.has(s)} onClick={() => toggle(s)}>{statusLabel[s]}</Chip>
-            ))}
-          </div>
+
+      <div className="flex flex-col gap-3 border border-border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <SearchField value={text} onChange={setText} placeholder="Buscar por tema, entidade ou cluster" label="Buscar oportunidades" className="w-full sm:w-80" />
+          <ChipGroup label="Intenção" value={intent} onChange={setIntent} options={INTENTS} allLabel="Toda intenção" />
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            Cluster
+            <select value={cluster} onChange={(e) => setCluster(e.target.value)} className="h-7 border border-input bg-card px-2 text-xs text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+              <option value="">Todos</option>
+              {clusters.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
         </div>
-        <ChipGroup label="Filtrar por categoria" value={kind} onChange={setKind} allLabel="Todas as categorias" options={KINDS.map((k) => ({ value: k, label: k }))} />
-        {refLabel ? (
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            Relacionadas a
-            <Badge tone="brand">
-              {refLabel}
-              <button type="button" onClick={() => router.replace("/opportunities")} aria-label={`Remover filtro ${refLabel}`} className="rounded focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-                <X className="size-3" aria-hidden="true" />
-              </button>
-            </Badge>
-          </p>
-        ) : null}
-        {filtered ? <Button variant="ghost" size="sm" onClick={clear}>Limpar filtros</Button> : null}
+        <div role="group" aria-label="Status" className="flex flex-wrap items-center gap-1.5">
+          <Chip pressed={statuses.size === 0} onClick={() => setStatuses(new Set())}>Ativas</Chip>
+          {STATUSES.map((s) => <Chip key={s} pressed={statuses.has(s)} onClick={() => toggle(s)}>{statusLabel[s]}</Chip>)}
+          {refLabel ? (
+            <button type="button" onClick={() => router.replace("/opportunities")} className="ml-auto inline-flex h-7 items-center gap-1.5 border border-brand/40 bg-brand/10 px-2.5 text-xs text-brand">
+              Ligadas a {refLabel} <X className="size-3" aria-hidden="true" /><span className="sr-only">Remover filtro</span>
+            </button>
+          ) : null}
+          {customWeights ? <span className="ml-auto text-xs text-warning">Pesos personalizados (só nesta sessão, não salvos)</span> : null}
+        </div>
       </div>
-      <ResourceList
-        rows={rows.map((o) => ({
-          id: o.id,
-          href: `/opportunities/${o.id}`,
-          title: `${o.rank}. ${o.title}`,
-          subtitle: `${o.kind} · ${o.intent} · demanda ${o.demand} · concorrência ${o.competition} · evidência ${o.evidence}`,
-          badges: <Badge tone={statusTone[o.status]}>{statusLabel[o.status]}</Badge>,
-        }))}
-        empty={
-          <EmptyState
-            title={filtered ? "Nenhuma oportunidade com esses filtros" : "Nenhuma oportunidade ativa neste workspace"}
-            hint={filtered ? "Ajuste ou limpe os filtros para ver as demais." : "As oportunidades descartadas ficam sob o filtro “Descartada”."}
-            action={filtered ? <Button variant="outline" size="sm" onClick={clear}>Limpar filtros</Button> : undefined}
-          />
-        }
-        count={`${rows.length} ${rows.length === 1 ? "oportunidade" : "oportunidades"}`}
-      />
+
+      <div className={cn("grid grid-cols-1 gap-4", selected || editWeights ? "lg:grid-cols-[minmax(0,1fr)_380px]" : "")}>
+        <div className="min-w-0 overflow-x-auto border border-border bg-card">
+          {rows.length === 0 ? (
+            <div className="p-6"><EmptyState title="Nenhuma oportunidade com esses filtros." hint="Limpe a busca ou ative outros status." /></div>
+          ) : (
+            <table className="w-full min-w-[860px] text-[13px]">
+              <caption className="sr-only">Oportunidades ranqueadas. Selecione uma linha para ver a decomposição do score.</caption>
+              <thead className="border-b border-border bg-muted/40">
+                <tr>
+                  <th scope="col" className="px-3 py-2 text-left font-mono text-[10px] font-normal tracking-[0.08em] text-muted-foreground uppercase">Oportunidade</th>
+                  <th scope="col" className="px-3 py-2 text-left font-mono text-[10px] font-normal tracking-[0.08em] text-muted-foreground uppercase">Intenção · estágio</th>
+                  <SortHeader id="demand" label="Demanda" sort={sort} onSort={onSort} />
+                  <SortHeader id="evidence" label="Evidência" sort={sort} onSort={onSort} />
+                  <SortHeader id="risk" label="Risco" sort={sort} onSort={onSort} />
+                  <SortHeader id="score" label="Score" sort={sort} onSort={onSort} className="w-36" />
+                  <SortHeader id="stage" label="Ciclo" sort={sort} onSort={onSort} />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const risk = Math.round((r.score.dimensions.find((d) => d.id === "evidenceRisk")?.value ?? 0) * 100);
+                  const isSel = r.o.id === selectedId;
+                  return (
+                    <tr
+                      key={r.o.id}
+                      aria-selected={isSel}
+                      onClick={() => setSelectedId(isSel ? null : r.o.id)}
+                      className={cn("cursor-pointer border-b border-border last:border-b-0 hover:bg-accent/50", isSel && "bg-brand/10 hover:bg-brand/10")}
+                    >
+                      <td className="max-w-80 px-3 py-2.5 align-top">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setSelectedId(isSel ? null : r.o.id); }}
+                          className="text-left font-medium text-pretty hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                          {r.o.title}
+                        </button>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <Badge tone={statusTone[r.o.status]}>{statusLabel[r.o.status]}</Badge>
+                          {r.clusters.map((c) => <span key={c} className="font-mono text-[10.5px] text-muted-foreground">{c}</span>)}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 align-top text-muted-foreground">
+                        <span className="text-foreground">{r.o.intent}</span>
+                        <br />
+                        <span className="text-xs">{buyerStageOf(r.o)}</span>
+                      </td>
+                      <td className="px-3 py-2.5 align-top"><Badge tone={levelTone[r.o.demand]}>{r.o.demand}</Badge></td>
+                      <td className="px-3 py-2.5 align-top"><Badge tone={levelTone[r.o.evidence]}>{r.o.evidence}</Badge></td>
+                      <td className="px-3 py-2.5 align-top"><span className={cn("font-mono text-xs tabular-nums", risk >= 60 ? "text-destructive" : risk >= 30 ? "text-warning" : "text-muted-foreground")}>{risk}</span></td>
+                      <td className="px-3 py-2.5 align-top">
+                        <ScoreBar value={r.score.score} label={`Score de ${r.o.title}`} />
+                        <span className="font-mono text-[10.5px] text-muted-foreground">conf. {r.score.confidence}</span>
+                      </td>
+                      <td className="px-3 py-2.5 align-top text-xs">
+                        <span>{stageLabel(r.life.stage)}</span>
+                        {r.life.blocked ? <><br /><span className="text-destructive">bloqueada</span></> : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {editWeights ? (
+          <Inspector title="Pesos do score" subtitle={<span className="text-xs text-muted-foreground">Local, não persistido. Valem só nesta sessão.</span>} onClose={() => setEditWeights(false)} footer={<Button variant="outline" onClick={() => setWeights(defaultWeights())}>Restaurar padrão</Button>}>
+            {selected ? <ScoreBreakdown result={selected.score} weights={weights} onWeight={(id, w) => setWeights((p) => ({ ...p, [id]: w }))} compact /> : <StateNotice state="empty" title="Selecione uma oportunidade">Os pesos se aplicam à lista inteira; selecione uma linha para ver o efeito na decomposição.</StateNotice>}
+          </Inspector>
+        ) : selected ? (
+          <OpportunityInspector r={selected} weights={weights} onClose={() => setSelectedId(null)} />
+        ) : null}
+      </div>
     </div>
+  );
+}
+
+function OpportunityInspector({ r, weights, onClose }: { r: OpportunityIntel; weights: Weights; onClose: () => void }) {
+  const { o, life, archetype } = r;
+  return (
+    <Inspector
+      title={o.title}
+      subtitle={<><Badge tone={statusTone[o.status]}>{statusLabel[o.status]}</Badge><Badge tone="outline">{o.kind}</Badge></>}
+      onClose={onClose}
+      footer={
+        <>
+          <Button render={<Link href={`/opportunities/${o.id}`} />}>Abrir oportunidade</Button>
+          <Button variant="outline" render={<Link href={`/blueprints?o=${o.id}`} />}>Montar blueprint</Button>
+        </>
+      }
+    >
+      <Section title="Score"><ScoreBreakdown result={r.score} weights={weights} compact /></Section>
+      <Section title="Ciclo de vida">
+        <dl>
+          <Fact label="Etapa atual" value={stageLabel(life.stage)} state="derived" />
+          <Fact label="Etapas puladas" value={life.skipped.length ? life.skipped.map(stageLabel).join(", ") : "nenhuma"} />
+        </dl>
+        {life.blocked ? (
+          <ul className="mt-2 flex flex-col gap-1 text-xs text-destructive">{life.blockedReasons.map((b) => <li key={b}>{b}</li>)}</ul>
+        ) : null}
+      </Section>
+      <Section title="Arquétipo recomendado">
+        <p className="text-[13px] font-medium">{archetype.archetype.name}</p>
+        <ul className="mt-1.5 flex flex-col gap-1 text-xs text-muted-foreground">{archetype.reasons.map((x) => <li key={x}>{x}</li>)}</ul>
+        {archetype.missing.length ? <p className="mt-2 text-xs text-warning">Faltam {archetype.missing.length} requisito(s) de dados.</p> : null}
+      </Section>
+      <Section title="Próxima ação"><p className="text-[13px]">{o.nextAction}</p></Section>
+    </Inspector>
   );
 }
