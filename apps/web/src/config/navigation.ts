@@ -15,6 +15,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  Waypoints,
   type LucideIcon,
 } from "lucide-react";
 
@@ -48,6 +49,7 @@ export const navigation: readonly NavGroup[] = [
     id: "know",
     label: "Conhecer",
     items: [
+      { id: "graph", label: "Knowledge Graph", icon: Waypoints, href: "/graph" },
       { id: "knowledge", label: "Knowledge", icon: BookOpenText, href: "/knowledge" },
       { id: "entities", label: "Entities", icon: Network, href: "/entities" },
       { id: "data-sources", label: "Data Sources", icon: Database, href: "/data-sources" },

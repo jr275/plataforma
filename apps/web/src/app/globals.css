@@ -160,6 +160,24 @@ html[data-density="compact"] {
   --row-y: 0.4rem;
 }
 
+/* Knowledge Graph: malha de pontos que acompanha zoom/pan, e traço "em fluxo" para relações destacadas. */
+.graph-grid {
+  background-image: radial-gradient(color-mix(in oklch, var(--foreground) 9%, transparent) 1px, transparent 1px);
+}
+@keyframes graph-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+.graph-flow {
+  animation: graph-flow 900ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .graph-flow {
+    animation: none;
+  }
+}
+
 /* Fundo pontilhado das figuras (diagramas). */
 .dot-grid {
   background-image: radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px);

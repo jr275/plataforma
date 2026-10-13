@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { brand } from "@/config/brand";
 import "./globals.css";
 
@@ -23,15 +24,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
-      <head>
+      <body className="min-h-full">
         {/* Aplica o tema salvo antes da primeira pintura (evita o "piscar" claro/escuro). Só lê a preferência local. */}
-        <script
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: 'try{var p=JSON.parse(localStorage.getItem("skos.demo.v1")||"{}");if(p&&p.prefs&&p.prefs.theme==="dark"){document.documentElement.classList.add("dark");document.documentElement.style.colorScheme="dark"}}catch(e){}',
           }}
         />
-      </head>
-      <body className="min-h-full">
         {children}
       </body>
     </html>
