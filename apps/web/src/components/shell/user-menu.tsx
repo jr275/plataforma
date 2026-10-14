@@ -22,12 +22,12 @@ export function UserMenu({ onPrimary = false }: { onPrimary?: boolean }) {
   return (
     <>
       <Menu.Root>
-        <Menu.Trigger aria-label={`Menu de ${prefs.displayName}`} className={`grid size-8 place-items-center text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${onPrimary ? "bg-white text-primary hover:bg-white/85" : "bg-secondary hover:bg-accent data-[popup-open]:bg-accent"}`}>
+        <Menu.Trigger aria-label={`Menu de ${prefs.displayName}`} className={`grid size-8 place-items-center text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${onPrimary ? "bg-white text-primary hover:bg-white/85" : "rounded-full bg-secondary ring-1 ring-border hover:bg-accent data-[popup-open]:bg-accent"}`}>
           {initials}
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner sideOffset={6} align="end" className="z-[70]">
-            <Menu.Popup className="min-w-60 rounded-lg border border-border bg-popover p-1 text-sm shadow-xl shadow-black/40 outline-none">
+            <Menu.Popup className="min-w-60 rounded-lg border border-border bg-popover p-1 text-sm shadow-lg shadow-foreground/10 dark:shadow-black/40 outline-none">
               <div className="px-2 py-1.5">
                 <p className="truncate text-[13px] font-medium">{prefs.displayName}</p>
                 <p className="truncate text-[11px] text-muted-foreground">{auth.configured ? (auth.email ?? "Sessão ativa") : "Modo demonstração, sem login"}</p>
