@@ -1,0 +1,97 @@
+{
+ "version": "0.1.20260101",
+ "status_code": 20000,
+ "status_message": "Ok.",
+ "time": "0.3 sec.",
+ "cost": 0.002,
+ "tasks_count": 1,
+ "tasks_error": 0,
+ "tasks": [
+  {
+   "id": "00000000-0000-0000-0000-000000000000",
+   "status_code": 20000,
+   "status_message": "Ok.",
+   "time": "0.2 sec.",
+   "cost": 0.002,
+   "result_count": 1,
+   "path": [
+    "v3",
+    "serp",
+    "google",
+    "organic",
+    "live",
+    "advanced"
+   ],
+   "data": {},
+   "result": [
+    {
+     "keyword": "apartamento à venda em campinas",
+     "type": "organic",
+     "se_domain": "google.com.br",
+     "location_code": 2076,
+     "language_code": "pt",
+     "check_url": "https://www.google.com.br/search?q=apartamento+%C3%A0+venda+em+campinas",
+     "datetime": "2026-10-14 12:00:00 +00:00",
+     "spell": null,
+     "item_types": [
+      "organic",
+      "people_also_ask",
+      "featured_snippet"
+     ],
+     "se_results_count": 1230000,
+     "items_count": 5,
+     "items": [
+      {
+       "type": "featured_snippet",
+       "rank_group": 1,
+       "rank_absolute": 1,
+       "domain": "www.portal-exemplo.com.br",
+       "title": "Apartamentos em Campinas",
+       "url": "https://www.portal-exemplo.com.br/venda/campinas"
+      },
+      {
+       "type": "organic",
+       "rank_group": 1,
+       "rank_absolute": 2,
+       "domain": "www.portal-exemplo.com.br",
+       "title": "Apartamentos à venda em Campinas",
+       "description": "x",
+       "url": "https://www.portal-exemplo.com.br/venda/campinas"
+      },
+      {
+       "type": "people_also_ask",
+       "rank_group": 1,
+       "rank_absolute": 3,
+       "items": [
+        {
+         "type": "people_also_ask_element",
+         "title": "Quanto custa um apartamento em Campinas?"
+        },
+        {
+         "type": "people_also_ask_element",
+         "title": "Qual o melhor bairro de Campinas?"
+        }
+       ]
+      },
+      {
+       "type": "organic",
+       "rank_group": 2,
+       "rank_absolute": 4,
+       "domain": "forum-exemplo.com.br",
+       "title": "Alguém sabe?",
+       "url": "https://forum-exemplo.com.br/t/123"
+      },
+      {
+       "type": "organic",
+       "rank_group": 3,
+       "rank_absolute": 5,
+       "domain": null,
+       "title": "Sem domínio e URL inválida",
+       "url": "ftp://x"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

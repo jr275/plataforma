@@ -14,12 +14,12 @@ describe("status das integrações: só o que foi verificado agora é 'operacion
     expect(get(l, "app-database").status).toBe("operational");
     expect(get(l, "app-database").detail).toContain("5.571");
     expect(get(l, "ibge-cities").status).toBe("operational");
-    for (const id of ["search-console", "ga4", "property-feed", "publication", "ai-citations"]) { expect(get(l, id).status, id).toBe("blocked_external"); expect(get(l, id).dependency, id).toMatch(/\S/); }
+    for (const id of ["ga4", "property-feed", "publication", "ai-citations"]) { expect(get(l, id).status, id).toBe("blocked_external"); expect(get(l, id).dependency, id).toMatch(/\S/); }
   });
   it("fontes bloqueadas NUNCA aparecem como operacionais, em nenhuma combinação de entradas", () => {
     for (const identity of ["ok", "unauthenticated", "not_configured", "error"] as const) for (const database of [READY, { state: "error" } as ProbeInput["database"], { state: "not_configured", missing: "x" } as ProbeInput["database"]]) {
       const l = buildIntegrations({ env: ENV_OK, identity, database });
-      for (const id of ["search-console", "ga4", "property-feed", "publication", "ai-citations"]) expect(get(l, id).status).toBe("blocked_external");
+      for (const id of ["ga4", "property-feed", "publication", "ai-citations"]) expect(get(l, id).status).toBe("blocked_external");
     }
   });
   it("variáveis ausentes: não configurado, com o que fazer; presentes mas sem sessão: configurado, NÃO verificado", () => {
@@ -68,7 +68,35 @@ describe("fontes de pesquisa (BCB, IBGE, Agência Brasil): operacional só depoi
     for (const database of [{ state: "error" } as ProbeInput["database"], { state: "not_migrated" } as ProbeInput["database"], withResearch([{ adapter: "bcb-sgs", status: "succeeded", at: AT }])]) {
       const l = buildIntegrations({ env: ENV_OK, identity: "ok", database });
       if (database.state !== "ready") for (const id of ids) expect(get(l, id).status, id).toBe("configured_unverified");
-      for (const id of ["search-trends", "serp-provider"]) expect(get(l, id).status, id).toBe("blocked_external");
+      for (const id of ["dataforseo", "search-console", "anthropic-llm"]) expect(get(l, id).status, id).toBe("not_configured");
     }
+  });
+});
+
+describe("provedores com credencial: o estado vem do que foi OBSERVADO", () => {
+  const DFS = { DATAFORSEO_LOGIN: "x", DATAFORSEO_PASSWORD: "y" };
+  const at = new Date("2026-10-14T12:00:00Z");
+  const ready = (providers?: { provider: string; outcome: "ok" | "provider_error"; errorCode: string | null; at: Date }[]): ProbeInput["database"] => ({ state: "ready", data: { cities: 1, realRuns: 1, lastRealRun: "succeeded", ...(providers ? { providers } : {}) }, origin: undefined });
+  it("variável ausente: não configurado, com os NOMES que faltam e sem valores", () => {
+    const e = get(buildIntegrations({ env: { DATAFORSEO_LOGIN: "x" }, identity: "ok", database: ready([]) }), "dataforseo");
+    expect(e.status).toBe("not_configured");
+    expect(e.detail).toContain("DATAFORSEO_PASSWORD");
+    expect(e.env).toEqual([{ name: "DATAFORSEO_LOGIN", set: true }, { name: "DATAFORSEO_PASSWORD", set: false }]);
+    expect(JSON.stringify(e)).not.toMatch(/"x"|"y"/);
+  });
+  it("variáveis definidas e nenhuma chamada registrada: configurado, NÃO verificado", () => {
+    expect(get(buildIntegrations({ env: DFS, identity: "ok", database: ready([]) }), "dataforseo").status).toBe("configured_unverified");
+    expect(get(buildIntegrations({ env: DFS, identity: "ok", database: ready(undefined) }), "dataforseo").status).toBe("configured_unverified");
+  });
+  it("só uma chamada que respondeu torna operacional; credencial recusada é falha com o que fazer", () => {
+    expect(get(buildIntegrations({ env: DFS, identity: "ok", database: ready([{ provider: "dataforseo", outcome: "ok", errorCode: null, at }]) }), "dataforseo").status).toBe("operational");
+    const bad = get(buildIntegrations({ env: DFS, identity: "ok", database: ready([{ provider: "dataforseo", outcome: "provider_error", errorCode: "unauthorized", at }]) }), "dataforseo");
+    expect(bad).toMatchObject({ status: "error", dependency: expect.stringContaining("credencial") });
+    expect(bad.detail).toContain("recusou a credencial");
+  });
+  it("fontes públicas: sem chamada não é operacional; erro de limite aparece como falha", () => {
+    expect(get(buildIntegrations({ env: {}, identity: "ok", database: ready([]) }), "gdelt").status).toBe("not_configured");
+    expect(get(buildIntegrations({ env: {}, identity: "ok", database: ready([{ provider: "gdelt", outcome: "provider_error", errorCode: "rate_limited", at }]) }), "gdelt").status).toBe("error");
+    expect(get(buildIntegrations({ env: {}, identity: "ok", database: ready([{ provider: "ibge-sidra", outcome: "ok", errorCode: null, at }]) }), "ibge-sidra").status).toBe("operational");
   });
 });

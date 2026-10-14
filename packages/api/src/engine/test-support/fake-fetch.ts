@@ -6,9 +6,9 @@ export const fixture = (name: string): string => readFileSync(fileURLToPath(new 
 
 export interface Route { readonly status?: number; readonly body?: string; readonly headers?: Record<string, string>; readonly hang?: boolean; readonly throws?: Error; readonly stream?: boolean }
 /** `fetch` falso: casa pela URL exata ou por prefixo; registra as chamadas. Respostas de sucesso vêm de fixtures REAIS; as falhas são forçadas aqui. */
-export function fakeFetch(routes: Record<string, Route>, calls: { url: string; headers: Record<string, string> }[] = []): FetchLike {
+export function fakeFetch(routes: Record<string, Route>, calls: { url: string; headers: Record<string, string>; method?: string; body?: string }[] = []): FetchLike {
   return async (url, init) => {
-    calls.push({ url, headers: init?.headers ?? {} });
+    calls.push({ url, headers: init?.headers ?? {}, ...(init?.method ? { method: init.method } : {}), ...(init?.body !== undefined ? { body: init.body } : {}) });
     const key = Object.keys(routes).find((k) => url === k || url.startsWith(k));
     if (!key) throw new Error(`rota não prevista no teste: ${url}`);
     const r = routes[key]!;

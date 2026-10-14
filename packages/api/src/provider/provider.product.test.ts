@@ -6,7 +6,8 @@ import { productPoolConfig } from "../testing/pool-config";
 import { realEstateVertical } from "../../../../packs/real-estate/src/vertical";
 import { bcbSgsAdapter, ibgeNewsAdapter, rssNewsAdapter, runResearch, searchOpportunities } from "../engine";
 import { fakeFetch, fixture, type Route } from "../engine/test-support/fake-fetch";
-import { PUBLIC_UA, ProviderCallError, RateGate, RunBudget, cacheKeyFor, callProvider, costByRun, ensureCompetitor, fetchGdelt, fetchSidraCity, findCachedCall, latestSignals, recordSerpSnapshot, recordSignal, spentUsd, type Fetched } from "./index";
+import { generateKeyPairSync } from "node:crypto";
+import { PUBLIC_UA, ProviderCallError, RateGate, RunBudget, classifyPageType, classifyQuery, clearGscTokenCache, dfsSearchVolume, fetchGsc, cacheKeyFor, callProvider, costByRun, ensureCompetitor, fetchGdelt, fetchSidraCity, findCachedCall, latestSignals, recordSerpSnapshot, recordSignal, spentUsd, type Fetched } from "./index";
 
 // Dados de provedores contra o esquema REAL (migration 0011) num PostgreSQL descartável: cache determinístico, custo, orçamento, erros, sinais, SERP, concorrentes e isolamento. Tenants U e V.
 const U = "fb666666-6666-4666-8666-666666666666";
@@ -214,5 +215,145 @@ describe("escopo piloto (São Paulo primeiro; Rio e BH configurados)", () => {
     expect(demand).toHaveLength(1);
     expect(demand[0]).toMatchObject({ basis: "unknown", value: null });
     expect(await as(V, async (db) => Number((await db.query<{ n: string }>(`SELECT count(*) AS n FROM plataforma.opportunity_signal`)).rows[0]!.n))).toBe(0);
+  });
+});
+
+describe("DataForSEO pelo executor (fixtures construídas; credenciais de teste fictícias)", () => {
+  const pfx = (n: string) => readFileSync(new URL(`./__fixtures__/${n}`, import.meta.url), "utf8");
+  const ENV = { DATAFORSEO_LOGIN: "login-ficticio@exemplo.com", DATAFORSEO_PASSWORD: "senha-ficticia-123" };
+  const mk = (routes: Record<string, Route>, calls: { url: string; headers: Record<string, string>; method?: string; body?: string }[] = []) => ({ fetch: fakeFetch(routes, calls), userAgent: PUBLIC_UA, gate: new RateGate({}), env: ENV as Readonly<Record<string, string | undefined>> });
+  const run = (c: ReturnType<typeof mk>, kw: string, budget = RunBudget.create()) => as(U, (db) => dfsSearchVolume(c, { db, budget, runId, actor: "teste", now: () => now }, [kw]));
+  it("HTTP 401: provider_error unauthorized, registrado, e a credencial nunca vai para o banco", async () => {
+    const r = await run(mk({ "https://api.dataforseo.com/": { status: 401, body: pfx("dataforseo-401.json") } }), "kw-401");
+    expect(r).toMatchObject({ state: "provider_error", code: "unauthorized", retryable: false });
+    const rows = await as(U, async (db) => (await db.query<{ outcome: string; error_code: string; http_status: number }>(`SELECT outcome, error_code, http_status FROM plataforma.provider_call WHERE params @> '{"keywords":["kw-401"]}'`)).rows);
+    expect(rows).toEqual([{ outcome: "provider_error", error_code: "unauthorized", http_status: 401 }]);
+    const dump = await as(U, async (db) => (await db.query<{ t: string }>(`SELECT string_agg(params::text || coalesce(response::text, '') || endpoint || created_by, '|') AS t FROM plataforma.provider_call`)).rows[0]!.t);
+    for (const secret of [ENV.DATAFORSEO_LOGIN, ENV.DATAFORSEO_PASSWORD, "Basic ", Buffer.from(`${ENV.DATAFORSEO_LOGIN}:${ENV.DATAFORSEO_PASSWORD}`).toString("base64")]) expect(dump).not.toContain(secret);
+  });
+  it("HTTP 200 com status 40100 no corpo também é unauthorized", async () => {
+    const r = await run(mk({ "https://api.dataforseo.com/": { body: pfx("dataforseo-401.json") } }), "kw-40100");
+    expect(r).toMatchObject({ state: "provider_error", code: "unauthorized" });
+  });
+  it("sucesso: grava a resposta bruta com o custo REAL do envelope, envia Authorization e a repetição vem do cache", async () => {
+    const calls: { url: string; headers: Record<string, string>; method?: string; body?: string }[] = [];
+    const c = mk({ "https://api.dataforseo.com/": { body: pfx("dataforseo-search-volume.json") } }, calls);
+    const before = await as(U, (db) => spentUsd(db, "dataforseo"));
+    const a = await run(c, "kw-ok"); const b = await run(c, "kw-ok");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ url: "https://api.dataforseo.com/v3/keywords_data/google_ads/search_volume/live", method: "POST" });
+    expect(calls[0]!.headers.Authorization).toMatch(/^Basic /);
+    expect(JSON.parse(calls[0]!.body!)).toEqual([{ keywords: ["kw-ok"], location_code: 2076, language_code: "pt" }]);
+    expect(a).toMatchObject({ state: "ok", provenance: { costUsd: 0.075, cached: false, provider: "dataforseo" }, data: [{ keyword: "apartamento à venda em campinas", searchVolume: 1300 }, { searchVolume: null }] });
+    expect(b).toMatchObject({ state: "ok", provenance: { cached: true, costUsd: 0 } });
+    expect(await as(U, (db) => spentUsd(db, "dataforseo"))).toBeCloseTo(before + 0.075, 6);
+  });
+  it("o teto de custo recusa a chamada antes da requisição (reserva > teto restante)", async () => {
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    const r = await run(mk({ "https://api.dataforseo.com/": { body: pfx("dataforseo-search-volume.json") } }, calls), "kw-teto", RunBudget.create({ capUsd: 0.05 }));
+    expect(r).toMatchObject({ state: "provider_error", code: "budget_exceeded" });
+    expect(calls).toHaveLength(0);
+  });
+  it("sem credencial nada é gravado para essa consulta", async () => {
+    const c = { ...mk({}), env: {} };
+    expect(await run(c, "kw-sem-cred")).toMatchObject({ state: "provider_not_configured" });
+    expect(await as(U, async (db) => Number((await db.query<{ n: string }>(`SELECT count(*) AS n FROM plataforma.provider_call WHERE params @> '{"keywords":["kw-sem-cred"]}'`)).rows[0]!.n))).toBe(0);
+  });
+});
+
+describe("Search Console pelo executor (chave de teste gerada na hora; respostas construídas)", () => {
+  const pfx = (n: string) => readFileSync(new URL(`./__fixtures__/${n}`, import.meta.url), "utf8");
+  const key = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } }).privateKey;
+  const ENV = { GSC_CLIENT_EMAIL: "conta@projeto.iam.gserviceaccount.com", GSC_PRIVATE_KEY: key.replace(/\n/g, "\\n"), GSC_SITE_URL: "https://meusite.com.br/" };
+  const ROUTES: Record<string, Route> = { "https://oauth2.googleapis.com/token": { body: pfx("gsc-token.json") }, "https://searchconsole.googleapis.com/": { body: pfx("gsc-rows.json") } };
+  const Q = { startDate: "2026-09-01", endDate: "2026-09-30", dimensions: ["query", "page"] as const };
+  const mk = (routes: Record<string, Route>, env: Record<string, string | undefined> = ENV, calls: { url: string; headers: Record<string, string>; method?: string; body?: string }[] = []) => ({ fetch: fakeFetch(routes, calls), userAgent: PUBLIC_UA, gate: new RateGate({}), env });
+  const run = (c: ReturnType<typeof mk>, q = Q) => as(U, (db) => fetchGsc(c, { db, budget: RunBudget.create(), runId, actor: "teste", now: () => now }, q));
+  it("sem as variáveis: provider_not_configured com os NOMES ausentes e nenhuma requisição", async () => {
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    expect(await run(mk({}, { GSC_CLIENT_EMAIL: "x@y.z" }, calls))).toMatchObject({ state: "provider_not_configured", missing: ["GSC_PRIVATE_KEY", "GSC_SITE_URL"] });
+    expect(calls).toHaveLength(0);
+  });
+  it("troca o JWT por token, consulta a propriedade, grava só os dados (nunca o token) e reaproveita o cache", async () => {
+    clearGscTokenCache();
+    const calls: { url: string; headers: Record<string, string>; method?: string; body?: string }[] = [];
+    const c = mk(ROUTES, ENV, calls);
+    const a = await run(c); const b = await run(c);
+    expect(calls.map((x) => x.url.split("?")[0])).toEqual(["https://oauth2.googleapis.com/token", "https://searchconsole.googleapis.com/webmasters/v3/sites/https%3A%2F%2Fmeusite.com.br%2F/searchAnalytics/query"]);
+    expect(calls[0]!.body).toContain("grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer");
+    expect(calls[1]!.headers.Authorization).toBe("Bearer ya29.token-ficticio");
+    expect(a).toMatchObject({ state: "ok", provenance: { provider: "google-search-console", costUsd: 0, cached: false } });
+    expect(a.state === "ok" && a.data).toHaveLength(3);
+    expect(b).toMatchObject({ state: "ok", provenance: { cached: true } });
+    const dump = await as(U, async (db) => (await db.query<{ t: string }>(`SELECT string_agg(params::text || coalesce(response::text, ''), '|') AS t FROM plataforma.provider_call WHERE provider = 'google-search-console'`)).rows[0]!.t);
+    for (const secret of ["ya29.token-ficticio", "PRIVATE KEY", "BEGIN", ENV.GSC_CLIENT_EMAIL]) expect(dump).not.toContain(secret);
+  });
+  it("o token recusado vira unauthorized e nenhum dado é consultado", async () => {
+    clearGscTokenCache();
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    const r = await run(mk({ "https://oauth2.googleapis.com/token": { status: 401, body: '{"error":"invalid_grant"}' }, "https://searchconsole.googleapis.com/": { body: "{}" } }, ENV, calls), { ...Q, startDate: "2026-08-01" });
+    expect(r).toMatchObject({ state: "provider_error", code: "unauthorized" });
+    expect(calls.every((x) => x.url.includes("oauth2"))).toBe(true);
+  });
+  it("propriedade sem dados ({}) devolve lista vazia, não erro", async () => {
+    clearGscTokenCache();
+    const r = await run(mk({ ...ROUTES, "https://searchconsole.googleapis.com/": { body: "{}" } }), { ...Q, startDate: "2026-07-01" });
+    expect(r).toMatchObject({ state: "ok", data: [] });
+  });
+  it("GSC_SITE_URL malformada é recusada antes de qualquer requisição", async () => {
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    expect(await run(mk(ROUTES, { ...ENV, GSC_SITE_URL: "meusite" }, calls))).toMatchObject({ state: "provider_error", code: "provider_rejected" });
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe("classificação por LLM (respostas no formato documentado da Messages API; chave fictícia)", () => {
+  const ENV = { ANTHROPIC_API_KEY: "sk-ant-chave-ficticia-123", ANTHROPIC_BASE_URL: "https://api.anthropic.com" };
+  const L = { intents: ["informational", "commercial"], stages: ["awareness", "decision"] };
+  const msg = (text: string) => JSON.stringify({ id: "msg_x", type: "message", role: "assistant", model: "claude-haiku-5-5", content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 150, output_tokens: 40 } });
+  const mk = (routes: Record<string, Route>, env: Record<string, string | undefined> = ENV, calls: { url: string; headers: Record<string, string>; method?: string; body?: string }[] = []) => ({ fetch: fakeFetch(routes, calls), userAgent: PUBLIC_UA, gate: new RateGate({}), env });
+  const base = (db: TenantDb) => ({ db, budget: RunBudget.create(), runId, actor: "teste", now: () => now });
+  const GOOD = '{"intent":"commercial","stage":"decision","jtbd":"Decidir em qual bairro comprar um apartamento"}';
+  it("sem a chave: provider_not_configured e nada gravado", async () => {
+    expect(await as(U, (db) => classifyQuery(mk({}, {}), base(db), "apartamento em campinas", L))).toMatchObject({ state: "provider_not_configured", missing: ["ANTHROPIC_API_KEY"] });
+  });
+  it("saída válida: classifica, grava modelo, versão do prompt e tokens; a chave nunca vai ao banco; repetir vem do cache", async () => {
+    const calls: { url: string; headers: Record<string, string>; method?: string; body?: string }[] = [];
+    const c = mk({ "https://api.anthropic.com/v1/messages": { body: msg(GOOD) } }, ENV, calls);
+    const a = await as(U, (db) => classifyQuery(c, base(db), "apartamento à venda em campinas", L));
+    const b = await as(U, (db) => classifyQuery(c, base(db), "apartamento à venda em campinas", L));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.headers["x-api-key"]).toBe(ENV.ANTHROPIC_API_KEY);
+    expect(JSON.parse(calls[0]!.body!)).toMatchObject({ temperature: 0, model: "claude-haiku-5-5" });
+    expect(a).toMatchObject({ state: "ok", data: { intent: "commercial", stage: "decision" }, provenance: { provider: "anthropic", costUsd: 0 } });
+    expect(b).toMatchObject({ state: "ok", provenance: { cached: true } });
+    const row = await as(U, async (db) => (await db.query<{ response: { model: string; promptVersion: string; usage: { inputTokens: number } }; params: { model: string; promptVersion: string }; t: string }>(`SELECT response, params, response::text || params::text AS t FROM plataforma.provider_call WHERE provider = 'anthropic' AND outcome = 'ok' LIMIT 1`)).rows[0]!);
+    expect(row.response).toMatchObject({ model: "claude-haiku-5-5", promptVersion: "classify-v1", usage: { inputTokens: 150 } });
+    expect(row.params).toMatchObject({ model: "claude-haiku-5-5", promptVersion: "classify-v1" });
+    expect(row.t).not.toContain(ENV.ANTHROPIC_API_KEY);
+  });
+  it("saída inválida é REJEITADA (parse), registrada como erro e NÃO fica em cache; a próxima chamada tenta de novo", async () => {
+    let n = 0;
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    const routes: Record<string, Route> = { "https://api.anthropic.com/v1/messages": { body: msg('{"intent":"navegar","stage":"decision","jtbd":"Decidir em qual bairro comprar"}') } };
+    const c = mk(routes, ENV, calls);
+    for (let i = 0; i < 2; i++) { n++; expect(await as(U, (db) => classifyQuery(c, base(db), "consulta inválida", L))).toMatchObject({ state: "provider_error", code: "parse" }); }
+    expect(calls).toHaveLength(n);
+    const rows = await as(U, async (db) => (await db.query<{ outcome: string }>(`SELECT outcome FROM plataforma.provider_call WHERE provider = 'anthropic' AND params @> '{"input":{"query":"consulta inválida"}}'`)).rows);
+    expect(rows.map((r) => r.outcome)).toEqual(["provider_error", "provider_error"]);
+  });
+  it("resposta sem JSON ou com campo numérico extra também é rejeitada", async () => {
+    for (const text of ["Não sei classificar.", '{"intent":"commercial","stage":"decision","jtbd":"Decidir em qual bairro comprar","volume":900}']) {
+      expect(await as(U, (db) => classifyQuery(mk({ "https://api.anthropic.com/v1/messages": { body: msg(text) } }), base(db), `q-${text.length}`, L))).toMatchObject({ state: "provider_error", code: "parse" });
+    }
+  });
+  it("tipo de página da SERP: valida o esquema e rejeita tipo desconhecido", async () => {
+    const ok = await as(U, (db) => classifyPageType(mk({ "https://api.anthropic.com/v1/messages": { body: msg('{"pageType":"portal","reason":"portal de anúncios"}') } }), base(db), { url: "https://portal-exemplo.com.br/venda", title: "Imóveis" }));
+    expect(ok).toMatchObject({ state: "ok", data: { pageType: "portal" } });
+    const bad = await as(U, (db) => classifyPageType(mk({ "https://api.anthropic.com/v1/messages": { body: msg('{"pageType":"blog","reason":"um blog"}') } }), base(db), { url: "https://outro.com.br/x", title: "x" }));
+    expect(bad).toMatchObject({ state: "provider_error", code: "parse" });
+  });
+  it("HTTP 401 da API vira unauthorized", async () => {
+    expect(await as(U, (db) => classifyQuery(mk({ "https://api.anthropic.com/v1/messages": { status: 401, body: '{"error":{"type":"authentication_error"}}' } }), base(db), "q-401", L))).toMatchObject({ state: "provider_error", code: "unauthorized" });
   });
 });

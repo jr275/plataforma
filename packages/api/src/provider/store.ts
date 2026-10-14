@@ -34,6 +34,13 @@ export async function costByRun(db: TenantDb, runId: string): Promise<RunCost[]>
   return r.rows.map((x) => ({ provider: x.provider, requests: Number(x.n), errors: Number(x.e), costUsd: Number(x.c) }));
 }
 
+export interface LastCall { readonly provider: string; readonly outcome: "ok" | "provider_error"; readonly errorCode: string | null; readonly httpStatus: number | null; readonly at: Date }
+/** A chamada mais recente de cada provedor (para o painel de integrações): o que foi OBSERVADO, não o que está configurado. */
+export async function lastCallPerProvider(db: TenantDb): Promise<LastCall[]> {
+  const r = await db.query<{ provider: string; outcome: "ok" | "provider_error"; error_code: string | null; http_status: number | null; collected_at: Date }>(`SELECT DISTINCT ON (provider) provider, outcome, error_code, http_status, collected_at FROM plataforma.provider_call ORDER BY provider, collected_at DESC`);
+  return r.rows.map((x) => ({ provider: x.provider, outcome: x.outcome, errorCode: x.error_code, httpStatus: x.http_status, at: x.collected_at }));
+}
+
 export interface Fetched { readonly body: unknown; readonly costUsd: number; readonly httpStatus: number }
 export class ProviderCallError extends Error { constructor(readonly code: ProviderErrorCode, message: string, readonly retryable = false, readonly httpStatus: number | null = null, readonly costUsd = 0) { super(message); this.name = "ProviderCallError"; } }
 export interface CallArgs { readonly db: TenantDb; readonly provider: string; readonly endpoint: string; readonly params: Record<string, unknown>; readonly ttlMs: number | null; readonly budget: RunBudget; readonly runId: string | null; readonly actor: string; readonly now: () => Date; /** Pior caso de custo do endpoint, para a reserva do teto (0 se gratuito). */ readonly estimateUsd?: number; readonly fetchRaw: () => Promise<Fetched> }

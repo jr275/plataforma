@@ -8,11 +8,11 @@ export const PUBLIC_UA = "plataforma-research/0.1 (pesquisa de oportunidades; co
 
 const CODE: Record<string, ProviderCallError["code"]> = { timeout: "timeout", network: "network", too_large: "parse", invalid_url: "provider_rejected", http: "http" };
 /** GET JSON de uma fonte pública; mapeia os erros de transporte para os códigos do contrato (429 → rate_limited). Custo sempre 0. */
-export async function publicJson(ctx: PublicCtx, url: string): Promise<Fetched> {
+export async function publicJson(ctx: PublicCtx, url: string, req: { method?: "GET" | "POST"; body?: string; headers?: Record<string, string>; accept?: string } = {}): Promise<Fetched> {
   const host = new URL(url).hostname;
   await ctx.gate.wait(host);
   try {
-    const r = await httpGet(ctx.fetch, url, { userAgent: ctx.userAgent, accept: "application/json", timeoutMs: 30_000 });
+    const r = await httpGet(ctx.fetch, url, { userAgent: ctx.userAgent, accept: req.accept ?? "application/json", timeoutMs: 30_000, ...(req.method ? { method: req.method } : {}), ...(req.body !== undefined ? { body: req.body } : {}), ...(req.headers ? { headers: req.headers } : {}) });
     let body: unknown;
     try { body = JSON.parse(r.text); } catch { throw new ProviderCallError("parse", `resposta de ${host} não é JSON`, false, r.status); }
     return { body, costUsd: 0, httpStatus: r.status };

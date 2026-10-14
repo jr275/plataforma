@@ -5,7 +5,7 @@ export interface FetchResponse {
   readonly body?: ReadableStream<Uint8Array> | null;
   text(): Promise<string>;
 }
-export type FetchLike = (url: string, init?: { headers?: Record<string, string>; signal?: AbortSignal; redirect?: "follow" | "error" | "manual" }) => Promise<FetchResponse>;
+export type FetchLike = (url: string, init?: { method?: "GET" | "POST"; body?: string; headers?: Record<string, string>; signal?: AbortSignal; redirect?: "follow" | "error" | "manual" }) => Promise<FetchResponse>;
 
 export type SourceErrorCode = "invalid_url" | "timeout" | "network" | "http" | "too_large" | "parse" | "robots_denied" | "robots_unavailable";
 export class SourceError extends Error {
@@ -27,7 +27,7 @@ export function checkPublicUrl(raw: string): URL {
   return u;
 }
 
-export interface HttpOptions { readonly userAgent: string; readonly timeoutMs?: number; readonly maxBytes?: number; readonly accept?: string }
+export interface HttpOptions { readonly userAgent: string; readonly timeoutMs?: number; readonly maxBytes?: number; readonly accept?: string; /** POST com corpo (provedores com credencial). Os cabeçalhos extras (ex.: Authorization) nunca entram em mensagens de erro. */ readonly method?: "GET" | "POST"; readonly body?: string; readonly headers?: Readonly<Record<string, string>> }
 export interface HttpResult { readonly status: number; readonly contentType: string; readonly text: string; readonly bytes: number }
 export const DEFAULT_TIMEOUT_MS = 15_000;
 export const DEFAULT_MAX_BYTES = 2_000_000;
@@ -54,12 +54,13 @@ async function readCapped(res: FetchResponse, maxBytes: number): Promise<{ text:
   return { text, bytes };
 }
 
+/** Requisição HTTPS pública (GET por padrão; POST com `method` e `body`). */
 export async function httpGet(fetchFn: FetchLike, url: string, opts: HttpOptions): Promise<HttpResult> {
   checkPublicUrl(url);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   try {
-    const res = await fetchFn(url, { headers: { "User-Agent": opts.userAgent, Accept: opts.accept ?? "*/*", "Accept-Encoding": "gzip" }, signal: controller.signal, redirect: "follow" });
+    const res = await fetchFn(url, { ...(opts.method ? { method: opts.method } : {}), ...(opts.body !== undefined ? { body: opts.body } : {}), headers: { "User-Agent": opts.userAgent, Accept: opts.accept ?? "*/*", "Accept-Encoding": "gzip", ...(opts.headers ?? {}) }, signal: controller.signal, redirect: "follow" });
     if (!res.ok) throw new SourceError("http", `HTTP ${res.status}`, res.status === 429 || res.status >= 500, res.status);
     const { text, bytes } = await readCapped(res, opts.maxBytes ?? DEFAULT_MAX_BYTES);
     return { status: res.status, contentType: res.headers.get("content-type") ?? "", text, bytes };

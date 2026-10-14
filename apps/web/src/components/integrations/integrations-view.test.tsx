@@ -12,7 +12,10 @@ describe("tela de integrações", () => {
     expect(out).toContain("Bloqueado: depende de terceiros");
     expect(out).toContain('data-testid="integration-search-console"');
     expect(out).toContain('data-status="blocked_external"');
-    expect(out).toContain("OAuth do dono da propriedade");
+    expect(out).toContain("Propriedade GA4 e acesso autorizado");
+    // provedores com credencial: o estado vem do que foi observado, e a dependência cita os NOMES das variáveis
+    expect(out).toContain('data-testid="integration-dataforseo"');
+    expect(out).toContain("GSC_CLIENT_EMAIL");
     expect(out).toContain("Para destravar:");
     expect(out).toContain("cidades do IBGE não substituem o inventário");
   });

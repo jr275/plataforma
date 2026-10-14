@@ -14,10 +14,14 @@ describe("capacidades bloqueadas: nenhuma finge existir", () => {
   });
   it("só é 'implementada e testada' o que tem adaptador real; nenhuma fonte de SERP, citação, Search Console ou conversão se declara implementada", () => {
     const ok = CAPABILITIES.filter((c) => c.state === "implemented_tested").map((c) => c.id).sort();
-    expect(ok).toEqual(["bcb-sgs", "ibge-news", "rss-news"]);
+    expect(ok).toEqual(["bcb-sgs", "ibge-news", "ibge-sidra", "rss-news"]);
+    // implementadas, mas sem resposta real de sucesso: nunca se declaram "testadas"
+    expect(CAPABILITIES.filter((c) => c.state === "implemented_unverified").map((c) => c.id).sort()).toEqual(["gdelt", "overpass"]);
+    // DataForSEO, Search Console e LLM: adapters prontos, mas SEM resposta real: aguardam credencial
+    for (const id of ["search-demand", "serp-provider", "backlinks", "search-console", "llm-classifier"]) expect(CAPABILITIES.find((c) => c.id === id)!.state, id).toBe("awaiting_credential");
     for (const id of ["serp-provider", "ai-citations", "search-console", "conversion-data", "competitor-registry", "search-demand", "publication"]) expect(CAPABILITIES.find((c) => c.id === id)!.state, id).not.toBe("implemented_tested");
     expect(CAPABILITIES.find((c) => c.id === "search-console")!.state).toBe("awaiting_credential");
-    expect(CAPABILITIES.find((c) => c.id === "serp-provider")!.state).toBe("awaiting_decision");
+    expect(CAPABILITIES.find((c) => c.id === "ai-citations")!.state).toBe("not_implemented");
   });
   it("toda dimensão que o sistema HOJE não consegue medir é destravada por alguma capacidade (e só essas)", () => {
     // Dimensões sempre desconhecidas hoje = as que o derivador nunca preenche com os dados do tenant e da vertical.

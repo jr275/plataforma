@@ -89,4 +89,5 @@ export { previewCityPage, type CityPreview } from "./pages/preview";
 export { previewDraftPage, templateFromDraft, type DraftPreview } from "./pages/preview-draft";
 export * as engine from "./engine";
 export * as provider from "./provider";
+export { lastCallPerProvider, type LastCall } from "./provider/store";
 export * as draft from "./draft";

@@ -1,0 +1,46 @@
+{
+ "version": "0.1.20260101",
+ "status_code": 20000,
+ "status_message": "Ok.",
+ "time": "0.3 sec.",
+ "cost": 0.0102,
+ "tasks_count": 1,
+ "tasks_error": 0,
+ "tasks": [
+  {
+   "id": "00000000-0000-0000-0000-000000000000",
+   "status_code": 20000,
+   "status_message": "Ok.",
+   "time": "0.2 sec.",
+   "cost": 0.0102,
+   "result_count": 1,
+   "path": [
+    "v3",
+    "dataforseo_labs",
+    "google",
+    "bulk_keyword_difficulty",
+    "live"
+   ],
+   "data": {},
+   "result": [
+    {
+     "se_type": "google",
+     "location_code": 2076,
+     "language_code": "pt",
+     "total_count": 2,
+     "items_count": 2,
+     "items": [
+      {
+       "keyword": "apartamento à venda em campinas",
+       "keyword_difficulty": 38
+      },
+      {
+       "keyword": "custo de vida em campinas",
+       "keyword_difficulty": null
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

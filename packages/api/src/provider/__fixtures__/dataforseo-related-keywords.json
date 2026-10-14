@@ -1,0 +1,78 @@
+{
+ "version": "0.1.20260101",
+ "status_code": 20000,
+ "status_message": "Ok.",
+ "time": "0.3 sec.",
+ "cost": 0.0112,
+ "tasks_count": 1,
+ "tasks_error": 0,
+ "tasks": [
+  {
+   "id": "00000000-0000-0000-0000-000000000000",
+   "status_code": 20000,
+   "status_message": "Ok.",
+   "time": "0.2 sec.",
+   "cost": 0.0112,
+   "result_count": 1,
+   "path": [
+    "v3",
+    "dataforseo_labs",
+    "google",
+    "related_keywords",
+    "live"
+   ],
+   "data": {},
+   "result": [
+    {
+     "se_type": "google",
+     "seed_keyword": "apartamento campinas",
+     "location_code": 2076,
+     "language_code": "pt",
+     "total_count": 2,
+     "items_count": 2,
+     "items": [
+      {
+       "se_type": "google",
+       "keyword_data": {
+        "se_type": "google",
+        "keyword": "apartamento barato campinas",
+        "location_code": 2076,
+        "language_code": "pt",
+        "keyword_info": {
+         "search_volume": 320,
+         "cpc": 0.9,
+         "competition": 0.4
+        },
+        "keyword_properties": {
+         "keyword_difficulty": 25
+        },
+        "search_intent_info": {
+         "main_intent": "commercial"
+        }
+       },
+       "depth": 1
+      },
+      {
+       "se_type": "google",
+       "keyword_data": {
+        "se_type": "google",
+        "keyword": "bairros bons para morar em campinas",
+        "location_code": 2076,
+        "language_code": "pt",
+        "keyword_info": {
+         "search_volume": null,
+         "cpc": null
+        },
+        "keyword_properties": {
+         "keyword_difficulty": null
+        },
+        "search_intent_info": null
+       },
+       "depth": 1
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

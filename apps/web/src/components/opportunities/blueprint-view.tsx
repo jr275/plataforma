@@ -63,7 +63,7 @@ export function BlueprintView({ loaded, vertical, editorActions, generate, harne
 
       <section id="serp"><Panel title="Etapa SERP" description="A SERP não pode ser analisada hoje: não há provedor contratado. Nada foi fabricado.">
         <div className="space-y-3 text-sm">
-          <p className="flex items-center gap-2"><TruthChip state="not_evaluated" /> <span>Análise de SERP, concorrência e demanda: {cap("serp-provider")?.state === "awaiting_decision" ? engine.CAPABILITY_STATE_LABEL["awaiting_decision"].toLowerCase() : "pendente"}.</span></p>
+          <p className="flex items-center gap-2"><TruthChip state="not_evaluated" /> <span>Análise de SERP, concorrência e demanda: {(cap("serp-provider") ? engine.CAPABILITY_STATE_LABEL[cap("serp-provider")!.state] : "pendente").toLowerCase()}.</span></p>
           {serpWaiver ? (
             <div role="note" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
               <p><strong>Exceção registrada</strong> em {formatDateTime(serpWaiver.at)} por {serpWaiver.actor.slice(0, 8)} (blueprint v{serpWaiver.blueprintVersion ?? "?"}): {serpWaiver.reason}</p>

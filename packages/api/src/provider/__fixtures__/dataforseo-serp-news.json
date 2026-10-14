@@ -1,0 +1,55 @@
+{
+ "version": "0.1.20260101",
+ "status_code": 20000,
+ "status_message": "Ok.",
+ "time": "0.3 sec.",
+ "cost": 0.002,
+ "tasks_count": 1,
+ "tasks_error": 0,
+ "tasks": [
+  {
+   "id": "00000000-0000-0000-0000-000000000000",
+   "status_code": 20000,
+   "status_message": "Ok.",
+   "time": "0.2 sec.",
+   "cost": 0.002,
+   "result_count": 1,
+   "path": [
+    "v3",
+    "serp",
+    "google",
+    "news",
+    "live",
+    "advanced"
+   ],
+   "data": {},
+   "result": [
+    {
+     "keyword": "financiamento imobiliário",
+     "type": "news",
+     "location_code": 2076,
+     "language_code": "pt",
+     "items_count": 2,
+     "items": [
+      {
+       "type": "news_search",
+       "rank_group": 1,
+       "domain": "veiculo-exemplo.com.br",
+       "title": "Juros do financiamento imobiliário",
+       "url": "https://veiculo-exemplo.com.br/n/1",
+       "source": "Veículo Exemplo",
+       "timestamp": "2026-10-13 09:30:00 +00:00"
+      },
+      {
+       "type": "news_search",
+       "rank_group": 2,
+       "domain": "x.com.br",
+       "title": "",
+       "url": "https://x.com.br/n/2"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

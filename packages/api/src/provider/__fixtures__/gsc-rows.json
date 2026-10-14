@@ -1,0 +1,40 @@
+{
+ "rows": [
+  {
+   "keys": [
+    "apartamento à venda em campinas",
+    "https://meusite.com.br/cidades/sp/campinas"
+   ],
+   "clicks": 12,
+   "impressions": 340,
+   "ctr": 0.0353,
+   "position": 8.4
+  },
+  {
+   "keys": [
+    "apartamento à venda em campinas",
+    "https://meusite.com.br/blog/mercado"
+   ],
+   "clicks": 0,
+   "impressions": 20,
+   "ctr": 0,
+   "position": 41.2
+  },
+  {
+   "keys": [
+    "custo de vida em santos",
+    "https://meusite.com.br/cidades/sp/santos"
+   ],
+   "clicks": 3,
+   "impressions": 90,
+   "ctr": 0.033,
+   "position": 12.0
+  },
+  {
+   "keys": [],
+   "clicks": 1,
+   "impressions": 1
+  }
+ ],
+ "responseAggregationType": "byPage"
+}

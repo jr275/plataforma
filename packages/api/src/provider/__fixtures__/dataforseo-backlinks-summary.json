@@ -1,0 +1,38 @@
+{
+ "version": "0.1.20260101",
+ "status_code": 20000,
+ "status_message": "Ok.",
+ "time": "0.3 sec.",
+ "cost": 0.02,
+ "tasks_count": 1,
+ "tasks_error": 0,
+ "tasks": [
+  {
+   "id": "00000000-0000-0000-0000-000000000000",
+   "status_code": 20000,
+   "status_message": "Ok.",
+   "time": "0.2 sec.",
+   "cost": 0.02,
+   "result_count": 1,
+   "path": [
+    "v3",
+    "backlinks",
+    "summary",
+    "live"
+   ],
+   "data": {},
+   "result": [
+    {
+     "target": "portal-exemplo.com.br",
+     "first_seen": "2018-01-01 00:00:00 +00:00",
+     "lost_date": null,
+     "rank": 512,
+     "backlinks": 98200,
+     "crawled_pages": 12000,
+     "referring_domains": 3400,
+     "referring_main_domains": 3100
+    }
+   ]
+  }
+ ]
+}

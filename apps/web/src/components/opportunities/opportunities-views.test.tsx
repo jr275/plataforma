@@ -214,7 +214,7 @@ describe("blueprint na oportunidade (resumo) e na página de blueprint (completo
     for (const g of ["negócio", "conhecimento"]) expect(out.toLowerCase()).toContain(g);
     expect((out.match(/data-gate="/g) ?? []).length).toBe(6);
     expect(out).toContain("Depende de: Provedor de SERP");
-    expect(out).toContain("aguardando decisão de produto");
+    expect(out).toContain("aguardando credencial");
     expect(out).toContain("noindex até a publicação");
     expect(out).toContain("Links internos propostos");
     expect(out).toContain("destino ainda não existe");

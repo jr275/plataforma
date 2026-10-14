@@ -1,6 +1,6 @@
 import "server-only";
 import { unstable_rethrow } from "next/navigation";
-import { countCities, engine, listImportRuns } from "@plataforma/api";
+import { countCities, engine, lastCallPerProvider, listImportRuns } from "@plataforma/api";
 import { requestIdentity } from "./identity";
 import { logServerError } from "./log";
 import { isNotMigrated, loadForTenant, type Loaded } from "./tenant-data";
@@ -24,11 +24,32 @@ export interface ProbeInput {
   /** Resultado da sondagem da sessão: `ok` (token verificado), `unauthenticated`, `not_configured` ou `error`. */
   identity: "ok" | "unauthenticated" | "not_configured" | "error";
   /** Resultado da leitura do banco pelo tenant da sessão. */
-  database: Loaded<{ cities: number; realRuns: number; lastRealRun: "succeeded" | "partial" | "failed" | "running" | null; /** Última execução de pesquisa em que cada fonte foi consultada (ausente = nunca consultada). */ research?: readonly { adapter: string; status: string; at: Date }[] }>;
+  database: Loaded<{ cities: number; realRuns: number; lastRealRun: "succeeded" | "partial" | "failed" | "running" | null; /** Última chamada registrada de cada provedor externo (ausente = nunca chamado; undefined = tabela ainda não existe). */ providers?: readonly { provider: string; outcome: "ok" | "provider_error"; errorCode: string | null; at: Date }[]; /** Última execução de pesquisa em que cada fonte foi consultada (ausente = nunca consultada). */ research?: readonly { adapter: string; status: string; at: Date }[] }>;
 }
 
 const isSet = (env: ProbeInput["env"], name: string) => (env[name] ?? "").trim() !== "";
 const vars = (env: ProbeInput["env"], names: readonly string[]) => names.map((name) => ({ name, set: isSet(env, name) }));
+
+
+const SIDRA_GDELT_OVERPASS = [
+  { id: "ibge-sidra", name: "IBGE SIDRA (população e densidade)", what: "tabela 4714 do Censo 2022 por município", provider: "ibge-sidra" },
+  { id: "gdelt", name: "GDELT (notícias complementares)", what: "artigos por termo, 1 requisição a cada 5 s", provider: "gdelt" },
+  { id: "overpass", name: "OpenStreetMap (Overpass)", what: "contagem de equipamentos mapeados, só em jobs", provider: "overpass" },
+] as const;
+
+/** Provedor com credencial por variável de ambiente: o estado vem do que foi OBSERVADO (última chamada registrada), nunca só de a variável existir. */
+function providerEntry(env: ProbeInput["env"], database: ProbeInput["database"], o: { id: string; name: string; provider: string; envNames: readonly string[]; what: string; dependency: string }): IntegrationEntry {
+  const ev = vars(env, o.envNames);
+  const base = { id: o.id, name: o.name, category: "Fonte de dados" as const, env: ev };
+  const missing = ev.filter((v) => !v.set).map((v) => v.name);
+  if (missing.length > 0) return { ...base, status: "not_configured", detail: `Variáveis ausentes: ${missing.join(", ")}. O adapter existe e está testado com fixtures; sem credencial nada é consultado (${o.what}).`, dependency: o.dependency };
+  if (database.state !== "ready" || database.data.providers === undefined) return { ...base, status: "configured_unverified", detail: "Variáveis definidas. Não verificado: o registro de chamadas não pôde ser lido (migration 0011 ou banco indisponível).", dependency: null };
+  const last = database.data.providers.find((x) => x.provider === o.provider);
+  const when = (d: Date) => d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  if (!last) return { ...base, status: "configured_unverified", detail: `Variáveis definidas, mas nenhuma chamada foi registrada neste workspace: a credencial ainda não foi verificada (${o.what}).`, dependency: "Executar uma consulta de verificação autorizada (consome o teto de custo da unidade)." };
+  if (last.outcome === "ok") return { ...base, status: "operational", detail: `Última chamada respondeu com sucesso em ${when(last.at)} (${o.what}).`, dependency: null };
+  return { ...base, status: "error", detail: last.errorCode === "unauthorized" ? `A API recusou a credencial na última chamada (${when(last.at)}). Nenhum dado real foi obtido.` : `A última chamada falhou em ${when(last.at)} (${last.errorCode ?? "erro"}).`, dependency: last.errorCode === "unauthorized" ? "Corrigir a credencial no servidor e repetir a verificação." : null };
+}
 
 export function buildIntegrations({ env, identity, database }: ProbeInput): IntegrationEntry[] {
   const authVars = vars(env, ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]);
@@ -76,9 +97,16 @@ export function buildIntegrations({ env, identity, database }: ProbeInput): Inte
   const blocked = (id: string, name: string, category: IntegrationCategory, detail: string, dependency: string): IntegrationEntry => ({ id, name, category, env: [], status: "blocked_external", detail, dependency });
   return [
     auth, db, ibge, ...research,
-    blocked("search-trends", "Google Trends e provedores de tendência", "Fonte de dados", "Nenhum provedor autorizado nem credencial. Demanda de busca segue desconhecida nas oportunidades.", "Escolher e autorizar um provedor (contrato e credencial do dono)."),
-    blocked("serp-provider", "Provedor de SERP e AI Overviews", "Fonte de dados", "Nenhum provedor de SERP contratado. Nenhuma posição, concorrente ou citação foi inventado.", "Contratar um provedor de SERP e registrar a credencial no servidor."),
-    blocked("search-console", "Google Search Console", "Fonte de dados", "Nenhuma variável, credencial ou tabela de Search Console existe neste projeto. Existe só um extrator Python legado, fora do pipeline.", "OAuth do dono da propriedade com permissão completa; aprovação da lista de marca pela RE/MAX; aprovação do ADR-016; migrations das tabelas de busca e de um papel de carga (exigem autorização)."),
+    providerEntry(env, database, { id: "dataforseo", name: "DataForSEO (volume, dificuldade, SERP, Trends, backlinks)", provider: "dataforseo", envNames: ["DATAFORSEO_LOGIN", "DATAFORSEO_PASSWORD"], what: "demanda, SERP, concorrentes e autoridade", dependency: "Definir as variáveis acima no servidor (senha de API da DataForSEO)." }),
+    providerEntry(env, database, { id: "search-console", name: "Google Search Console (somente leitura)", provider: "google-search-console", envNames: ["GSC_CLIENT_EMAIL", "GSC_PRIVATE_KEY", "GSC_SITE_URL"], what: "canibalização e posição atual da propriedade", dependency: "Definir as variáveis acima (conta de serviço com acesso de leitura à propriedade)." }),
+    providerEntry(env, database, { id: "anthropic-llm", name: "Classificação por LLM (Anthropic)", provider: "anthropic", envNames: ["ANTHROPIC_API_KEY"], what: "intenção, estágio, JTBD e tipo de página; nunca números", dependency: "Definir ANTHROPIC_API_KEY no servidor." }),
+    ...SIDRA_GDELT_OVERPASS.map((src): IntegrationEntry => {
+      const last = database.state === "ready" ? database.data.providers?.find((x) => x.provider === src.provider) : undefined;
+      const base = { id: src.id, name: src.name, category: "Fonte de dados" as const, env: [] as { name: string; set: boolean }[] };
+      if (database.state !== "ready" || database.data.providers === undefined) return { ...base, status: "configured_unverified", detail: "Fonte pública, sem credencial. Não verificado: o registro de chamadas não pôde ser lido.", dependency: null };
+      if (!last) return { ...base, status: "not_configured", detail: `Fonte pública, sem credencial. Nenhuma chamada registrada neste workspace (${src.what}).`, dependency: "Executar o job que consulta esta fonte." };
+      return last.outcome === "ok" ? { ...base, status: "operational", detail: `Última chamada respondeu com sucesso (${src.what}).`, dependency: null } : { ...base, status: "error", detail: `A última chamada falhou (${last.errorCode ?? "erro"}); fontes públicas podem limitar ou ficar indisponíveis.`, dependency: null };
+    }),
     blocked("ga4", "Google Analytics 4", "Fonte de dados", "Nenhuma configuração ou código de GA4 neste projeto.", "Propriedade GA4 e acesso autorizado."),
     blocked("property-feed", "Inventário de imóveis (RE/MAX)", "Fonte de dados", "Nenhuma fonte de imóveis foi apresentada. Nada de imóvel foi criado ou simulado; cidades do IBGE não substituem o inventário.", "Fonte real e autorizada (arquivo, feed ou API) com uma amostra da estrutura, termos de uso e política de dados pessoais."),
     blocked("publication", "Publicação de páginas", "Publicação e medição", "Não existe mecanismo de publicação: o banco só aceita os estados rascunho e bloqueada.", "Decisão do dono sobre o site e o mecanismo de publicação, mais a saúde do índice do domínio de pelo menos 95%."),
@@ -105,7 +133,10 @@ export async function loadIntegrations(): Promise<IntegrationEntry[]> {
       research = [];
       for (const r of await engine.listResearchRuns(db, 20)) for (const a of r.adapters as unknown as { adapter: string; status: string }[]) if (!research.some((x) => x.adapter === a.adapter)) research.push({ adapter: a.adapter, status: a.status, at: r.startedAt });
     } catch (e) { if (!isNotMigrated(e)) throw e; research = undefined; }
-    return { cities, realRuns: real.length, lastRealRun: real[0]?.status ?? null, research };
+    // Chamadas de provedores (migration 0011); tabela ausente só desliga esta parte.
+    let providers: { provider: string; outcome: "ok" | "provider_error"; errorCode: string | null; at: Date }[] | undefined;
+    try { providers = (await lastCallPerProvider(db)).map((c) => ({ provider: c.provider, outcome: c.outcome, errorCode: c.errorCode, at: c.at })); } catch (e) { if (!isNotMigrated(e)) throw e; providers = undefined; }
+    return { cities, realRuns: real.length, lastRealRun: real[0]?.status ?? null, research, ...(providers ? { providers } : {}) };
   });
   return buildIntegrations({ env: process.env, identity, database });
 }

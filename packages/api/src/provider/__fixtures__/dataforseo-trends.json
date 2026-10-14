@@ -1,0 +1,71 @@
+{
+ "version": "0.1.20260101",
+ "status_code": 20000,
+ "status_message": "Ok.",
+ "time": "0.3 sec.",
+ "cost": 0.0094,
+ "tasks_count": 1,
+ "tasks_error": 0,
+ "tasks": [
+  {
+   "id": "00000000-0000-0000-0000-000000000000",
+   "status_code": 20000,
+   "status_message": "Ok.",
+   "time": "0.2 sec.",
+   "cost": 0.0094,
+   "result_count": 1,
+   "path": [
+    "v3",
+    "keywords_data",
+    "google_trends",
+    "explore",
+    "live"
+   ],
+   "data": {},
+   "result": [
+    {
+     "keywords": [
+      "apartamento"
+     ],
+     "type": "google_trends",
+     "location_code": 2076,
+     "language_code": "pt",
+     "items_count": 1,
+     "items": [
+      {
+       "position": 1,
+       "type": "google_trends_graph",
+       "title": "Interesse ao longo do tempo",
+       "keywords": [
+        "apartamento"
+       ],
+       "data": [
+        {
+         "date_from": "2026-09-06",
+         "date_to": "2026-09-12",
+         "timestamp": 1788652800,
+         "missing_data": false,
+         "values": [
+          62
+         ]
+        },
+        {
+         "date_from": "2026-09-13",
+         "date_to": "2026-09-19",
+         "timestamp": 1789257600,
+         "missing_data": true,
+         "values": [
+          null
+         ]
+        }
+       ],
+       "averages": [
+        58
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
