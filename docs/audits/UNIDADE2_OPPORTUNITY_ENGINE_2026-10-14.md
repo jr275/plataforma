@@ -41,7 +41,7 @@ Mutações: provedores 7/7 detectadas (não configurado, mapa de 401, esquema es
 - **Fontes:** BCB 3 requisições (3 indicadores); notícias IBGE 6 requisições (26 itens); Agência Brasil RSS 2 requisições (3 itens); SIDRA 1 requisição. Custo US$ 0.
 - **Prioridade sempre parcial** (7 de 15 dimensões desconhecidas, confiança 0,51); demanda, SERP, concorrência, autoridade, citação e conversão desconhecidas. Nenhum sinal de demanda gravado.
 - **Top 10 (prioridade parcial):** taxa de juros do financiamento imobiliário (67,0; elegível, sem template), financiamento imobiliário em São Paulo (59,9), casas à venda em São Paulo (50,7), apartamentos à venda em São Paulo (50,7), reajuste do aluguel IGP-M (48,8), apartamentos para alugar em São Paulo (48,6), remax São Paulo (46,0), morar em São Paulo (45,9; experiência `location_overview`, **atendida por `city-overview`**, mas abaixo do limite de elegibilidade), casas para alugar em São Paulo (44,3), selic e financiamento imobiliário (42,6).
-- **Rejeitadas:** 0 nesta execução (validação de aderência à vertical). Exemplos de rejeição por motivo estão nos testes (query fora da vertical).
+- **Rejeitadas:** 0. A única validação hoje é a de aderência à vertical (todas passaram). A rejeição por "sem demanda mensurável" exige o provedor de keywords e **não pôde ser exercida**: não há exemplos reais de rejeição por demanda.
 - **Qualidade dos dados:** a importação "real" traz a população de São Paulo como 11.911.337 (ano 2026, estimativa) e o SIDRA, 11.451.999 (Censo 2022): **anos de referência diferentes**, não erro; o painel não deve compará-los sem o ano.
 
 ## Pendências que dependem de decisão ou acesso
