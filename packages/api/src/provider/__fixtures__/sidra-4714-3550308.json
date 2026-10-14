@@ -1,0 +1,41 @@
+[
+  {
+    "NC": "Nível Territorial (Código)",
+    "NN": "Nível Territorial",
+    "MC": "Unidade de Medida (Código)",
+    "MN": "Unidade de Medida",
+    "V": "Valor",
+    "D1C": "Município (Código)",
+    "D1N": "Município",
+    "D2C": "Variável (Código)",
+    "D2N": "Variável",
+    "D3C": "Ano (Código)",
+    "D3N": "Ano"
+  },
+  {
+    "NC": "6",
+    "NN": "Município",
+    "MC": "45",
+    "MN": "Pessoas",
+    "V": "11451999",
+    "D1C": "3550308",
+    "D1N": "São Paulo (SP)",
+    "D2C": "93",
+    "D2N": "População residente",
+    "D3C": "2022",
+    "D3N": "2022"
+  },
+  {
+    "NC": "6",
+    "NN": "Município",
+    "MC": "28",
+    "MN": "Habitante por quilômetro quadrado",
+    "V": "7528.26",
+    "D1C": "3550308",
+    "D1N": "São Paulo (SP)",
+    "D2C": "614",
+    "D2N": "Densidade demográfica",
+    "D3C": "2022",
+    "D3N": "2022"
+  }
+]

@@ -6,7 +6,7 @@ import { productPoolConfig } from "../testing/pool-config";
 import { realEstateVertical } from "../../../../packs/real-estate/src/vertical";
 import { bcbSgsAdapter, ibgeNewsAdapter, rssNewsAdapter, runResearch, searchOpportunities } from "../engine";
 import { fakeFetch, fixture, type Route } from "../engine/test-support/fake-fetch";
-import { ProviderCallError, RunBudget, cacheKeyFor, callProvider, costByRun, ensureCompetitor, findCachedCall, latestSignals, recordSerpSnapshot, recordSignal, spentUsd, type Fetched } from "./index";
+import { PUBLIC_UA, ProviderCallError, RateGate, RunBudget, cacheKeyFor, callProvider, costByRun, ensureCompetitor, fetchGdelt, fetchSidraCity, findCachedCall, latestSignals, recordSerpSnapshot, recordSignal, spentUsd, type Fetched } from "./index";
 
 // Dados de provedores contra o esquema REAL (migration 0011) num PostgreSQL descartável: cache determinístico, custo, orçamento, erros, sinais, SERP, concorrentes e isolamento. Tenants U e V.
 const U = "fb666666-6666-4666-8666-666666666666";
@@ -167,5 +167,25 @@ describe("SERP e concorrentes", () => {
     await expect(as(U, (db) => db.query(`UPDATE plataforma.serp_result SET rank = 9`))).rejects.toThrow(/permission denied/);
     await expect(as(U, (db) => db.query(`DELETE FROM plataforma.serp_snapshot`))).rejects.toThrow(/permission denied/);
     await expect(as(U, (db) => db.query(`UPDATE plataforma.provider_call SET cost_usd = 0`))).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe("fontes públicas pelo executor (SIDRA real, GDELT limitado)", () => {
+  const pfx = (n: string) => readFileSync(new URL(`./__fixtures__/${n}`, import.meta.url), "utf8");
+  const pub = (routes: Record<string, Route>) => ({ fetch: fakeFetch(routes), userAgent: PUBLIC_UA, gate: new RateGate({}) });
+  it("SIDRA: grava a resposta bruta com custo 0 e proveniência; a segunda chamada vem do cache", async () => {
+    const calls: { url: string; headers: Record<string, string> }[] = [];
+    const ctx = { fetch: fakeFetch({ "https://apisidra.ibge.gov.br/": { body: pfx("sidra-4714-3550308.json") } }, calls), userAgent: PUBLIC_UA, gate: new RateGate({}) };
+    const run = () => as(U, (db) => fetchSidraCity({ db, ctx, ibgeCode: "3550308", budget: RunBudget.create(), runId, actor: "teste", now: () => now }));
+    const a = await run(); const b = await run();
+    expect(calls).toHaveLength(1);
+    expect(a).toMatchObject({ state: "ok", data: { population: 11451999, year: 2022 }, provenance: { provider: "ibge-sidra", costUsd: 0, cached: false } });
+    expect(b).toMatchObject({ state: "ok", provenance: { cached: true, costUsd: 0 } });
+  });
+  it("GDELT 429 (resposta real) vira provider_error rate_limited, é registrado e não vira cache", async () => {
+    const r = await as(U, (db) => fetchGdelt({ db, ctx: pub({ "https://api.gdeltproject.org/": { status: 429, body: pfx("gdelt-429.txt") } }), query: "financiamento imobiliario", budget: RunBudget.create(), runId, actor: "teste", now: () => now }));
+    expect(r).toMatchObject({ state: "provider_error", code: "rate_limited", retryable: true });
+    const ok = await as(U, (db) => fetchGdelt({ db, ctx: pub({ "https://api.gdeltproject.org/": { body: pfx("gdelt-empty.json") } }), query: "financiamento imobiliario", budget: RunBudget.create(), runId, actor: "teste", now: () => now }));
+    expect(ok).toMatchObject({ state: "ok", data: [] });
   });
 });
