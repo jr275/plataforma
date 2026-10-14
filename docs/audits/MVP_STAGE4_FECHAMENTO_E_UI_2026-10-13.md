@@ -2,6 +2,14 @@
 
 Base: HEAD `8841fc1` (8 commits locais à frente de `origin/main`; as alterações desta unidade **não estão commitadas**). Decisões: ADR-020 (adendo), ADR-022. Nenhum push, deploy, migration no Neon ou alteração persistente.
 
+> **Atualização de 2026-10-13 (posterior ao commit `b49165b`).** O texto deste relatório descreve o estado ANTES de qualquer escrita no Neon (base `8841fc1`, alterações então não commitadas) e é mantido como registro histórico: as afirmações "nada aplicado" e "Neon (autorização)" refletem aquele momento. Depois dele, segundo o registro da sessão, o dono autorizou a aplicação das migrations e a geração do piloto, e as alterações foram commitadas e enviadas (a aplicação das migrations é confirmada só de forma indireta; ver abaixo). Estado verificado de forma independente, em leitura:
+>
+> - Remoto `main` = `b49165b` (verificado com `git ls-remote` e pela API do GitHub); os 15 commits desde `500f2d2` estão no histórico remoto; CI principal (run 38415758080) concluída com sucesso.
+> - Neon dev `plataforma-dev`, branch `main`, lido SOMENTE LEITURA como `menlo_app` no tenant `remax`: execução de geração `11d30ce6-5824-452e-a10a-efa10d9e237e` existe (`succeeded`; 20 itens, 20 gerados, 0 inalterados, 0 bloqueados; os 6 gates aprovados nos 20); 20 páginas, todas em `draft`; 20 versões; 20 URLs distintas; 5.571 cidades (`import_run` real, fonte IBGE, 5.571 aceitas, e 5.571 `import_record`). As tabelas das migrations 0005 a 0007 existem e funcionam, o que as confirma de forma INDIRETA.
+> - Ponto de restauração: a branch Neon `pre-0005-20261013-0737` existe (estado `ready`, filha de `main`, não protegida). Não foi apagada.
+> - **Não verificado diretamente:** o ledger `plataforma_migrations.ledger` e os checksums de 0005 a 0007 (`menlo_app` não tem permissão de leitura no schema do ledger; lê-lo exigiria credencial de migrator ou admin, que não foi usada). A comparação de checksums continua pendente.
+> - Publicação (etapa 5) NÃO está implementada: não existe mecanismo de publicação e o banco só aceita os estados `draft` e `blocked` (todas as 20 páginas estão em `draft`). O check Vercel do projeto `gsc` aparece como falha no GitHub para este commit (e já aparecia em `500f2d2`); a causa não foi identificada (exige os logs privados da Vercel).
+
 ## A. Defeitos da Etapa 4: antes e depois
 Testes de regressão em `packages/api/src/pages/generation-safety.product.test.ts` (10 testes, PostgreSQL local descartável, dados reais do IBGE). **Antes da correção: 9 falhavam** (`Tests 9 failed | 27 passed`). **Depois: todos passam** (`pnpm test:schema` 79/79; 61 testes de produto).
 | Defeito | Antes | Depois |

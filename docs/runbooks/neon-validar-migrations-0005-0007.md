@@ -1,5 +1,13 @@
 # Plano: validar as migrations 0005, 0006 e 0007 no Neon (NÃO executado)
 
+> **Atualização de 2026-10-13 (posterior ao commit `b49165b`).** Este plano foi escrito ANTES da aplicação e é mantido como registro histórico: o texto abaixo descreve o estado de então. Depois dele, segundo o registro da sessão, o dono aplicou as migrations 0005 a 0007 ao Neon e os 20 rascunhos do piloto foram gerados (a aplicação das migrations é confirmada só de forma indireta; ver abaixo). Estado verificado de forma independente, em leitura:
+>
+> - Remoto `main` = `b49165b` (verificado com `git ls-remote` e pela API do GitHub); os 15 commits desde `500f2d2` estão no histórico remoto; CI principal (run 38415758080) concluída com sucesso.
+> - Neon dev `plataforma-dev`, branch `main`, lido SOMENTE LEITURA como `menlo_app` no tenant `remax`: execução de geração `11d30ce6-5824-452e-a10a-efa10d9e237e` existe (`succeeded`; 20 itens, 20 gerados, 0 inalterados, 0 bloqueados; os 6 gates aprovados nos 20); 20 páginas, todas em `draft`; 20 versões; 20 URLs distintas; 5.571 cidades (`import_run` real, fonte IBGE, 5.571 aceitas, e 5.571 `import_record`). As tabelas das migrations 0005 a 0007 existem e funcionam, o que as confirma de forma INDIRETA.
+> - Ponto de restauração: a branch Neon `pre-0005-20261013-0737` existe (estado `ready`, filha de `main`, não protegida). Não foi apagada.
+> - **Não verificado diretamente:** o ledger `plataforma_migrations.ledger` e os checksums de 0005 a 0007 (`menlo_app` não tem permissão de leitura no schema do ledger; lê-lo exigiria credencial de migrator ou admin, que não foi usada). A comparação de checksums continua pendente.
+> - Publicação (etapa 5) NÃO está implementada: não existe mecanismo de publicação e o banco só aceita os estados `draft` e `blocked` (todas as 20 páginas estão em `draft`). O check Vercel do projeto `gsc` aparece como falha no GitHub para este commit (e já aparecia em `500f2d2`); a causa não foi identificada (exige os logs privados da Vercel).
+
 Status: **plano para aprovação**. Nenhum comando abaixo foi executado contra o Neon nesta unidade. Cada fase exige autorização própria.
 
 ## O que está pendente (evidência)

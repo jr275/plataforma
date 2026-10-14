@@ -29,3 +29,5 @@ Não existe entidade, tabela, tipo nem fonte de dados de imóveis (o Menlo Studi
 - Etapa 4 passa a ter proteção real contra execuções órfãs, concorrentes e escopos inválidos, com testes de regressão e mutação.
 - A migration `0007` precisa ser aplicada junto de `0005` e `0006` (nesta ordem) para a área funcionar no Neon.
 - O limite de 15 minutos é uma escolha explícita e configurável por chamada.
+
+**Nota de atualização (2026-10-13, posterior ao commit `b49165b`).** A decisão acima não mudou. A consequência "a `0007` precisa ser aplicada junto de `0005` e `0006`" foi cumprida no Neon dev, segundo o registro da sessão: as tabelas existem e o piloto (20 rascunhos) está gerado, com a verificação em leitura registrada em `docs/audits/GENERATION_HARDENING_2026-10-13.md`. O ledger e os checksums continuam sem confirmação direta; a publicação (etapa 5) continua não implementada.
