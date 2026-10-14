@@ -3,7 +3,7 @@ import { ProviderCallError, type Fetched } from "./store";
 import { RateGate } from "./rate";
 
 // Transporte das fontes públicas (sem credencial): HTTPS público, limite de tempo/tamanho, User-Agent identificado e intervalo mínimo por host.
-export interface PublicCtx { readonly fetch: FetchLike; readonly userAgent: string; readonly gate: RateGate }
+export interface PublicCtx { readonly fetch: FetchLike; readonly userAgent: string; readonly gate: RateGate; /** Limite de tempo por requisição (padrão 30 s). */ readonly timeoutMs?: number }
 export const PUBLIC_UA = "plataforma-research/0.1 (pesquisa de oportunidades; contato do dono do projeto)";
 
 const CODE: Record<string, ProviderCallError["code"]> = { timeout: "timeout", network: "network", too_large: "parse", invalid_url: "provider_rejected", http: "http" };
@@ -12,7 +12,7 @@ export async function publicJson(ctx: PublicCtx, url: string, req: { method?: "G
   const host = new URL(url).hostname;
   await ctx.gate.wait(host);
   try {
-    const r = await httpGet(ctx.fetch, url, { userAgent: ctx.userAgent, accept: req.accept ?? "application/json", timeoutMs: 30_000, ...(req.method ? { method: req.method } : {}), ...(req.body !== undefined ? { body: req.body } : {}), ...(req.headers ? { headers: req.headers } : {}) });
+    const r = await httpGet(ctx.fetch, url, { userAgent: ctx.userAgent, accept: req.accept ?? "application/json", timeoutMs: ctx.timeoutMs ?? 30_000, ...(req.method ? { method: req.method } : {}), ...(req.body !== undefined ? { body: req.body } : {}), ...(req.headers ? { headers: req.headers } : {}) });
     let body: unknown;
     try { body = JSON.parse(r.text); } catch { throw new ProviderCallError("parse", `resposta de ${host} não é JSON`, false, r.status); }
     return { body, costUsd: 0, httpStatus: r.status };

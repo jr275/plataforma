@@ -100,7 +100,7 @@ describe("Agente 5: explica, não altera", () => {
     expect(run.attempts).toBe(2);
     expect(run.errors).toHaveLength(1);
   });
-  it("3 saídas inválidas = falha EXPLÍCITA: nenhuma explicação gravada, agent_run 'failed' com os 3 erros, decisão intacta", async () => {
+  it("3 saídas inválidas = falha EXPLÍCITA: nenhuma explicação gravada, agent_run 'invalid_output' com os 3 erros, decisão intacta", async () => {
     const d3 = (await as(G, (db) => listLatestDecisions(db, { limit: 3 }))).rows[2]!;
     const garbage = ["não é JSON", '{"topic_id": "x"}', JSON.stringify({ topic_id: d3.topicId, explanation: "uma. duas. três. quatro. cinco.", next_best_action: "a" })];
     const r = await as(G, (db) => explainDecision(ctx(garbage), base(db), d3.id, { ...decision, topic_id: d3.topicId }));
@@ -109,7 +109,7 @@ describe("Agente 5: explica, não altera", () => {
     expect((r as unknown as { errors: string[] }).errors[2]).toMatch(/mais de 4 frases/);
     expect(await as(G, (db) => getExplanation(db, d3.id))).toBeNull();
     const run = await as(G, async (db) => (await db.query<{ status: string; output: unknown }>(`SELECT status, output FROM plataforma.agent_run WHERE id = $1`, [(r as unknown as { agentRunId: string }).agentRunId])).rows[0]!);
-    expect(run).toMatchObject({ status: "failed", output: null });
+    expect(run).toMatchObject({ status: "invalid_output", output: null });
   });
   it("erro de transporte (HTTP 401) não é retentado e vira falha registrada", async () => {
     const d4 = (await as(G, (db) => listLatestDecisions(db, { limit: 4 }))).rows[3]!;

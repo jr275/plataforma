@@ -34,7 +34,7 @@ describe("integridade da navegação", () => {
 
 describe("modo de dados: real, demonstração ou desenvolvimento", () => {
   it("só as rotas marcadas como reais leem o banco; as derivadas da navegação não divergem", () => {
-    expect([...REAL_DATA_ROUTES].sort()).toEqual(["/", "/blueprints", "/cities", "/data-flow", "/generation", "/graph", "/integrations", "/opportunities", "/roadmap", "/trends"]);
+    expect([...REAL_DATA_ROUTES].sort()).toEqual(["/", "/blueprints", "/cities", "/data-flow", "/engine", "/generation", "/graph", "/integrations", "/opportunities", "/roadmap", "/trends"]);
     for (const r of REAL_DATA_ROUTES) { expect(routeMode(r)).toBe("real"); if (r !== "/") expect(routeMode(`${r}/abc`)).toBe("real"); }
   });
   it("demonstração é o padrão: nenhuma tela de protótipo se passa por real", () => {

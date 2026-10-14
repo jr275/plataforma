@@ -10,6 +10,7 @@ export const navigation: readonly NavGroup[] = [
     { id: "opportunities", label: "Descoberta", icon: Lightbulb, href: "/opportunities", mode: "real" },
     { id: "trends", label: "Tendências e notícias", icon: TrendingUp, href: "/trends", mode: "real" },
     { id: "roadmap", label: "Roadmap", icon: Route, href: "/roadmap", mode: "real" },
+    { id: "engine", label: "Motor de páginas", icon: Workflow, href: "/engine", mode: "real" },
   ] },
   { id: "search", label: "Inteligência de busca", items: [
     { id: "serp-competition", label: "SERP Explorer", icon: Globe, href: "/serp", mode: "reference" },
@@ -57,7 +58,7 @@ export const navigation: readonly NavGroup[] = [
 ];
 
 export const allNavItems: readonly NavItem[] = navigation.flatMap((g) => g.items);
-/** Itens que levam a uma rota (os planejados não têm rota). */
+/** Itens com rota. Planejados abrem o inspetor de dependências da navegação. */
 export const linkedNavItems: readonly (NavItem & { href: string })[] = allNavItems.filter((i): i is NavItem & { href: string } => i.href !== undefined);
 
 /** Item ativo: o `href` mais específico que casa com o caminho. */

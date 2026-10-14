@@ -1,9 +1,10 @@
 import "server-only";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
-import { isDatabaseUnavailable, isUndefinedTable, withTenant, type TenantDb, type VerifiedIdentity } from "@plataforma/api";
+import { isDatabaseUnavailable, isUndefinedTable, withTenant, type PoolLike, type TenantDb, type VerifiedIdentity } from "@plataforma/api";
 import { appPool, dbOrigin } from "./db";
 import { requestIdentity } from "./identity";
+import { devEditorContext } from "./dev-editor";
 import { logServerError } from "./log";
 
 // Acesso a dados POR TENANT para as telas (ADR-018): identidade verificada no servidor, tenant só da claim assinada, tudo por withTenant.
@@ -21,12 +22,17 @@ export type Loaded<T> =
   | { state: "auth_unavailable" }
   | { state: "error" };
 
-export type TenantContext = { ok: true; pool: NonNullable<ReturnType<typeof appPool>>; identity: VerifiedIdentity; tenantId: string } | { ok: false; reason: "not_configured" | "unauthenticated" | "no_tenant"; missing?: string };
+export type TenantContext = { ok: true; pool: PoolLike; identity: VerifiedIdentity; tenantId: string } | { ok: false; reason: "not_configured" | "unauthenticated" | "no_tenant"; missing?: string };
 
 export async function resolveTenantContext(): Promise<TenantContext> {
   await connection(); // lê sessão e relógio: só em tempo de requisição
   const who = await requestIdentity();
-  if (who.state === "not_configured") return { ok: false, reason: "not_configured", missing: "login (Supabase)" };
+  if (who.state === "not_configured") {
+    // BANCADA de desenvolvimento (nunca em produção; exige as duas variáveis do banco descartável): sem login, o mesmo código de produção contra o banco descartável.
+    const dev = devEditorContext();
+    if (dev) return { ok: true, pool: dev.pool, identity: dev.identity, tenantId: dev.tenantId };
+    return { ok: false, reason: "not_configured", missing: "login (Supabase)" };
+  }
   if (who.state === "unauthenticated") return { ok: false, reason: "unauthenticated" };
   let pool: ReturnType<typeof appPool>;
   try {
