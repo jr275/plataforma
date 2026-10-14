@@ -6,6 +6,8 @@ export interface EntityRecord {
   readonly kind: string; readonly id: string; readonly name: string;
   /** Distingue homônimos (ex.: a UF). */
   readonly qualifier: string | null;
+  /** Código oficial da entidade na fonte (ex.: código IBGE do município); usado para recortar o escopo da pesquisa. */
+  readonly code?: string | null;
   /** Ordem de importância dos dados do tenant (ex.: população); só para escolher quais entidades entram primeiro. */
   readonly weight?: number | null;
 }

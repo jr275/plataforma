@@ -189,3 +189,30 @@ describe("fontes públicas pelo executor (SIDRA real, GDELT limitado)", () => {
     expect(ok).toMatchObject({ state: "ok", data: [] });
   });
 });
+
+describe("escopo piloto (São Paulo primeiro; Rio e BH configurados)", () => {
+  const deps = { vertical: realEstateVertical, adapters: [bcbSgsAdapter, ibgeNewsAdapter, rssNewsAdapter], fetch: fakeFetch(OK), now: () => T0, sleep: async () => undefined };
+  it("um escopo desconhecido é recusado antes de abrir a execução", async () => {
+    await expect(runResearch(pool, id(), V, deps, { scopeId: "nao-existe" })).rejects.toThrow(/escopo desconhecido/);
+    expect(await as(V, async (db) => Number((await db.query<{ n: string }>(`SELECT count(*) AS n FROM plataforma.research_run`)).rows[0]!.n))).toBe(0);
+  });
+  it("só São Paulo gera oportunidades; Rio e BH aparecem como AUSENTES (não importadas), sem inventar entidades", async () => {
+    const r = await runResearch(pool, id(), V, deps, { scopeId: "pilot-three-capitals", entityLimit: 5 });
+    expect(r.status).toBe("succeeded");
+    expect(r.scope).toEqual({ id: "pilot-three-capitals", label: expect.any(String), requested: ["3550308", "3304557", "3106200"], found: ["3550308"], missing: ["3304557", "3106200"] });
+    const l = await as(V, (db) => searchOpportunities(db, { limit: 100 }));
+    expect(l.rows.length).toBeGreaterThan(5);
+    const entities = await as(V, async (db) => (await db.query<{ n: string | null }>(`SELECT DISTINCT c.name AS n FROM plataforma.growth_opportunity o JOIN plataforma.city c ON c.id = o.entity_id`)).rows.map((x) => x.n));
+    expect(entities).toEqual(["São Paulo"]);
+    const params = await as(V, async (db) => (await db.query<{ params: { scope?: string } }>(`SELECT params FROM plataforma.research_run`)).rows[0]!.params);
+    expect(params.scope).toBe("pilot-three-capitals");
+  });
+  it("sem demanda de busca nenhuma oportunidade tem prioridade geral nem é declarada elegível por volume", async () => {
+    const l = await as(V, (db) => searchOpportunities(db, { limit: 100 }));
+    expect(l.rows.some((x) => x.priorityKind === "overall")).toBe(false);
+    const demand = await as(V, async (db) => (await db.query<{ d: { basis: string; value: unknown } }>(`SELECT DISTINCT demand AS d FROM plataforma.growth_opportunity`)).rows.map((x) => x.d));
+    expect(demand).toHaveLength(1);
+    expect(demand[0]).toMatchObject({ basis: "unknown", value: null });
+    expect(await as(V, async (db) => Number((await db.query<{ n: string }>(`SELECT count(*) AS n FROM plataforma.opportunity_signal`)).rows[0]!.n))).toBe(0);
+  });
+});

@@ -141,3 +141,16 @@ describe("plural: palavras terminadas em 'ss' não perdem o 's'", () => {
     expect(tokens("business stress casas")).toEqual(["business", "stress", "casa"]);
   });
 });
+
+describe("escopos da vertical", () => {
+  const withScopes = (scopes: NonNullable<typeof V.scopes>) => validateVertical({ ...V, scopes }).join("\n");
+  it("escopo válido passa", () => expect(validateVertical({ ...V, scopes: [{ id: "piloto-a", label: "A", entityKind: V.entityKinds[0]!, entityCodes: ["1", "2"] }] })).toEqual([]));
+  it("id repetido, tipo desconhecido e códigos vazios ou repetidos são recusados", () => {
+    const k = V.entityKinds[0]!;
+    expect(withScopes([{ id: "a1", label: "", entityKind: k, entityCodes: ["1"] }, { id: "a1", label: "", entityKind: k, entityCodes: ["1"] }])).toContain("escopo duplicado");
+    expect(withScopes([{ id: "a1", label: "", entityKind: "inexistente", entityCodes: ["1"] }])).toContain("tipo de entidade desconhecido");
+    expect(withScopes([{ id: "a1", label: "", entityKind: k, entityCodes: [] }])).toContain("vazios ou repetidos");
+    expect(withScopes([{ id: "a1", label: "", entityKind: k, entityCodes: ["1", "1"] }])).toContain("vazios ou repetidos");
+    expect(withScopes([{ id: "A!", label: "", entityKind: k, entityCodes: ["1"] }])).toContain("id inválido");
+  });
+});

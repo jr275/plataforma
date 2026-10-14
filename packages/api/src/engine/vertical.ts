@@ -62,6 +62,7 @@ export interface SourceConfig {
   readonly rssFeeds: readonly { readonly id: string; readonly label: string; readonly url: string }[];
 }
 
+export interface ScopeDef { readonly id: string; readonly label: string; readonly entityKind: string; /** Códigos oficiais (ex.: IBGE) das entidades do escopo. */ readonly entityCodes: readonly string[] }
 export interface VerticalDefinition {
   readonly id: string; readonly name: string; readonly language: string; readonly country: string;
   readonly entityKinds: readonly string[];
@@ -76,6 +77,8 @@ export interface VerticalDefinition {
   readonly sources: SourceConfig;
   /** Sinônimos (forma normalizada → forma canônica) aplicados às queries e aos modelos antes de comparar (ex.: abreviações do domínio). */
   readonly synonyms?: Readonly<Record<string, string>>;
+  /** Escopos de pesquisa nomeados (ex.: um piloto por cidade). Um escopo só recorta entidades do tenant; não cria nem inventa entidades ausentes. */
+  readonly scopes?: readonly ScopeDef[];
   /** Configuração de score padrão desta vertical (a versão 1 de cada tenant nasce dela). */
   readonly scoring: ScoreConfig;
 }
@@ -120,5 +123,11 @@ export function validateVertical(v: VerticalDefinition): string[] {
   for (const f of v.sources.rssFeeds) if (!/^https:\/\//.test(f.url)) e.push(`feed ${f.id}: só HTTPS`);
   const topics = new Set(v.signals.map((x) => x.topic));
   for (const b of v.sources.bcbSeries) if (!topics.has(b.topic)) e.push(`série ${b.id}: tema sem regra de sinal (${b.topic})`);
+  dup("escopo", (v.scopes ?? []).map((x) => x.id));
+  for (const sc of v.scopes ?? []) {
+    if (!/^[a-z][a-z0-9-]{1,40}$/.test(sc.id)) e.push(`escopo ${sc.id}: id inválido`);
+    if (!kinds.has(sc.entityKind)) e.push(`escopo ${sc.id}: tipo de entidade desconhecido (${sc.entityKind})`);
+    if (sc.entityCodes.length === 0 || new Set(sc.entityCodes).size !== sc.entityCodes.length || sc.entityCodes.some((c) => c.trim() === "")) e.push(`escopo ${sc.id}: códigos de entidade vazios ou repetidos`);
+  }
   return e;
 }

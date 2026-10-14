@@ -1,6 +1,6 @@
 // Operação de linha de comando: pesquisa de oportunidades da vertical imobiliária para UM tenant, consultando as fontes REAIS (BCB, IBGE, Agência Brasil).
 // Usa a credencial da APLICAÇÃO (menlo_app); a URL vem de uma variável NOMEADA (o valor nunca é impresso). Uso (via scripts/verify-engine-live.sh):
-//   tsx research-cli.ts --env-var VAR --tenant UUID [--entities 20] [--adapters bcb-sgs,ibge-news,rss-news]
+//   tsx research-cli.ts --env-var VAR --tenant UUID [--entities 20] [--scope pilot-sao-paulo] [--adapters bcb-sgs,ibge-news,rss-news]
 import { createAppPool, devIdentity, engine } from "@plataforma/api";
 import { realEstateVertical } from "./vertical";
 
@@ -22,7 +22,7 @@ async function main(): Promise<void> {
   try {
     const r = await engine.runResearch(pool, devIdentity([tenant]), tenant,
       { vertical: realEstateVertical, adapters: [engine.bcbSgsAdapter, engine.ibgeNewsAdapter, engine.rssNewsAdapter], fetch: globalThis.fetch as unknown as engine.FetchLike },
-      { entityLimit: Number(arg("entities", "20")), ...(adapterIds ? { adapterIds } : {}) });
+      { entityLimit: Number(arg("entities", "20")), ...(adapterIds ? { adapterIds } : {}), ...(process.argv.includes("--scope") ? { scopeId: arg("scope") } : {}) });
     console.log(JSON.stringify(r));
     process.exitCode = r.status === "failed" ? 1 : 0;
   } finally {

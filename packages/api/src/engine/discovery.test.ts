@@ -176,3 +176,18 @@ describe("hash das entradas: identifica o cálculo (idempotência)", () => {
     expect(hashInputs({ ...d.dimensions, intent: { ...d.dimensions.intent, value: 0.123 } }, d.strategic, TEST_CONFIG, ["a", "b"])).not.toBe(base);
   });
 });
+
+describe("recorte por escopo (entityCodes)", () => {
+  const coded = [{ ...city("c2", "São Paulo", "SP", 11_900_000), code: "3550308" }, { ...city("c1", "Campinas", "SP", 1_100_000), code: "3509502" }, city("x", "Sem Código", "SP", 99_000_000)];
+  const names = (o: DiscoveryInput) => [...new Set(buildOpportunities(o).drafts.map((d) => d.entity?.name).filter(Boolean))];
+  it("só as entidades do escopo geram oportunidades, mesmo que outras tenham peso maior", () => {
+    expect(names(input({ entities: coded, entityLimit: 5, entityCodes: new Set(["3550308"]) }))).toEqual(["São Paulo"]);
+  });
+  it("entidade sem código nunca entra num escopo; sem escopo, todas entram", () => {
+    expect(names(input({ entities: coded, entityLimit: 5, entityCodes: new Set(["3550308", "3509502"]) })).sort()).toEqual(["Campinas", "São Paulo"]);
+    expect(names(input({ entities: coded, entityLimit: 5 }))).toContain("Sem Código");
+  });
+  it("escopo cujos códigos não existem no tenant não inventa entidades", () => {
+    expect(names(input({ entities: coded, entityLimit: 5, entityCodes: new Set(["3304557"]) }))).toEqual([]);
+  });
+});

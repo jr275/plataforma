@@ -17,6 +17,8 @@ export interface DiscoveryInput {
   readonly def: VerticalDefinition; readonly entities: readonly EntityRecord[]; readonly evidence: readonly EvidenceInput[];
   /** `null` = páginas do tenant desconhecidas. */
   readonly pages: readonly PageFact[] | null; readonly config: ScoreConfig; readonly now: Date; readonly entityLimit: number;
+  /** Recorte por código de entidade (escopo); `undefined` = todas. */
+  readonly entityCodes?: ReadonlySet<string>;
 }
 export interface EvidenceLink { readonly evidenceKey: string; readonly role: "signal" | "requirement"; readonly reason: string; readonly topic: string | null }
 export interface OpportunityDraft {
@@ -45,7 +47,7 @@ export function queryText(template: string, e: EntityRecord, ambiguousNames: Rea
 
 export function buildOpportunities(input: DiscoveryInput): { drafts: OpportunityDraft[]; stats: DiscoveryStats } {
   const { def, now } = input;
-  const picked = pickEntities(input.entities, input.entityLimit);
+  const picked = pickEntities(input.entityCodes ? input.entities.filter((x) => x.code != null && input.entityCodes!.has(x.code)) : input.entities, input.entityLimit);
   const index = buildEntityIndex(input.entities); // o índice conhece TODAS as entidades: homônimos fora do recorte continuam ambíguos
   const nameCount = new Map<string, number>();
   for (const e of input.entities) nameCount.set(e.name.toLowerCase(), (nameCount.get(e.name.toLowerCase()) ?? 0) + 1);

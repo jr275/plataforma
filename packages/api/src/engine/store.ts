@@ -10,7 +10,7 @@ import { computeScore, validateInput, type DimensionMap, type ScoreResult } from
 import { configHash, validateScoreConfig, type ScoreConfig } from "./score-config";
 import { matchSignals } from "./signals";
 import type { AdapterContext, AdapterResult, SourceAdapter } from "./adapters/types";
-import { validateVertical, type VerticalDefinition } from "./vertical";
+import { validateVertical, type ScopeDef, type VerticalDefinition } from "./vertical";
 
 // Pesquisa de oportunidades e persistência (ADR-023, seção 9). Três transações curtas, como a geração (ADR-020): (1) abre a execução; (2) coleta nas fontes
 // FORA do banco; (3) grava tudo ou nada e fecha. Repetir é idempotente: evidência por conteúdo, oportunidade por cluster, score por entradas.
@@ -33,7 +33,7 @@ export interface ResearchDeps {
   readonly vertical: VerticalDefinition; readonly adapters: readonly SourceAdapter[]; readonly fetch: FetchLike;
   readonly now?: () => Date; readonly sleep?: (ms: number) => Promise<void>; readonly userAgent?: string;
 }
-export interface ResearchInput { readonly entityLimit?: number; readonly adapterIds?: readonly string[]; readonly staleAfterMinutes?: number }
+export interface ResearchInput { readonly entityLimit?: number; /** Id de um escopo da vertical (ex.: piloto de uma cidade). */ readonly scopeId?: string; readonly adapterIds?: readonly string[]; readonly staleAfterMinutes?: number }
 export interface AdapterSummary { readonly adapter: string; readonly status: AdapterResult["status"]; readonly requests: number; readonly bytes: number; readonly seen: number; readonly kept: number; readonly inserted: number; readonly existing: number; readonly errors: AdapterResult["errors"]; readonly limitations: readonly string[]; readonly durationMs: number }
 export interface ResearchResult {
   readonly runId: string; readonly status: "succeeded" | "partial" | "failed"; readonly error?: string;
@@ -41,7 +41,10 @@ export interface ResearchResult {
   readonly evidence: { readonly inserted: number; readonly existing: number };
   readonly opportunities: { readonly created: number; readonly existing: number; readonly rejected: number };
   readonly scores: { readonly inserted: number }; readonly transitions: number; readonly unclassified: number; readonly durationMs: number;
+  /** Quando houve escopo: o que foi pedido, o que existe no tenant e o que falta (entidade não importada: nada é inventado). */
+  readonly scope?: ScopeReport;
 }
+export interface ScopeReport { readonly id: string; readonly label: string; readonly requested: readonly string[]; readonly found: readonly string[]; readonly missing: readonly string[] }
 
 export interface ActiveConfig { readonly id: string; readonly version: number; readonly hash: string; readonly config: ScoreConfig; readonly note: string | null; readonly createdAt: Date }
 interface ConfigRow { id: string; version: number; config: ScoreConfig; config_hash: string; note: string | null; created_at: Date }
@@ -69,8 +72,8 @@ export async function ensureActiveConfig(db: TenantDb, vertical: VerticalDefinit
 }
 
 export async function loadEntities(db: TenantDb): Promise<EntityRecord[]> {
-  const r = await db.query<{ id: string; name: string; uf: string; population: string | null }>(`SELECT id, name, uf, population FROM plataforma.city`);
-  return r.rows.map((x) => ({ kind: "city", id: x.id, name: x.name, qualifier: x.uf, weight: x.population === null ? null : Number(x.population) }));
+  const r = await db.query<{ id: string; name: string; uf: string; population: string | null; ibge_code: string }>(`SELECT id, name, uf, population, ibge_code FROM plataforma.city`);
+  return r.rows.map((x) => ({ kind: "city", id: x.id, name: x.name, qualifier: x.uf, code: x.ibge_code, weight: x.population === null ? null : Number(x.population) }));
 }
 /** Páginas geradas (a última versão de cada uma) e o template que as produziu. */
 export async function loadPages(db: TenantDb): Promise<{ entityId: string; templateKey: string }[]> {
@@ -101,6 +104,8 @@ export async function runResearch(pool: PoolLike, identity: VerifiedIdentity, te
   const problems = validateVertical(deps.vertical);
   if (problems.length > 0) throw new TypeError(`vertical inválida: ${problems.join("; ")}`);
   const entityLimit = Math.min(Math.max(Math.trunc(input.entityLimit ?? 20), 1), 100);
+  const scopeDef = input.scopeId === undefined ? undefined : deps.vertical.scopes?.find((s) => s.id === input.scopeId);
+  if (input.scopeId !== undefined && !scopeDef) throw new TypeError(`escopo desconhecido: ${input.scopeId}`);
   const unknownIds = (input.adapterIds ?? []).filter((id) => !deps.adapters.some((a) => a.id === id));
   if (unknownIds.length > 0) throw new TypeError(`adaptador desconhecido: ${unknownIds.join(", ")}`);
   const adapters = deps.adapters.filter((a) => !input.adapterIds || input.adapterIds.includes(a.id));
@@ -112,7 +117,7 @@ export async function runResearch(pool: PoolLike, identity: VerifiedIdentity, te
   try {
     runId = await withTenant(pool, identity, tenantId, async (db) => {
       await recoverStaleResearchRuns(db, input.staleAfterMinutes);
-      const r = await db.query<{ id: string }>(`INSERT INTO plataforma.research_run (tenant_id, vertical_id, params, created_by) VALUES (plataforma.current_tenant_id(), $1, $2::jsonb, $3) RETURNING id`, [deps.vertical.id, JSON.stringify({ entityLimit, adapters: adapters.map((a) => a.id) }), actor]);
+      const r = await db.query<{ id: string }>(`INSERT INTO plataforma.research_run (tenant_id, vertical_id, params, created_by) VALUES (plataforma.current_tenant_id(), $1, $2::jsonb, $3) RETURNING id`, [deps.vertical.id, JSON.stringify({ entityLimit, adapters: adapters.map((a) => a.id), ...(scopeDef ? { scope: scopeDef.id } : {}) }), actor]);
       return r.rows[0]!.id;
     });
   } catch (e) {
@@ -128,12 +133,12 @@ export async function runResearch(pool: PoolLike, identity: VerifiedIdentity, te
     const results = await runAdapters(adapters, { fetch: deps.fetch, now: now(), userAgent: deps.userAgent ?? USER_AGENT, vertical: deps.vertical, sleep: deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))), robots: new Map() });
     // 3. grava tudo ou nada e fecha
     return await withTenant(pool, identity, tenantId, async (db) => {
-      const p = await persist(db, { runId, vertical: deps.vertical, entityLimit, results, now: now(), actor });
+      const p = await persist(db, { runId, vertical: deps.vertical, entityLimit, scope: scopeDef, results, now: now(), actor });
       const adapterStatuses = results.map((r) => r.status);
       const status: ResearchResult["status"] = adapterStatuses.every((s) => s === "succeeded") ? "succeeded" : "partial";
       const adaptersJson = p.adapters;
       await db.query(`UPDATE plataforma.research_run SET status = $2, adapters = $3::jsonb, stats = $4::jsonb, error = NULL, finished_at = now() WHERE id = $1 AND status = 'running'`, [runId, status, JSON.stringify(adaptersJson), JSON.stringify({ evidence: p.evidence, opportunities: p.opportunities, scores: p.scores, transitions: p.transitions, unclassified: p.unclassified })]);
-      return { runId, status, adapters: adaptersJson, evidence: p.evidence, opportunities: p.opportunities, scores: p.scores, transitions: p.transitions, unclassified: p.unclassified, durationMs: Date.now() - started };
+      return { runId, status, adapters: adaptersJson, evidence: p.evidence, opportunities: p.opportunities, scores: p.scores, transitions: p.transitions, unclassified: p.unclassified, durationMs: Date.now() - started, ...(p.scope ? { scope: p.scope } : {}) };
     });
   } catch (e) {
     const error = safe(e);
@@ -142,10 +147,10 @@ export async function runResearch(pool: PoolLike, identity: VerifiedIdentity, te
   }
 }
 
-interface Persisted { adapters: AdapterSummary[]; evidence: { inserted: number; existing: number }; opportunities: { created: number; existing: number; rejected: number }; scores: { inserted: number }; transitions: number; unclassified: number }
+interface Persisted { scope?: ScopeReport; adapters: AdapterSummary[]; evidence: { inserted: number; existing: number }; opportunities: { created: number; existing: number; rejected: number }; scores: { inserted: number }; transitions: number; unclassified: number }
 interface Step { id: string; from: LifecycleState; to: LifecycleState; reason: string }
 
-async function persist(db: TenantDb, a: { runId: string; vertical: VerticalDefinition; entityLimit: number; results: readonly AdapterResult[]; now: Date; actor: string }): Promise<Persisted> {
+async function persist(db: TenantDb, a: { runId: string; vertical: VerticalDefinition; entityLimit: number; scope: ScopeDef | undefined; results: readonly AdapterResult[]; now: Date; actor: string }): Promise<Persisted> {
   const { runId, vertical, now, actor } = a;
   const config = await ensureActiveConfig(db, vertical, actor);
 
@@ -169,9 +174,12 @@ async function persist(db: TenantDb, a: { runId: string; vertical: VerticalDefin
   const entities = await loadEntities(db);
   const pages = await loadPages(db);
   const evidence = await loadCurrentEvidence(db, now);
-  const { drafts, stats } = buildOpportunities({ def: vertical, entities, evidence, pages, config: config.config, now, entityLimit: a.entityLimit });
+  const entityCodes = a.scope ? new Set(a.scope.entityCodes) : undefined;
+  const { drafts, stats } = buildOpportunities({ def: vertical, entities, evidence, pages, config: config.config, now, entityLimit: a.entityLimit, ...(entityCodes ? { entityCodes } : {}) });
+  const have = new Set(entities.filter((x) => x.kind === a.scope?.entityKind).map((x) => x.code));
+  const scope: ScopeReport | undefined = a.scope ? { id: a.scope.id, label: a.scope.label, requested: a.scope.entityCodes, found: a.scope.entityCodes.filter((c) => have.has(c)), missing: a.scope.entityCodes.filter((c) => !have.has(c)) } : undefined;
   const out = await saveOpportunities(db, { runId, vertical, drafts, config, actor });
-  return { adapters, evidence: { inserted, existing: rows.length - inserted }, opportunities: out.opportunities, scores: out.scores, transitions: out.transitions, unclassified: stats.unclassified.length };
+  return { ...(scope ? { scope } : {}), adapters, evidence: { inserted, existing: rows.length - inserted }, opportunities: out.opportunities, scores: out.scores, transitions: out.transitions, unclassified: stats.unclassified.length };
 }
 
 async function saveOpportunities(db: TenantDb, a: { runId: string; vertical: VerticalDefinition; drafts: readonly OpportunityDraft[]; config: ActiveConfig; actor: string }): Promise<{ opportunities: Persisted["opportunities"]; scores: { inserted: number }; transitions: number }> {

@@ -93,6 +93,14 @@ export const realEstateVertical: engine.VerticalDefinition = {
     ibgeSearchTerms: ["habitação", "imóveis", "aluguel", "construção civil", "domicílios", "população"],
     rssFeeds: [{ id: "agencia-brasil-economia", label: "Agência Brasil: economia", url: "https://agenciabrasil.ebc.com.br/rss/economia/feed.xml" }],
   },
+  // Pilotos por cidade (códigos IBGE de município). São Paulo é o primeiro; Rio de Janeiro e Belo Horizonte ficam configurados para a expansão.
+  // Um escopo só recorta o que o tenant já importou: se o município não foi importado, o relatório da pesquisa o lista como ausente.
+  scopes: [
+    { id: "pilot-sao-paulo", label: "Piloto: São Paulo (SP)", entityKind: "city", entityCodes: ["3550308"] },
+    { id: "pilot-rio-de-janeiro", label: "Expansão: Rio de Janeiro (RJ)", entityKind: "city", entityCodes: ["3304557"] },
+    { id: "pilot-belo-horizonte", label: "Expansão: Belo Horizonte (MG)", entityKind: "city", entityCodes: ["3106200"] },
+    { id: "pilot-three-capitals", label: "Piloto ampliado: São Paulo, Rio de Janeiro e Belo Horizonte", entityKind: "city", entityCodes: ["3550308", "3304557", "3106200"] },
+  ],
   synonyms: { apto: "apartamento", ap: "apartamento", imobiliaria: "imobiliaria" },
   scoring: REAL_ESTATE_SCORE_CONFIG,
 };
