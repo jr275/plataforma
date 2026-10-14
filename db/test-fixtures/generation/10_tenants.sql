@@ -64,4 +64,6 @@ INSERT INTO plataforma.tenant (id, slug, name) VALUES
   ('fe333333-3333-4333-8333-333333333333', 'recipe-k', 'Recipe K'),
   ('fe444444-4444-4444-8444-444444444444', 'recipe-l', 'Recipe L'),
   ('fe555555-5555-4555-8555-555555555555', 'runtime-m', 'Runtime M'),
-  ('fe666666-6666-4666-8666-666666666666', 'runtime-n', 'Runtime N');
+  ('fe666666-6666-4666-8666-666666666666', 'runtime-n', 'Runtime N'),
+  ('fe777777-7777-4777-8777-777777777777', 'factory-o', 'Factory O'),
+  ('fe888888-8888-4888-8888-888888888888', 'factory-p', 'Factory P');

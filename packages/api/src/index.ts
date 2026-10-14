@@ -100,3 +100,4 @@ export * as blueprintSpec from "./blueprint-spec";
 export * as recipe from "./recipe";
 export * as qa from "./qa";
 export * as runtime from "./runtime";
+export * as factory from "./factory";

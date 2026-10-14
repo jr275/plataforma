@@ -1,0 +1,87 @@
+import type { TenantDb } from "../tenant-context";
+
+// Pipeline de produção em 16 etapas, calculado dos REGISTROS (nunca de contadores paralelos). Em cada etapa a unidade é declarada (execuções, tópicos, páginas, deployments) e vale a identidade
+// total = concluídos + em execução + aguardando + bloqueados + falhas + pulados: nenhum item é contado em dois estados da mesma etapa. Etapa sem registro persistido é "não instrumentada".
+export const STAGE_IDS = ["data_ingestion", "attribute_discovery", "entity_resolution", "topic_discovery", "intent_modeling", "combination_engine", "eligibility", "blueprint_generation", "recipe_compilation", "editorial_generation", "quality_assurance", "page_rendering", "preview", "approval", "vercel_deployment", "deployment_verification"] as const;
+export type StageId = (typeof STAGE_IDS)[number];
+export interface StageCounts { readonly total: number; readonly completed: number; readonly running: number; readonly waiting: number; readonly blocked: number; readonly failed: number; readonly skipped: number }
+export interface StageView extends StageCounts {
+  readonly id: StageId; readonly n: number; readonly label: string; readonly unit: string; readonly source: string; readonly definition: string;
+  readonly instrumented: boolean; readonly note: string | null;
+  readonly avgDurationMs: number | null; readonly successRate: number | null; readonly lastUpdate: Date | null;
+  readonly reasons: readonly { readonly reason: string; readonly count: number }[];
+}
+const META: Record<StageId, { label: string; unit: string; source: string; definition: string }> = {
+  data_ingestion: { label: "Data Ingestion", unit: "importações", source: "import_run", definition: "Importações de arquivo: concluída = sucesso ou parcial; falha = falhou." },
+  attribute_discovery: { label: "Attribute Discovery", unit: "execuções do catálogo", source: "catalog_run", definition: "Execuções de descoberta de atributos registradas (só sucesso é gravado; falhas não são instrumentadas)." },
+  entity_resolution: { label: "Entity Resolution", unit: "entidades", source: "entity", definition: "Entidades ativas = concluídas; fundidas ou descontinuadas = pulados." },
+  topic_discovery: { label: "Topic Discovery", unit: "tópicos", source: "growth_opportunity", definition: "Tópicos únicos gerados." },
+  intent_modeling: { label: "Intent Modeling", unit: "tópicos", source: "growth_opportunity.intent_model", definition: "Tópicos com intenção modelada (Agente 3) ou aguardando." },
+  combination_engine: { label: "Combination Engine", unit: "combinações", source: "combination_log", definition: "Mantida = concluída; podada ou cortada = bloqueada (motivo = filtro); duplicada = pulada." },
+  eligibility: { label: "Eligibility", unit: "tópicos", source: "eligibility_decision (vigente)", definition: "READY_FOR_BLUEPRINT = concluído; DATA_REQUIRED, RESEARCH_REQUIRED, REJECTED = bloqueados; sem decisão = aguardando." },
+  blueprint_generation: { label: "Blueprint Generation", unit: "tópicos elegíveis", source: "spec_blueprint", definition: "Tópicos READY com blueprint COMPLETE = concluídos; SEMANTIC_INSUFFICIENT = bloqueados; sem blueprint = aguardando." },
+  recipe_compilation: { label: "Recipe Compilation", unit: "blueprints completos", source: "page_recipe", definition: "Blueprint COMPLETE com recipe = concluído; sem recipe = aguardando (normalmente SERP ou exceção humana)." },
+  editorial_generation: { label: "Editorial Generation", unit: "páginas com recipe", source: "page_recipe.narrative_source", definition: "Recipe com narrativa do Agente 7 = concluído; texto determinístico do pack = pulado (Agente 7 não rodou)." },
+  quality_assurance: { label: "Quality Assurance", unit: "páginas com recipe", source: "qa_report (último)", definition: "QA_PASSED = concluído; QA_FAILED = bloqueado; QA_INCOMPLETE ou sem relatório = aguardando." },
+  page_rendering: { label: "Page Rendering", unit: "páginas", source: "—", definition: "O HTML é calculado sob demanda a partir do recipe (preview); não há registro persistido de render." },
+  preview: { label: "Preview", unit: "páginas", source: "deployment (preview)", definition: "Páginas em deployment de preview: pronto = concluído; fila/build = em execução; falha/cancelado = falha." },
+  approval: { label: "Approval", unit: "páginas com QA aprovado", source: "page_approval (vigente)", definition: "Aprovada = concluída; rejeitada ou revogada = bloqueada; sem decisão = aguardando." },
+  vercel_deployment: { label: "Vercel Deployment", unit: "deployments", source: "deployment", definition: "READY ou além = concluído; QUEUED/BUILDING = em execução; FAILED/CANCELED = falha." },
+  deployment_verification: { label: "Deployment Verification", unit: "deployments prontos", source: "deployment", definition: "VERIFIED = concluído; READY/VERIFICATION_PENDING = aguardando." },
+};
+const mk = (id: StageId, c: Partial<StageCounts> & { total: number }, o: { instrumented?: boolean; note?: string; avgDurationMs?: number | null; lastUpdate?: Date | null; reasons?: { reason: string; count: number }[] } = {}): StageView => {
+  const completed = c.completed ?? 0, running = c.running ?? 0, blocked = c.blocked ?? 0, failed = c.failed ?? 0, skipped = c.skipped ?? 0;
+  // `aguardando` é o resto: a identidade vale por construção (nunca negativa)
+  const waiting = c.waiting ?? Math.max(c.total - completed - running - blocked - failed - skipped, 0);
+  const total = Math.max(c.total, completed + running + waiting + blocked + failed + skipped);
+  const den = completed + blocked + failed;
+  const idx = STAGE_IDS.indexOf(id);
+  return { id, n: idx + 1, ...META[id], total, completed, running, waiting, blocked, failed, skipped, instrumented: o.instrumented ?? true, note: o.note ?? null, avgDurationMs: o.avgDurationMs ?? null, successRate: den > 0 ? completed / den : null, lastUpdate: o.lastUpdate ?? null, reasons: o.reasons ?? [] };
+};
+const n = (v: string | null | undefined) => Number(v ?? 0);
+
+export async function pipelineStages(db: TenantDb): Promise<StageView[]> {
+  const q = async <R extends object>(sql: string) => (await db.query<R>(sql)).rows;
+  const one = async (sql: string) => ((await q<Record<string, string | null>>(sql))[0] ?? {}) as Record<string, string | null>;
+  const reasonsOf = async (sql: string) => (await q<{ reason: string; n: string }>(sql)).map((r) => ({ reason: r.reason, count: n(r.n) }));
+  const imp = await one(`SELECT count(*) AS total, count(*) FILTER (WHERE status IN ('succeeded', 'partial')) AS ok, count(*) FILTER (WHERE status = 'running') AS run, count(*) FILTER (WHERE status = 'failed') AS fail, avg(extract(epoch FROM finished_at - started_at) * 1000) AS dur, max(coalesce(finished_at, started_at)) AS last FROM plataforma.import_run`);
+  const impReasons = await reasonsOf(`SELECT left(error, 120) AS reason, count(*) AS n FROM plataforma.import_run WHERE status = 'failed' AND error IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 3`);
+  const cat = await one(`SELECT count(*) AS total, max(computed_at) AS last FROM plataforma.catalog_run`);
+  const ent = await one(`SELECT count(*) AS total, count(*) FILTER (WHERE status = 'ACTIVE') AS ok, max(updated_at) AS last FROM plataforma.entity`);
+  const top = await one(`SELECT count(*) AS total, count(*) FILTER (WHERE intent_model IS NOT NULL) AS modeled, max(created_at) AS last FROM plataforma.growth_opportunity WHERE topic_id IS NOT NULL`);
+  const comb = await one(`SELECT count(*) AS total, count(*) FILTER (WHERE outcome = 'kept') AS kept, count(*) FILTER (WHERE outcome IN ('pruned', 'capped')) AS blocked, count(*) FILTER (WHERE outcome = 'duplicate') AS dup, max(created_at) AS last FROM plataforma.combination_log`);
+  const combReasons = await reasonsOf(`SELECT coalesce(filter, outcome) AS reason, count(*) AS n FROM plataforma.combination_log WHERE outcome IN ('pruned', 'capped') GROUP BY 1 ORDER BY 2 DESC LIMIT 5`);
+  const el = await one(`WITH d AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, decision, evaluated_at FROM plataforma.eligibility_decision ORDER BY opportunity_id, seq DESC) SELECT (SELECT count(*) FROM plataforma.growth_opportunity WHERE topic_id IS NOT NULL) AS topics, count(*) FILTER (WHERE decision = 'READY_FOR_BLUEPRINT') AS ready, count(*) FILTER (WHERE decision <> 'READY_FOR_BLUEPRINT') AS blocked, max(evaluated_at) AS last FROM d`);
+  const elReasons = await reasonsOf(`WITH d AS (SELECT DISTINCT ON (opportunity_id) decision, blocking_reasons, missing_requirements FROM plataforma.eligibility_decision ORDER BY opportunity_id, seq DESC) SELECT left(r, 100) AS reason, count(*) AS n FROM d, LATERAL jsonb_array_elements_text(d.blocking_reasons || d.missing_requirements) AS r WHERE decision <> 'READY_FOR_BLUEPRINT' GROUP BY 1 ORDER BY 2 DESC LIMIT 5`);
+  const elDecisionReasons = await reasonsOf(`WITH d AS (SELECT DISTINCT ON (opportunity_id) decision FROM plataforma.eligibility_decision ORDER BY opportunity_id, seq DESC) SELECT decision AS reason, count(*) AS n FROM d WHERE decision <> 'READY_FOR_BLUEPRINT' GROUP BY 1 ORDER BY 2 DESC`);
+  const bp = await one(`WITH d AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, decision FROM plataforma.eligibility_decision ORDER BY opportunity_id, seq DESC), b AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, status, created_at FROM plataforma.spec_blueprint ORDER BY opportunity_id, version DESC) SELECT count(*) AS ready, count(*) FILTER (WHERE b.status = 'COMPLETE') AS ok, count(*) FILTER (WHERE b.status = 'SEMANTIC_INSUFFICIENT') AS blocked, max(b.created_at) AS last FROM d LEFT JOIN b ON b.opportunity_id = d.opportunity_id WHERE d.decision = 'READY_FOR_BLUEPRINT'`);
+  const rc = await one(`WITH b AS (SELECT DISTINCT ON (opportunity_id) opportunity_id FROM plataforma.spec_blueprint WHERE status = 'COMPLETE' ORDER BY opportunity_id, version DESC), r AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, created_at FROM plataforma.page_recipe ORDER BY opportunity_id, version DESC) SELECT count(*) AS total, count(r.opportunity_id) AS ok, max(r.created_at) AS last FROM b LEFT JOIN r ON r.opportunity_id = b.opportunity_id`);
+  const rcWait = await reasonsOf(`SELECT CASE WHEN o.status IN ('eligible', 'serp_analyzed') THEN 'aguardando SERP analisada ou exceção humana (ADR-025)' ELSE 'aguardando compilação' END AS reason, count(*) AS n FROM (SELECT DISTINCT opportunity_id FROM plataforma.spec_blueprint WHERE status = 'COMPLETE') b JOIN plataforma.growth_opportunity o ON o.id = b.opportunity_id WHERE NOT EXISTS (SELECT 1 FROM plataforma.page_recipe r WHERE r.opportunity_id = b.opportunity_id) GROUP BY 1 ORDER BY 2 DESC`);
+  const ed = await one(`WITH r AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, narrative_source, created_at FROM plataforma.page_recipe ORDER BY opportunity_id, version DESC) SELECT count(*) AS total, count(*) FILTER (WHERE narrative_source = 'agent7') AS ok, count(*) FILTER (WHERE narrative_source = 'template') AS skipped, max(created_at) AS last FROM r`);
+  const qa = await one(`WITH r AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, id FROM plataforma.page_recipe ORDER BY opportunity_id, version DESC), q AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, outcome, created_at FROM plataforma.qa_report ORDER BY opportunity_id, seq DESC) SELECT count(*) AS total, count(*) FILTER (WHERE q.outcome = 'QA_PASSED') AS ok, count(*) FILTER (WHERE q.outcome = 'QA_FAILED') AS blocked, max(q.created_at) AS last FROM r LEFT JOIN q ON q.opportunity_id = r.opportunity_id`);
+  const qaReasons = await reasonsOf(`WITH q AS (SELECT DISTINCT ON (opportunity_id) outcome, blocking_failures FROM plataforma.qa_report ORDER BY opportunity_id, seq DESC) SELECT f AS reason, count(*) AS n FROM q, LATERAL jsonb_array_elements_text(q.blocking_failures) AS f WHERE outcome = 'QA_FAILED' GROUP BY 1 ORDER BY 2 DESC LIMIT 5`);
+  const pv = await one(`WITH p AS (SELECT dp.opportunity_id, d.status, d.updated_at FROM plataforma.deployment_page dp JOIN plataforma.deployment d ON d.id = dp.deployment_id AND d.tenant_id = dp.tenant_id WHERE d.target = 'preview'), best AS (SELECT opportunity_id, CASE WHEN bool_or(status IN ('READY', 'VERIFICATION_PENDING', 'VERIFIED')) THEN 'ok' WHEN bool_or(status IN ('QUEUED', 'BUILDING')) THEN 'run' ELSE 'fail' END AS s, max(updated_at) AS last FROM p GROUP BY opportunity_id) SELECT count(*) AS total, count(*) FILTER (WHERE s = 'ok') AS ok, count(*) FILTER (WHERE s = 'run') AS run, count(*) FILTER (WHERE s = 'fail') AS fail, max(last) AS last FROM best`);
+  const ap = await one(`WITH q AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, recipe_id FROM plataforma.qa_report WHERE outcome = 'QA_PASSED' ORDER BY opportunity_id, seq DESC), a AS (SELECT DISTINCT ON (recipe_id) recipe_id, decision, created_at FROM plataforma.page_approval ORDER BY recipe_id, seq DESC) SELECT count(*) AS total, count(*) FILTER (WHERE a.decision = 'APPROVED') AS ok, count(*) FILTER (WHERE a.decision IN ('REJECTED', 'REVOKED')) AS blocked, max(a.created_at) AS last FROM q LEFT JOIN a ON a.recipe_id = q.recipe_id`);
+  const dp = await one(`SELECT count(*) AS total, count(*) FILTER (WHERE status IN ('READY', 'VERIFICATION_PENDING', 'VERIFIED')) AS ok, count(*) FILTER (WHERE status IN ('QUEUED', 'BUILDING')) AS run, count(*) FILTER (WHERE status IN ('FAILED', 'CANCELED')) AS fail, avg(extract(epoch FROM updated_at - created_at) * 1000) FILTER (WHERE status IN ('READY', 'VERIFICATION_PENDING', 'VERIFIED')) AS dur, max(updated_at) AS last, count(*) FILTER (WHERE status IN ('READY', 'VERIFICATION_PENDING', 'VERIFIED')) AS ready_plus, count(*) FILTER (WHERE status = 'VERIFIED') AS verified FROM plataforma.deployment`);
+  const dpReasons = await reasonsOf(`SELECT left(coalesce(error, status), 120) AS reason, count(*) AS n FROM plataforma.deployment WHERE status IN ('FAILED', 'CANCELED') GROUP BY 1 ORDER BY 2 DESC LIMIT 3`);
+  const dt = (v: string | null | undefined) => (v ? new Date(v) : null);
+  const stages: StageView[] = [
+    mk("data_ingestion", { total: n(imp.total), completed: n(imp.ok), running: n(imp.run), failed: n(imp.fail) }, { avgDurationMs: imp.dur === null || imp.dur === undefined ? null : Number(imp.dur), lastUpdate: dt(imp.last), reasons: impReasons }),
+    mk("attribute_discovery", { total: n(cat.total), completed: n(cat.total) }, { lastUpdate: dt(cat.last), note: "Falhas de descoberta não são gravadas: só execuções concluídas aparecem." }),
+    mk("entity_resolution", { total: n(ent.total), completed: n(ent.ok), skipped: n(ent.total) - n(ent.ok) }, { lastUpdate: dt(ent.last) }),
+    mk("topic_discovery", { total: n(top.total), completed: n(top.total) }, { lastUpdate: dt(top.last) }),
+    mk("intent_modeling", { total: n(top.total), completed: n(top.modeled) }, { lastUpdate: dt(top.last) }),
+    mk("combination_engine", { total: n(comb.total), completed: n(comb.kept), blocked: n(comb.blocked), skipped: n(comb.dup) }, { lastUpdate: dt(comb.last), reasons: combReasons }),
+    mk("eligibility", { total: n(el.topics), completed: n(el.ready), blocked: n(el.blocked) }, { lastUpdate: dt(el.last), reasons: [...elDecisionReasons, ...elReasons].slice(0, 6) }),
+    mk("blueprint_generation", { total: n(bp.ready), completed: n(bp.ok), blocked: n(bp.blocked) }, { lastUpdate: dt(bp.last) }),
+    mk("recipe_compilation", { total: n(rc.total), completed: n(rc.ok) }, { lastUpdate: dt(rc.last), reasons: rcWait }),
+    mk("editorial_generation", { total: n(ed.total), completed: n(ed.ok), skipped: n(ed.skipped) }, { lastUpdate: dt(ed.last), note: n(ed.skipped) > 0 ? "Páginas pulando esta etapa usam o texto determinístico do pack: o Agente 7 não rodou." : undefined }),
+    mk("quality_assurance", { total: n(qa.total), completed: n(qa.ok), blocked: n(qa.blocked) }, { lastUpdate: dt(qa.last), reasons: qaReasons }),
+    mk("page_rendering", { total: 0 }, { instrumented: false, note: META.page_rendering.definition }),
+    mk("preview", { total: n(pv.total), completed: n(pv.ok), running: n(pv.run), failed: n(pv.fail) }, { lastUpdate: dt(pv.last), note: "O preview local (renderizado no servidor a partir do recipe) não é registrado; esta etapa conta só deployments de preview." }),
+    mk("approval", { total: n(ap.total), completed: n(ap.ok), blocked: n(ap.blocked) }, { lastUpdate: dt(ap.last) }),
+    mk("vercel_deployment", { total: n(dp.total), completed: n(dp.ok), running: n(dp.run), failed: n(dp.fail) }, { avgDurationMs: dp.dur === null || dp.dur === undefined ? null : Number(dp.dur), lastUpdate: dt(dp.last), reasons: dpReasons }),
+    mk("deployment_verification", { total: n(dp.ready_plus), completed: n(dp.verified) }, { lastUpdate: dt(dp.last) }),
+  ];
+  return stages;
+}
