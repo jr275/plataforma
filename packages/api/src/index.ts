@@ -81,3 +81,30 @@ export { DEFAULT_STALE_AFTER_MINUTES, GenerationBusyError, GenerationScopeError,
 export { getGenerationRunDetail, getPageDetail, listGenerationItems, listGenerationRuns, listPageVersions, listPages, searchPages, type GenerationItemDetail, type GenerationItemView, type GenerationRunDetail, type GenerationRunSummary, type LatestAttempt, type PageDetail, type PageListItem, type PageSearch, type PageSort, type PageSummary, type PageVersionView } from "./pages/read";
 export { FACT_LABELS, FACT_REVIEW_AFTER_DAYS, ageInDays, describeOmissions, reviewFacts, type FactReview, type Omission } from "./pages/diagnostics";
 export { PG_UNDEFINED_TABLE, isUndefinedTable } from "./pg-errors";
+export {
+  GSC_CHECKS,
+  GSC_STATUSES,
+  classifyApiError,
+  diagnoseGscConfiguration,
+  lastSevenCompleteDays,
+  parseGscProperty,
+  redactSecrets,
+  remediationFor,
+  toProviderStatus,
+  validateGscConnection,
+  validationEvent,
+  type GoogleFetch,
+  type GscCheck,
+  type GscCheckId,
+  type GscCheckState,
+  type GscError,
+  type GscErrorCode,
+  type GscIdentity,
+  type GscProperty,
+  type GscStatus,
+  type GscValidationResult,
+  type PropertyKind,
+  type Remediation,
+} from "./intel/gsc-diagnostics";
+export { normalizeSearchFacts, overlappingTargets, type SearchPerformanceFact, type SearchFactProvenance } from "./intel/gsc-facts";
+export { resolveDataForSeoConfig } from "./intel/dataforseo";

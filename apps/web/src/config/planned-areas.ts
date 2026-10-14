@@ -114,14 +114,6 @@ export const PLANNED_AREAS = {
     dependencies: [{ name: "Resultados de páginas publicadas", status: "missing", detail: "Nenhuma página tem resultado registrado; o score segue ilustrativo." }],
     related: [{ label: "Opportunity Discovery", href: "/opportunities" }],
   }),
-  integrations: area("Workspace", {
-    title: "Integrations",
-    description: "Conexões com provedores de dados, busca, analytics e publicação.",
-    state: "planned",
-    purpose: ["Conectar e autorizar provedores.", "Ver saúde e última sincronização de cada um."],
-    dependencies: [{ name: "Gestão de credenciais", status: "missing", detail: "Hoje as fontes são cadastradas em Data Sources." }],
-    related: [{ label: "Data Sources", href: "/data-sources" }],
-  }),
   audit: area("Workspace", {
     title: "Audit Log",
     description: "Histórico de ações humanas, de agentes e do sistema.",
