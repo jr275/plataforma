@@ -34,10 +34,10 @@ expect "bootstrap provisiona e verifica o ambiente" eq "$rc" 0
 OUT="$(bash "$RUNNER" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --dbname "$DB" --user "$MIG" --app-role "$APP" 2>&1)"; rc=$?
 expect "o runner aplica 0001 a 0007 com o gate de segurança ativo (código 0)" eq "$rc" 0
 [[ "$rc" -eq 0 ]] || echo "$OUT" | tail -8
-expect "o ledger tem exatamente as migrations 1 a 7" eq "$(su "SELECT string_agg(seq::text, ',' ORDER BY seq) FROM plataforma_migrations.ledger")" "1,2,3,4,5,6,7"
+expect "o ledger tem exatamente as migrations 1 a 10" eq "$(su "SELECT string_agg(seq::text, ',' ORDER BY seq) FROM plataforma_migrations.ledger")" "1,2,3,4,5,6,7,8,9,10"
 OUT2="$(bash "$RUNNER" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --dbname "$DB" --user "$MIG" --app-role "$APP" 2>&1)"; rc=$?
 expect "reaplicar não muda nada (código 0)" eq "$rc" 0
-expect "as migrations não semeiam dados de tenant" eq "$(su "SELECT (SELECT count(*) FROM plataforma.tenant) + (SELECT count(*) FROM plataforma.opportunity) + (SELECT count(*) FROM plataforma.import_run) + (SELECT count(*) FROM plataforma.import_record) + (SELECT count(*) FROM plataforma.city) + (SELECT count(*) FROM plataforma.generation_run) + (SELECT count(*) FROM plataforma.page) + (SELECT count(*) FROM plataforma.page_version) + (SELECT count(*) FROM plataforma.generation_item)")" 0
+expect "as migrations não semeiam dados de tenant" eq "$(su "SELECT (SELECT count(*) FROM plataforma.tenant) + (SELECT count(*) FROM plataforma.opportunity) + (SELECT count(*) FROM plataforma.import_run) + (SELECT count(*) FROM plataforma.import_record) + (SELECT count(*) FROM plataforma.city) + (SELECT count(*) FROM plataforma.generation_run) + (SELECT count(*) FROM plataforma.page) + (SELECT count(*) FROM plataforma.page_version) + (SELECT count(*) FROM plataforma.generation_item) + (SELECT count(*) FROM plataforma.research_run) + (SELECT count(*) FROM plataforma.evidence) + (SELECT count(*) FROM plataforma.score_config) + (SELECT count(*) FROM plataforma.growth_opportunity) + (SELECT count(*) FROM plataforma.opportunity_evidence) + (SELECT count(*) FROM plataforma.opportunity_score) + (SELECT count(*) FROM plataforma.opportunity_event) + (SELECT count(*) FROM plataforma.page_blueprint) + (SELECT count(*) FROM plataforma.page_draft)")" 0
 
 # --- seed de teste (superusuário descartável) ----------------------------------------------------
 "${PSQL[@]}" -d "$DB" -v ON_ERROR_STOP=1 -f "$ROOT/db/test-fixtures/product/10_seed.sql" >/dev/null 2>&1
@@ -99,13 +99,16 @@ c="$(bash "$ROOT/scripts/check-catalog.sh" --socket-dir "$TMP" --port "$PORT" --
 expect "as verificações de catálogo de segurança passam com o esquema real" eq "$rc" 0
 expect "o gate avalia a tabela real (não é vacuoso)" has "$c" "plataforma.opportunity"
 expect "o gate avalia as tabelas de importação e cidade" has "$c" "plataforma.city"
-for t in generation_run page page_version generation_item; do
+for t in generation_run page page_version generation_item research_run evidence score_config growth_opportunity opportunity_evidence opportunity_score opportunity_event page_blueprint page_draft; do
   expect "RLS ligada e forçada em $t" eq "$(su "SELECT relrowsecurity::text || relforcerowsecurity::text FROM pg_class WHERE oid = 'plataforma.$t'::regclass")" "truetrue"
   expect "$t: a aplicação não tem DELETE" has "$(app_sql "$A" "DELETE FROM plataforma.$t")" "permission denied"
   expect "$t: sem contexto de tenant, zero linhas" eq "$(app_sql "" "SELECT count(*) FROM plataforma.$t" | tr '\n' ' ')" "0 "
   expect "o gate avalia a tabela $t" has "$c" "plataforma.$t"
 done
 expect "page_version é imutável para a aplicação (sem UPDATE)" has "$(app_sql "$A" "UPDATE plataforma.page_version SET content_hash = 'x'")" "permission denied"
+for t in evidence score_config opportunity_evidence opportunity_score opportunity_event page_blueprint page_draft; do
+  expect "$t é histórico imutável para a aplicação (sem UPDATE)" has "$(app_sql "$A" "UPDATE plataforma.$t SET tenant_id = tenant_id")" "permission denied"
+done
 expect "generation_item é imutável para a aplicação (sem UPDATE)" has "$(app_sql "$A" "UPDATE plataforma.generation_item SET outcome = 'generated'")" "permission denied"
 expect "generation_run: contagens que não somam são recusadas por CHECK" has "$(su "INSERT INTO plataforma.generation_run (tenant_id, template_key, template_version, template_hash, scope, status, total_items, generated_items, finished_at, created_by) VALUES ('$A', 'city-overview', 1, '$SHA', '{}', 'succeeded', 5, 1, now(), 't')")" "violates check constraint"
 expect "generation_run: teto de 500 itens por execução" has "$(su "INSERT INTO plataforma.generation_run (tenant_id, template_key, template_version, template_hash, scope, status, total_items, generated_items, finished_at, created_by) VALUES ('$A', 'city-overview', 1, '$SHA', '{}', 'succeeded', 501, 501, now(), 't')")" "violates check constraint"
