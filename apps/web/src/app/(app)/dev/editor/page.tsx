@@ -7,7 +7,7 @@ import { BlueprintView } from "@/components/opportunities/blueprint-view";
 import { devEditorContext } from "@/lib/server/dev-editor";
 import { blueprintPageData } from "@/lib/server/opportunities";
 import { verticalMeta } from "@/lib/server/vertical";
-import { devEvaluateDraftAction, devPreviewDraftAction, devSaveDraftAction } from "../editor-actions";
+import { devEvaluateDraftAction, devGeneratePageAction, devPreviewDraftAction, devSaveDraftAction } from "../editor-actions";
 
 export const metadata: Metadata = { title: "Bancada do editor (desenvolvimento)" };
 
@@ -23,7 +23,7 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
     return id ? { id, page: await blueprintPageData(db, id) } : null;
   });
   if (!data) return <p role="note" className="rounded-lg border border-border p-4 text-sm">Nenhum blueprint na bancada: a semente não gerou uma oportunidade com template.</p>;
-  return <BlueprintView loaded={{ state: "ready", data: data.page, origin: { kind: "local", host: "socket local (banco descartável)" } }} vertical={verticalMeta} harness="dev" listBase="/dev/opportunities" editorActions={{ save: devSaveDraftAction, evaluate: devEvaluateDraftAction, preview: devPreviewDraftAction }} />;
+  return <BlueprintView loaded={{ state: "ready", data: data.page, origin: { kind: "local", host: "socket local (banco descartável)" } }} vertical={verticalMeta} harness="dev" listBase="/dev/opportunities" editorActions={{ save: devSaveDraftAction, evaluate: devEvaluateDraftAction, preview: devPreviewDraftAction }} generate={devGeneratePageAction} />;
 }
 
 export default function Page(props: PageProps<"/dev/editor">) {

@@ -4,7 +4,7 @@ import { evidenceHash, type EvidenceDraft } from "./evidence";
 import type { FetchLike } from "./http";
 import { buildOpportunities, hashInputs, type EvidenceInput, type OpportunityDraft } from "./discovery";
 import type { EntityRecord } from "./entities";
-import { LifecycleError, RESCORABLE, STATES, assertTransition, isState, type LifecycleState } from "./lifecycle";
+import { LifecycleError, RESCORABLE, STATES, assertExecutable, assertTransition, isState, type LifecycleState } from "./lifecycle";
 import { compareScores, type ScoreComparison } from "./compare";
 import { computeScore, validateInput, type DimensionMap, type ScoreResult } from "./score";
 import { configHash, validateScoreConfig, type ScoreConfig } from "./score-config";
@@ -243,7 +243,7 @@ async function saveOpportunities(db: TenantDb, a: { runId: string; vertical: Ver
     if (i === 1) events.push(...scoreEvents);
     if (!round) continue;
     const groups = new Map<string, Step[]>();
-    for (const s of round) { assertTransition(s.from, s.to); groups.set(`${s.from}>${s.to}`, [...(groups.get(`${s.from}>${s.to}`) ?? []), s]); }
+    for (const s of round) { assertExecutable(s.from, s.to); groups.set(`${s.from}>${s.to}`, [...(groups.get(`${s.from}>${s.to}`) ?? []), s]); }
     for (const [k, list] of groups) {
       const [from, to] = k.split(">") as [LifecycleState, LifecycleState];
       const r = await db.query<{ id: string }>(`UPDATE plataforma.growth_opportunity SET status = $2 WHERE id = ANY($3::uuid[]) AND status = $1 RETURNING id`, [from, to, list.map((s) => s.id)]);
@@ -312,7 +312,7 @@ export async function rescoreOpportunity(pool: PoolLike, identity: VerticalIdent
       await db.query(`UPDATE plataforma.growth_opportunity SET latest_score_id = $2, priority_value = $3, priority_kind = $4, eligible = $5, commercial_value = $6, feasibility = $7, discovery = $8 WHERE id = $1`, [opp.id, scoreId, result.priority.value, result.priority.kind, result.eligibility.eligible, result.objectives.commercial_value.adjusted, result.objectives.execution_feasibility.adjusted, result.objectives.discovery_opportunity.adjusted]);
       await db.query(`INSERT INTO plataforma.opportunity_event (tenant_id, opportunity_id, event_type, actor, reason, data) VALUES (plataforma.current_tenant_id(), $1, 'score', $2, $3, $4::jsonb)`, [opp.id, identity.userId, `score recalculado com a configuração v${cfg.version}`, JSON.stringify({ configVersion: cfg.version, priority: result.priority.value, kind: result.priority.kind, eligible: result.eligibility.eligible })]);
       const st = opp.status as LifecycleState;
-      const move = async (to: LifecycleState, reason: string) => { assertTransition(st, to); await db.query(`UPDATE plataforma.growth_opportunity SET status = $2 WHERE id = $1 AND status = $3`, [opp.id, to, st]); await db.query(`INSERT INTO plataforma.opportunity_event (tenant_id, opportunity_id, event_type, from_status, to_status, actor, reason) VALUES (plataforma.current_tenant_id(), $1, 'transition', $2, $3, $4, $5)`, [opp.id, st, to, identity.userId, reason]); };
+      const move = async (to: LifecycleState, reason: string) => { assertExecutable(st, to); await db.query(`UPDATE plataforma.growth_opportunity SET status = $2 WHERE id = $1 AND status = $3`, [opp.id, to, st]); await db.query(`INSERT INTO plataforma.opportunity_event (tenant_id, opportunity_id, event_type, from_status, to_status, actor, reason) VALUES (plataforma.current_tenant_id(), $1, 'transition', $2, $3, $4, $5)`, [opp.id, st, to, identity.userId, reason]); };
       if (st === "scored" && result.eligibility.eligible) await move("eligible", "passou a ser elegível com a nova configuração");
       else if (st === "eligible" && !result.eligibility.eligible) await move("scored", "deixou de ser elegível com a nova configuração");
     }
@@ -332,7 +332,7 @@ type VerticalIdentityLike = VerifiedIdentity;
 export async function transitionOpportunity(pool: PoolLike, identity: VerifiedIdentity, tenantId: string, input: { opportunityId: string; from: LifecycleState; to: LifecycleState; reason: string }): Promise<void> {
   if (!UUID.test(input.opportunityId)) throw new OpportunityNotFoundError();
   if (!isState(input.from) || !isState(input.to)) throw new LifecycleError(input.from, input.to);
-  assertTransition(input.from, input.to);
+  assertExecutable(input.from, input.to);
   const reason = input.reason.trim();
   if (reason.length < 3 || reason.length > 1000) throw new TypeError("o motivo precisa ter de 3 a 1000 caracteres");
   await withTenant(pool, identity, tenantId, async (db) => {

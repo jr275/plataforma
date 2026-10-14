@@ -20,6 +20,9 @@ export class DraftConflictError extends Error { readonly code = "DRAFT_CONFLICT"
 export class NoBlueprintError extends Error { readonly code = "NO_BLUEPRINT"; constructor() { super("gere o blueprint da oportunidade antes de editar o rascunho"); this.name = "NoBlueprintError"; } }
 export class DraftInvalidError extends Error { readonly code = "DRAFT_INVALID"; constructor(readonly errors: readonly string[]) { super(`rascunho malformado: ${errors.slice(0, 3).join("; ")}`); this.name = "DraftInvalidError"; } }
 
+/** Estados em que o rascunho pode ser editado: do blueprint até QA (depois de gerada, a página pode ser refeita a partir de um rascunho novo). */
+export const DRAFT_EDITABLE_STATES: readonly string[] = [...BLUEPRINT_STATES, "data_assembled", "evidence_validated", "experience_built", "qa"];
+
 export interface DraftDeps { readonly vertical: VerticalDefinition; readonly templates: readonly TemplateInfo[]; readonly now?: () => Date }
 /** Fontes REAIS já implementadas (as únicas que o editor permite adicionar); o token liga a fonte aos requisitos da vertical. */
 export const DRAFT_SOURCES = [
@@ -99,7 +102,7 @@ export async function savePageDraft(pool: PoolLike, identity: VerifiedIdentity, 
   if (!Number.isInteger(input.baseVersion) || input.baseVersion < 0) throw new DraftInvalidError(["versão base inválida"]);
   return withTenant(pool, identity, tenantId, async (db) => {
     const o = await lockOpportunity(db, input.opportunityId, true);
-    if (!(BLUEPRINT_STATES as readonly string[]).includes(o.status)) throw new NoBlueprintError();
+    if (!(DRAFT_EDITABLE_STATES as readonly string[]).includes(o.status)) throw new NoBlueprintError();
     const bp = await latestBlueprint(db, o.id);
     if (!bp) throw new NoBlueprintError();
     const prev = (await db.query<{ version: number; content: PageDraft; content_sha: string }>(`SELECT version, content, content_sha FROM plataforma.page_draft WHERE opportunity_id = $1 ORDER BY version DESC LIMIT 1`, [o.id])).rows[0];

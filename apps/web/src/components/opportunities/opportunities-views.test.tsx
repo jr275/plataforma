@@ -1,7 +1,9 @@
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", async (orig) => ({ ...(await orig<typeof import("next/navigation")>()), useRouter: () => ({ refresh: () => undefined, push: () => undefined, replace: () => undefined }) }));
 import { engine } from "@plataforma/api";
 import { realEstateVertical } from "@plataforma/pack-real-estate";
 import { devOpportunities } from "@/lib/dev-opportunity-fixture";
@@ -221,6 +223,31 @@ describe("blueprint na oportunidade (resumo) e na página de blueprint (completo
     expect(out).toMatch(/<button[^>]*disabled[^>]*>[^<]*Publicar \(indisponível\)/);
     expect(out).toContain("nunca equivale a autorização");
     expect(out).toContain("Mecanismo de publicação");
+  });
+  it("rascunho gerado: botão desabilitado em 'Elegível' (diz o que falta), histórico com os gates da PÁGINA e QA reprovado com motivo, sem publicar", async () => {
+    const { details, blueprints, previews } = await devOpportunities();
+    const id = [...blueprints.entries()].find(([k, v]) => v[0]!.ready && details.get(k)!.status === "eligible")![0];
+    const detail = details.get(id)!;
+    const gates = [{ gate: "required_fields", outcome: "pass", detail: "todos os campos" }, { gate: "url_unique", outcome: "fail", detail: "a URL já pertence a outra entidade" }, { gate: "url_stable", outcome: "skipped", detail: "pulado" }, { gate: "metadata_valid", outcome: "pass", detail: "ok" }, { gate: "links_resolve", outcome: "pass", detail: "ok" }, { gate: "facts_traceable", outcome: "pass", detail: "ok" }] as const;
+    const row = { id: "r1", runId: "run1", outcome: "blocked", pageId: null, pageVersionId: null, blueprintId: "b", draftId: null, gates, qaPassed: false, createdAt: new Date("2026-10-14T12:00:00Z"), createdBy: "u", path: null, version: null } as const;
+    const out = html(<BlueprintView loaded={ready({ detail, configs: [], blueprints: blueprints.get(id)!, preview: previews.get(id)!, editor: NO_EDITOR, pages: { rows: [row] }, ...summarize(detail, blueprints.get(id)!) })} vertical={VM} editorActions={EA} generate={async () => ({ ok: false, kind: "error", message: "x" })} />);
+    expect(out).toContain("Rascunho da página");
+    expect(out).toContain("registre a exceção de SERP");
+    expect(out).toMatch(/<button[^>]*disabled[^>]*>[\s\S]*Gerar de novo/);
+    expect(out).toContain("QA reprovado");
+    expect(out).toContain("reprovada nos gates");
+    expect(out).toContain("a URL já pertence a outra entidade");
+    expect((out.match(/aria-label="Gates da página"/g) ?? []).length).toBe(1);
+    expect(out).not.toMatch(/Publicar agora|>Publicar</);
+  });
+  it("rascunho gerado: migration 0012 ausente aparece como indisponível, não como 'nenhum rascunho'", async () => {
+    const { details, blueprints, previews } = await devOpportunities();
+    const id = [...blueprints.entries()].find(([, v]) => v[0]!.ready)![0];
+    const detail = details.get(id)!;
+    const out = html(<BlueprintView loaded={ready({ detail, configs: [], blueprints: blueprints.get(id)!, preview: previews.get(id)!, editor: NO_EDITOR, pages: { unavailable: "A tabela da ligação oportunidade-página ainda não existe neste banco: a migration 0012 precisa ser aplicada." }, ...summarize(detail, blueprints.get(id)!) })} vertical={VM} editorActions={EA} />);
+    expect(out).toContain("migration 0012 precisa ser aplicada");
+    expect(out).not.toContain("Nenhum rascunho gerado ainda");
+    expect(out).toContain("Indisponível nesta prévia.");
   });
   it("página do blueprint com exceção vigente: motivo, autor, horário e pendência de revisão; sem formulário habilitado", async () => {
     const { details, blueprints, previews } = await devOpportunities();

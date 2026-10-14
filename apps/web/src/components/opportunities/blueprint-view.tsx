@@ -15,6 +15,7 @@ import type { Loaded } from "@/lib/server/tenant-data";
 import { BlueprintForm } from "./blueprint-form";
 import { GATE_LABEL, OUTCOME } from "./blueprint-panel";
 import { PageEditor, type EditorActions } from "./editor/page-editor";
+import { GeneratePanel, type GenerateAction } from "./generate-panel";
 import { SerpWaiverForm } from "./serp-waiver-form";
 import { VerticalContext } from "./vertical-context";
 import type { VerticalMeta } from "./opportunities-home-view";
@@ -23,9 +24,10 @@ import type { VerticalMeta } from "./opportunities-home-view";
 const UNLOCK: Record<string, string> = { serp_analysis: "serp-provider", intent_format: "serp-provider", search_demand: "search-demand", ai_citation_monitoring: "ai-citations", indexability: "publication" };
 const cap = (id: string) => engine.CAPABILITIES.find((c) => c.id === id);
 
-export function BlueprintView({ loaded, vertical, editorActions, harness, listBase = "/opportunities" }: { loaded: Loaded<BlueprintPageData>; vertical: VerticalMeta; editorActions: EditorActions; harness?: "dev"; listBase?: string }) {
+export function BlueprintView({ loaded, vertical, editorActions, generate, harness, listBase = "/opportunities" }: { loaded: Loaded<BlueprintPageData>; vertical: VerticalMeta; editorActions: EditorActions; generate?: GenerateAction; harness?: "dev"; listBase?: string }) {
   if (loaded.state !== "ready") return <div className="space-y-6"><PageHeader crumbs={[{ label: "Oportunidades", href: listBase }, { label: "Blueprint" }]} title="Blueprint" /><StatePanel state={loaded.state} missing={loaded.state === "not_configured" ? loaded.missing : undefined} /></div>;
   const { detail: o, blueprints, preview, serpWaiver, editor } = loaded.data;
+  const pages = loaded.data.pages ?? { rows: [] };
   if (!o) return <div className="space-y-6"><PageHeader crumbs={[{ label: "Oportunidades", href: listBase }, { label: "Não encontrada" }]} title="Oportunidade não encontrada" /><Panel title="Estado"><EmptyState title="Não existe neste workspace" hint="O identificador pode estar errado ou pertencer a outro workspace." action={<Link href={listBase} className="text-xs underline underline-offset-2">Voltar para as oportunidades</Link>} /></Panel></div>;
   const back = `${listBase}/${o.id}`;
   const latest = blueprints[0];
@@ -40,7 +42,7 @@ export function BlueprintView({ loaded, vertical, editorActions, harness, listBa
   return (
     <div className="space-y-6">
       {header}
-      <SectionTabs label="Seções do blueprint" items={[["fluxo", "Editor"], ["resumo", "Resumo"], ["serp", "Etapa SERP"], ["dados", "Dados"], ["template", "Template"], ["gates", "Seis gates"], ["previa", "Prévia"], ["publicacao", "Publicação"]]} />
+      <SectionTabs label="Seções do blueprint" items={[["fluxo", "Editor"], ["resumo", "Resumo"], ["serp", "Etapa SERP"], ["dados", "Dados"], ["template", "Template"], ["gates", "Seis gates"], ["previa", "Prévia"], ["pagina", "Rascunho gerado"], ["publicacao", "Publicação"]]} />
 
       <section id="fluxo">
         {"state" in editor ? (
@@ -123,6 +125,10 @@ export function BlueprintView({ loaded, vertical, editorActions, harness, listBa
       <section id="previa"><Panel title="Prévia da experiência" description="Renderizada agora pelo motor real de páginas, com os fatos reais da entidade. Não é gravada nem publicada.">
         {preview?.page ? <PreviewBlock preview={preview} /> : <EmptyState title="Sem prévia" hint={b.template.status === "selected" ? "O motor de páginas não renderizou a página (veja os gates da geração abaixo)." : "Não há template para esta experiência: nenhuma página pode ser pré-visualizada. Nada foi simulado."} />}
         {preview && !preview.page ? <ul className="mt-3 text-xs">{preview.gates.map((g) => (<li key={g.gate}>{g.gate}: {g.outcome}{g.outcome === "fail" ? ` — ${g.detail}` : ""}</li>))}</ul> : null}
+      </Panel></section>
+
+      <section id="pagina"><Panel title="Rascunho da página" description="O blueprint (e o rascunho salvo no editor) alimentam o pipeline de geração existente. O resultado são os seis gates da página; o ciclo de vida avança no máximo até QA.">
+        <GeneratePanel opportunityId={o.id} enabled={latest.ready && ["blueprinted", "data_assembled", "evidence_validated", "experience_built", "qa"].includes(o.status)} why={!latest.ready ? "O blueprint mais recente tem gates reprovados." : "A oportunidade precisa estar em “Com blueprint” ou além. Em “Elegível”, registre a exceção de SERP (ou analise a SERP) antes."} pages={pages} generate={generate} linkBase={harness === "dev" ? undefined : "/generation/pages"} />
       </Panel></section>
 
       <section id="publicacao"><Panel title="Decisão de publicação" description="Esta tela não publica. Aqui está o que decidiria a publicação e em que estado cada condição está.">

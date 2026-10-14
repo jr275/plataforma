@@ -41,3 +41,7 @@ INSERT INTO plataforma.tenant (id, slug, name) VALUES
 INSERT INTO plataforma.tenant (id, slug, name) VALUES
   ('fb666666-6666-4666-8666-666666666666', 'provedor-u', 'Provedor U'),
   ('fb777777-7777-4777-8777-777777777777', 'provedor-v', 'Provedor V');
+-- Tenants W e X: testes da geração a partir do blueprint (ligação oportunidade-página, avanço até QA, bloqueio da publicação; ADR-028).
+INSERT INTO plataforma.tenant (id, slug, name) VALUES
+  ('fb888888-8888-4888-8888-888888888888', 'blueprint-w', 'Blueprint W'),
+  ('fb999999-9999-4999-8999-999999999999', 'blueprint-x', 'Blueprint X');

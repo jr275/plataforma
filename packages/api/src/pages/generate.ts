@@ -48,6 +48,8 @@ export interface GenerationInput {
   /** Caminhos que existem no site (hubs, por exemplo). Sem destino, o render não emite link. */
   readonly knownPaths?: readonly string[];
   readonly template?: CityTemplate;
+  /** Links internos candidatos (ex.: os configurados no editor); só os que apontam para caminhos conhecidos são emitidos. Sem isso, valem os padrões do template. */
+  readonly linkCandidates?: readonly { readonly path: string; readonly text: string }[];
   /** Minutos sem fechamento a partir dos quais uma execução em `running` é abandonada (padrão 15). */
   readonly staleAfterMinutes?: number;
   /** SÓ PARA TESTES: injeta falhas para provar o isolamento por item e o reprocessamento. */
@@ -115,7 +117,7 @@ export async function selectCandidates(db: TenantDb, scope: GenerationScope): Pr
   }));
 }
 
-async function loadContext(db: TenantDb, candidates: readonly Candidate[], template: CityTemplate, knownPaths: readonly string[]): Promise<GenerationContext> {
+async function loadContext(db: TenantDb, candidates: readonly Candidate[], template: CityTemplate, knownPaths: readonly string[], linkCandidates?: readonly { path: string; text: string }[]): Promise<GenerationContext> {
   const ids = candidates.map((c) => c.city.id);
   const existing = new Map<string, ExistingPage>();
   const pages = await db.query<{ id: string; version_id: string; entity_id: string; path: string; status: "draft" | "blocked"; latest_version: number; content_hash: string }>(
@@ -135,7 +137,7 @@ async function loadContext(db: TenantDb, candidates: readonly Candidate[], templ
        FROM plataforma.page p JOIN plataforma.page_version pv ON pv.page_id = p.id AND pv.version = p.latest_version
       WHERE p.entity_id <> ALL($1::uuid[])`, [ids]);
   for (const r of meta.rows) { titleOwners.set(r.title, r.entity_id); metaOwners.set(r.meta, r.entity_id); }
-  return { template, knownPaths: new Set(knownPaths), pathOwners, titleOwners, metaOwners, existingByEntity: existing };
+  return { template, knownPaths: new Set(knownPaths), pathOwners, titleOwners, metaOwners, existingByEntity: existing, ...(linkCandidates ? { linkCandidates } : {}) };
 }
 
 function isUniqueViolation(e: unknown, constraint: string): boolean {
@@ -185,7 +187,7 @@ export async function runGeneration(pool: PoolLike, identity: VerifiedIdentity, 
     return await withTenant(pool, identity, tenantId, async (db) => {
       const candidates = await selectCandidates(db, input.scope);
       if (candidates.length === 0) throw new Error("nenhuma cidade selecionada");
-      const ctx = await loadContext(db, candidates, template, knownPaths);
+      const ctx = await loadContext(db, candidates, template, knownPaths, input.linkCandidates);
       const ordered = [...candidates].sort((a, b) => (a.city.ibgeCode < b.city.ibgeCode ? -1 : 1)); // primeira ocorrência vale, de forma determinística
       const items: GenerationItemSummary[] = [];
       let n = 0;

@@ -20,7 +20,7 @@ URL="postgresql:///$DB?host=$(python3 -c 'import sys,urllib.parse as u; print(u.
 export PLATAFORMA_LOCAL_URL="$URL" NODE_ENV=development
 ( cd "$ROOT/packages/api" && pnpm exec tsx src/ingest/cli.ts --env-var PLATAFORMA_LOCAL_URL --tenant "$TENANT" --file "$ROOT/db/test-fixtures/generation/sp-ibge-2026-10-12.csv" --origin real --source IBGE | cut -c1-160 )
 echo "== pesquisa (respostas reais capturadas) e blueprint"
-( cd "$ROOT/packages/api" && pnpm exec tsx ../../packs/real-estate/src/dev-editor-seed.ts --env-var PLATAFORMA_LOCAL_URL --tenant "$TENANT" ) | tee "$TMP/seed.json"
+( cd "$ROOT/packages/api" && pnpm exec tsx ../../packs/real-estate/src/dev-editor-seed.ts --env-var PLATAFORMA_LOCAL_URL --tenant "$TENANT" --waive ) | tee "$TMP/seed.json"
 echo "== aplicativo em http://localhost:$PORT_WEB/dev/editor (sem login; banco descartável)"
 cd "$ROOT/apps/web"
 NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= PLATAFORMA_APP_DATABASE_URL= PLATAFORMA_DEV_EDITOR_DATABASE_URL="$URL" PLATAFORMA_DEV_EDITOR_TENANT="$TENANT" pnpm exec next dev --port "$PORT_WEB" &

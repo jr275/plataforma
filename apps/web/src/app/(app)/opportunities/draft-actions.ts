@@ -2,7 +2,7 @@
 
 import type { DraftPreview } from "@plataforma/api";
 import { actionContext } from "@/lib/server/action-context";
-import { evaluateDraft, previewDraft, saveDraft } from "@/lib/server/draft-service";
+import { evaluateDraft, generatePage, previewDraft, saveDraft, type GenerateDTO } from "@/lib/server/draft-service";
 import type { ActionResult, DraftEvaluationDTO } from "@/lib/editor/types";
 
 // Ações do editor de rascunho (ADR-026). Identidade e tenant SEMPRE da sessão verificada; o corpo vem do cliente e é validado de novo no servidor.
@@ -20,4 +20,8 @@ export async function evaluateDraftAction(input: { opportunityId: string; draft:
 export async function previewDraftAction(input: { opportunityId: string; draft: unknown }): Promise<ActionResult<DraftPreview | null>> {
   const c = await actionContext("draft-action");
   return c.ok ? previewDraft({ pool: c.ctx.pool, identity: c.ctx.identity, tenantId: c.ctx.tenantId }, input) : deny(c.message);
+}
+export async function generatePageAction(input: { opportunityId: string }): Promise<ActionResult<GenerateDTO>> {
+  const c = await actionContext("draft-generate-action");
+  return c.ok ? generatePage({ pool: c.ctx.pool, identity: c.ctx.identity, tenantId: c.ctx.tenantId }, input) : deny(c.message);
 }

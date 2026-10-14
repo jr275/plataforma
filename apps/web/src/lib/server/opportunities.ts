@@ -57,7 +57,8 @@ export const loadOpportunityDetail = (id: string) => loadForTenant<OpportunityDe
 });
 
 export type EditorLoad = { readonly state: E.DraftState } | { readonly unavailable: string };
-export interface BlueprintPageData extends OpportunityDetailData { preview: CityPreview | null; editor: EditorLoad }
+export type PagesLoad = { readonly rows: readonly E.OpportunityPageRecord[] } | { readonly unavailable: string };
+export interface BlueprintPageData extends OpportunityDetailData { preview: CityPreview | null; editor: EditorLoad; pages?: PagesLoad }
 /** Dados da página de blueprint: o detalhe, as versões, a exceção de SERP e a prévia da experiência (renderizada agora, não persistida). */
 export async function blueprintPageData(db: import("@plataforma/api").TenantDb, id: string): Promise<BlueprintPageData> {
   const detail = await engine.getOpportunity(db, id);
@@ -71,7 +72,11 @@ export async function blueprintPageData(db: import("@plataforma/api").TenantDb, 
     try { editor = { state: await engine.loadPageDraft(db, id, { vertical: activeVertical, templates: TEMPLATE_REGISTRY }) }; }
     catch (e) { editor = { unavailable: isUndefinedTable(e) ? "A tabela do rascunho ainda não existe neste banco: a migration 0010 precisa ser aplicada." : "Não foi possível carregar o rascunho agora." }; if (!isUndefinedTable(e)) throw e; }
   }
-  return { detail, configs, blueprints, preview, editor, ...summarize(detail, blueprints) };
+  // As páginas geradas vêm da migration 0012; se ela ainda não existe neste banco, só esta seção fica indisponível.
+  let pages: PagesLoad = { rows: [] };
+  try { pages = { rows: await engine.listOpportunityPages(db, id) }; }
+  catch (e) { if (!isUndefinedTable(e)) throw e; pages = { unavailable: "A tabela da ligação oportunidade-página ainda não existe neste banco: a migration 0012 precisa ser aplicada." }; }
+  return { detail, configs, blueprints, preview, editor, pages, ...summarize(detail, blueprints) };
 }
 export const loadBlueprintPage = (id: string) => loadForTenant<BlueprintPageData>((db) => blueprintPageData(db, id));
 

@@ -23,6 +23,8 @@ async function main(): Promise<void> {
     const pick = el.rows.find((x) => x.experience === "location_overview");
     if (!pick) throw new Error("nenhuma oportunidade elegível com template real");
     await engine.createBlueprint(pool, id, tenant, { vertical, templates: TEMPLATE_REGISTRY }, { opportunityId: pick.id });
+    // Só na bancada (banco descartável): registra a exceção escrita de SERP (ADR-025) para que a geração possa ser exercitada. Em produção a exceção é decisão de uma pessoa.
+    if (process.argv.includes("--waive")) await engine.applySerpWaiver(pool, id, tenant, { opportunityId: pick.id, reason: "Bancada de desenvolvimento: exceção de SERP de demonstração (não há provedor de SERP); banco descartável." });
     console.log(JSON.stringify({ research: r.status, opportunityId: pick.id, query: pick.primaryQuery }));
   } finally { await pool.end(); }
 }

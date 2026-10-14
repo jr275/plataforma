@@ -57,4 +57,14 @@ export function assertTransition(from: LifecycleState, to: LifecycleState): void
 export const RESCORABLE: readonly LifecycleState[] = ["scored", "eligible", "serp_analyzed", "blueprinted"];
 
 /** Etapas cujo trabalho o sistema REALMENTE executa hoje. As demais existem no ciclo de vida (contrato), mas nenhum fluxo as realiza: aparecem como "sem fluxo". */
-export const IMPLEMENTED_STATES: readonly LifecycleState[] = ["discovered", "validated", "scored", "eligible", "blueprinted", "rejected", "retired"];
+export const IMPLEMENTED_STATES: readonly LifecycleState[] = ["discovered", "validated", "scored", "eligible", "blueprinted", "data_assembled", "evidence_validated", "experience_built", "qa", "rejected", "retired"];
+
+/** Etapas depois de QA: existem no modelo e na tabela de transições, mas NENHUMA transição para elas é executável nesta fase (a regra também está no gatilho SQL da migration 0012). */
+export const PUBLICATION_STATES: readonly LifecycleState[] = ["published", "indexed", "monitored", "converted", "measured", "learned", "refreshed"];
+export const isPublicationState = (s: LifecycleState): boolean => PUBLICATION_STATES.includes(s);
+export class PublicationBlockedError extends Error {
+  readonly code = "PUBLICATION_BLOCKED";
+  constructor(readonly from: LifecycleState, readonly to: LifecycleState) { super(`transição bloqueada: ${STATE_LABEL[to]} (publicação e etapas seguintes) não está habilitada nesta fase`); this.name = "PublicationBlockedError"; }
+}
+/** Lança para qualquer destino de publicação, mesmo que a tabela de transições o permita. Toda função que muda o estado passa por aqui. */
+export function assertExecutable(from: LifecycleState, to: LifecycleState): void { assertTransition(from, to); if (isPublicationState(to)) throw new PublicationBlockedError(from, to); }
