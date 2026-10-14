@@ -45,3 +45,7 @@ INSERT INTO plataforma.tenant (id, slug, name) VALUES
 INSERT INTO plataforma.tenant (id, slug, name) VALUES
   ('fb888888-8888-4888-8888-888888888888', 'blueprint-w', 'Blueprint W'),
   ('fb999999-9999-4999-8999-999999999999', 'blueprint-x', 'Blueprint X');
+-- Tenants Y e Z: testes da camada de dados (entidade, fato bi-temporal, catálogo de atributos; ADR-029).
+INSERT INTO plataforma.tenant (id, slug, name) VALUES
+  ('fc111111-1111-4111-8111-111111111111', 'catalogo-y', 'Catálogo Y'),
+  ('fc222222-2222-4222-8222-222222222222', 'catalogo-z', 'Catálogo Z');
