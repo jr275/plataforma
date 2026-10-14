@@ -37,3 +37,7 @@ INSERT INTO plataforma.tenant (id, slug, name) VALUES
 INSERT INTO plataforma.tenant (id, slug, name) VALUES
   ('fb444444-4444-4444-8444-444444444444', 'editor-s', 'Editor S'),
   ('fb555555-5555-4555-8555-555555555555', 'editor-t', 'Editor T');
+-- Tenants U e V: testes dos dados de provedores (cache, custo, sinais, SERP e concorrentes; ADR-027).
+INSERT INTO plataforma.tenant (id, slug, name) VALUES
+  ('fb666666-6666-4666-8666-666666666666', 'provedor-u', 'Provedor U'),
+  ('fb777777-7777-4777-8777-777777777777', 'provedor-v', 'Provedor V');
