@@ -66,4 +66,6 @@ INSERT INTO plataforma.tenant (id, slug, name) VALUES
   ('fe555555-5555-4555-8555-555555555555', 'runtime-m', 'Runtime M'),
   ('fe666666-6666-4666-8666-666666666666', 'runtime-n', 'Runtime N'),
   ('fe777777-7777-4777-8777-777777777777', 'factory-o', 'Factory O'),
-  ('fe888888-8888-4888-8888-888888888888', 'factory-p', 'Factory P');
+  ('fe888888-8888-4888-8888-888888888888', 'factory-p', 'Factory P'),
+  ('fe999999-9999-4999-8999-999999999999', 'arch-q', 'Arch Q'),
+  ('fea11111-1111-4111-8111-111111111111', 'arch-r', 'Arch R');

@@ -23,7 +23,7 @@ describe("definições de métricas", () => {
   it("versões e eventos nunca são rotulados como páginas únicas", () => {
     expect(METRICS.find((m) => m.id === "recipe_versions")!.kind).toBe("versions"); expect(METRICS.find((m) => m.id === "combinations_evaluated")!.kind).toBe("accumulated"); expect(METRICS.find((m) => m.id === "generation_failures")!.kind).toBe("period_events"); expect(METRICS.find((m) => m.id === "pages_generated")!.kind).toBe("unique_pages");
   });
-  it("as 16 etapas do pipeline existem, na ordem pedida", () => { expect(STAGE_IDS).toHaveLength(16); expect(STAGE_IDS[0]).toBe("data_ingestion"); expect(STAGE_IDS[15]).toBe("deployment_verification"); });
+  it("as 23 etapas do pipeline existem, na ordem pedida (16 originais + 7 do Quality Gate de arquitetura)", () => { expect(STAGE_IDS).toHaveLength(23); expect(STAGE_IDS[0]).toBe("data_ingestion"); expect(STAGE_IDS[22]).toBe("deployment_verification"); const orig = ["data_ingestion", "attribute_discovery", "entity_resolution", "topic_discovery", "intent_modeling", "combination_engine", "eligibility", "blueprint_generation", "recipe_compilation", "editorial_generation", "quality_assurance", "page_rendering", "preview", "approval", "vercel_deployment", "deployment_verification"]; expect(STAGE_IDS.filter((x) => orig.includes(x))).toEqual(orig); });
 });
 
 describe("renderer único do recipe", () => {

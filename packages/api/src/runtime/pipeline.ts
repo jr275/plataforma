@@ -11,6 +11,7 @@ import type { RunBudget } from "../provider/budget";
 import { withTenant, type PoolLike, type TenantDb } from "../tenant-context";
 import { agentResolver, resolvePrompts } from "./prompts";
 import { recordDecision } from "./decision-audit";
+import { analyzeArchitecture, type ArchitectureDeps } from "../architecture/store";
 
 // Pipeline de página (explícito, retomável e idempotente). O LLM propõe; a aplicação valida; o motor determinístico decide; o Control Plane explica; a auditoria prova.
 //   eligibility → explain (A05) → blueprint (+A06 se o código não fechou os campos semânticos) → serp_gate (SERP ou exceção humana, ADR-025) → recipe_qa (A07 + QA de código + A08) → quality_gate
@@ -32,6 +33,7 @@ export interface PipelineEnv {
   readonly domainPack: { readonly id: string; readonly version: string };
   readonly agents: { readonly ctx: AgentCtx; readonly budget: RunBudget; readonly editorialStyle: string } | null;
   readonly eligibility: EligibilityDeps; readonly blueprint: SpecBlueprintDeps; readonly recipeQa: Omit<RecipeQaDeps, "agents">;
+  /** Arquitetura de conteúdo (archetypes, grafo de links, Quality Gate): opcional e retrocompatível; sem ela o passo é pulado. */ readonly architecture?: ArchitectureDeps;
   readonly now?: () => Date; readonly sleep?: (ms: number) => Promise<void>;
   /** Teto de chamadas ao modelo por execução (proteção contra laço). */ readonly maxModelCalls?: number;
   /** Cancelamento em processo (além do flag no banco). */ readonly cancel?: { cancelled: boolean };
@@ -73,12 +75,13 @@ export async function listPipelineRuns(db: TenantDb, f: { opportunityId?: string
 }
 
 // --- Quality Gate Engine: decisão FINAL, por regra do código. Nenhum agente aprova a própria saída. -------------------------------------------------------------------------------
-export interface QualityGateInput { readonly decision: string | null; readonly blueprintStatus: string | null; readonly serpPending: boolean; readonly qaOutcome: QaOutcome | null; readonly qaBlocking: readonly string[]; readonly qaNotRun: readonly string[] }
+export interface QualityGateInput { readonly architecture?: { readonly approval: boolean; readonly blockedBy: readonly string[] } | null; readonly decision: string | null; readonly blueprintStatus: string | null; readonly serpPending: boolean; readonly qaOutcome: QaOutcome | null; readonly qaBlocking: readonly string[]; readonly qaNotRun: readonly string[] }
 export function qualityGate(i: QualityGateInput): { outcome: FinalOutcome; reasons: string[] } {
   if (i.decision !== "READY_FOR_BLUEPRINT") return { outcome: "BLOCKED", reasons: [`a decisão de elegibilidade é ${i.decision ?? "inexistente"}, não READY_FOR_BLUEPRINT`] };
   if (i.blueprintStatus !== "COMPLETE") return { outcome: "BLOCKED", reasons: [`blueprint ${i.blueprintStatus ?? "inexistente"}: a diferenciação não está descrita (enriquecimento de dados necessário)`] };
   if (i.serpPending) return { outcome: "NEEDS_REVIEW", reasons: ["aguardando análise de SERP ou exceção humana registrada (ADR-025)"] };
   if (i.qaOutcome === null) return { outcome: "BLOCKED", reasons: ["o QA não rodou"] };
+  if (i.architecture && !i.architecture.approval) return { outcome: "BLOCKED", reasons: [`o Quality Gate de arquitetura reprovou a aprovação: ${i.architecture.blockedBy.join(", ")}`] };
   if (i.qaOutcome === "QA_FAILED") return { outcome: "BLOCKED", reasons: [`QA reprovado em ${i.qaBlocking.join(", ") || "gates bloqueantes"}`] };
   if (i.qaOutcome === "QA_INCOMPLETE") return { outcome: "NEEDS_REVIEW", reasons: [`QA incompleto: ${i.qaNotRun.join(", ") || "verificações não executadas"} não rodaram (nada é aprovado por padrão)`] };
   return { outcome: "APPROVED", reasons: ["todos os gates de QA passaram; apto à revisão humana (nada foi publicado)"] };
@@ -102,7 +105,7 @@ export async function runPagePipeline(env: PipelineEnv, input: { opportunityId: 
   const actx: AgentCtx | null = env.agents ? { ...env.agents.ctx, runtime: rt } : null;
   const now = env.now ?? (() => new Date());
   const reused: string[] = [];
-  const mem: { decision: DecisionRow | null; blueprintId: string | null; blueprintStatus: string | null; qa: { outcome: QaOutcome; blocking: string[]; notRun: string[] } | null; serpPending: boolean; oppStatus: string | null } = { decision: null, blueprintId: null, blueprintStatus: null, qa: null, serpPending: false, oppStatus: null };
+  const mem: { decision: DecisionRow | null; blueprintId: string | null; blueprintStatus: string | null; qa: { outcome: QaOutcome; blocking: string[]; notRun: string[] } | null; serpPending: boolean; oppStatus: string | null; arch?: { approval: boolean; blockedBy: string[] } | null } = { decision: null, blueprintId: null, blueprintStatus: null, qa: null, serpPending: false, oppStatus: null };
 
   const oppRow = await withTenant(env.pool, env.identity, env.tenantId, async (db) => (await db.query<{ id: string; topic_id: string | null; status: string }>(`SELECT id, topic_id, status FROM plataforma.growth_opportunity WHERE id = $1`, [input.opportunityId])).rows[0] ?? null);
 
@@ -163,8 +166,15 @@ export async function runPagePipeline(env: PipelineEnv, input: { opportunityId: 
         return { status: "SUCCEEDED", result: { recipeId: r.recipe.id, recipeVersion: r.recipe.version, narrativeSource: r.recipe.narrativeSource, qaReportId: r.report.id, qaOutcome: r.report.outcome, failed, notRun, blocking: r.report.blockingFailures, narrative: r.narrative, verifier: r.verifier, agentRuns: ag } };
       } catch (e) { if (e instanceof RecipeQaError) return { status: "BLOCKED", error: e.reasons.join("; ") }; throw e; }
     } },
-    { key: "quality_gate", kind: "engine", dependsOn: ["eligibility"], idempotencyKey: () => `quality_gate:${sha(JSON.stringify([mem.decision?.id, mem.blueprintStatus, mem.serpPending, mem.qa]))}`, run: async () => {
-      const g = qualityGate({ decision: mem.decision?.decision ?? null, blueprintStatus: mem.blueprintStatus, serpPending: mem.serpPending, qaOutcome: mem.qa?.outcome ?? null, qaBlocking: mem.qa?.blocking ?? [], qaNotRun: mem.qa?.notRun ?? [] });
+    { key: "architecture", kind: "engine", dependsOn: ["recipe_qa"], idempotencyKey: () => `architecture:${Date.now()}`, run: async () => {
+      if (!env.architecture) return { status: "SKIPPED", result: { reason: "sem Domain Pack de arquitetura configurado" } };
+      const r = await analyzeArchitecture(env.pool, env.identity, env.tenantId, env.architecture, { opportunityIds: [input.opportunityId] });
+      const a = r.analyses[0]; if (!a) { const why = r.skipped.find((x) => x.opportunityId === input.opportunityId)?.reason ?? "página fora do modelo de arquitetura"; return { status: "SKIPPED", result: { reason: why } }; }
+      mem.arch = { approval: a.gate.eligibility.approval, blockedBy: [...a.gate.blockedBy.approval] };
+      return { status: "SUCCEEDED", result: { archetype: a.archetypeId, contractVersion: a.contractVersion, cluster: a.clusterKey, qualityScore: a.gate.qualityScore, eligibility: a.gate.eligibility, blockedBy: a.gate.blockedBy, failedRules: a.gate.failedRules, nextActions: a.gate.nextActions } };
+    } },
+    { key: "quality_gate", kind: "engine", dependsOn: ["eligibility"], idempotencyKey: () => `quality_gate:${sha(JSON.stringify([mem.decision?.id, mem.blueprintStatus, mem.serpPending, mem.qa, mem.arch]))}`, run: async () => {
+      const g = qualityGate({ decision: mem.decision?.decision ?? null, blueprintStatus: mem.blueprintStatus, serpPending: mem.serpPending, qaOutcome: mem.qa?.outcome ?? null, qaBlocking: mem.qa?.blocking ?? [], qaNotRun: mem.qa?.notRun ?? [], architecture: mem.arch ?? null });
       await withTenant(env.pool, env.identity, env.tenantId, (db) => recordDecision(db, { pipelineRunId: runId, subjectKind: "page", subjectRef: input.opportunityId, decision: g.outcome, decidedBy: "code", applied: true, reason: g.reasons.join("; "), evidenceRefs: mem.decision?.evidenceRefs ?? [], actor: env.identity.userId }));
       return { status: "SUCCEEDED", result: { outcome: g.outcome, reasons: g.reasons } };
     } },
@@ -206,7 +216,7 @@ function agentOutcome<T>(r: { state: string; data?: T; agentRunId: string; error
   return { status: "FAILED", agentRunId: r.agentRunId, error: `${r.failure?.kind ?? "failed"}: ${(r.errors ?? []).join("; ")}`.slice(0, 1000), result: { failure: r.failure ?? null } };
 }
 
-export type Mem = { decision: DecisionRow | null; blueprintId: string | null; blueprintStatus: string | null; qa: { outcome: QaOutcome; blocking: string[]; notRun: string[] } | null; serpPending: boolean; oppStatus: string | null };
+export type Mem = { decision: DecisionRow | null; blueprintId: string | null; blueprintStatus: string | null; qa: { outcome: QaOutcome; blocking: string[]; notRun: string[] } | null; serpPending: boolean; oppStatus: string | null; arch?: { approval: boolean; blockedBy: string[] } | null };
 async function executeStep(env: RunEnv, runId: string, def: StepDef, done: Map<string, StepPersist>, reused: string[], mem: Mem, opportunityId: string): Promise<StepPersist> {
   const key = def.idempotencyKey();
   const prior = await withTenant(env.pool, env.identity, env.tenantId, async (db) => (await db.query<StepRow>(`SELECT ${STEP_COLS} FROM plataforma.pipeline_step WHERE pipeline_run_id = $1 AND step_key = $2`, [runId, def.key])).rows[0] ?? null);

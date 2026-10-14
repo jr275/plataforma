@@ -84,3 +84,7 @@ Trabalho paralelo que destrava dados reais (fora da sequência, por ordem de imp
 ## 7. Aceite da spec (seção 20): situação hoje
 
 Atributos com cobertura/frescor: **não**. Hipóteses por atributo: parcial (padrões × cidade). Combinações com poda: **não**. Intenção e demanda com incerteza: parcial (demanda desconhecida). Elegibilidade determinística: **sim** (função pura; falta o teste de regressão por política). Gates não compensados: **sim**. Blueprint independente do template: **sim**. Dado ausente bloqueia/limita: **sim**. R3/R7/R9 testados: R7 e R9 em parte; **R3 não**. Fluxo inspecionável no Control Plane: **parcial**. Segundo pack fictício: **não**.
+
+## 8. Content Architecture (ADR-033): o que foi reaproveitado
+
+Reuso: `policy` versionada (perfis de densidade e política de links), `decision_audit`, `page_recipe`/`spec_blueprint` (entrada do gate), `qa_report` e `page_approval` (o gate é uma camada a mais, não substitui QA nem aprovação humana), renderer único e deployments (passaram a recusar página sem elegibilidade). Novo: contratos de archetype, grafo de links, `quality_gate_result` e `indexation_observation` (migration 0021). O núcleo não conhece imobiliário; o pack liga família → archetype.

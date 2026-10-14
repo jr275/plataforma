@@ -6,3 +6,4 @@ export { DEFAULT_ELIGIBILITY_POLICY, coherence as eligibilityCoherence } from ".
 export { AGENT_HEADER, AGENT_PROMPTS, AGENT_PROMPTS_SOURCE, AGENT_PROMPT_VERSION } from "./agent-prompts.generated";
 export { RECIPES as BLUEPRINT_RECIPES } from "./blueprint-recipes";
 export { RENDERERS as RECIPE_RENDERERS, DEFAULT_QA_POLICY } from "./recipe-renderers";
+export { realEstateArchitecture } from "./architecture";

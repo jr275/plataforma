@@ -201,7 +201,7 @@ describe("pipeline de página: caminho com bloqueio, retomada idempotente e apro
     expect((await oppOf("ibge:3550308")).status).toBe("eligible");
     first = await runPagePipeline(penv(llm), { opportunityId: sp.id, correlationId: "pg-1" });
     expect(first.run).toMatchObject({ status: "NEEDS_REVIEW", finalOutcome: "NEEDS_REVIEW", mode: "test_simulation", correlationId: "pg-1" });
-    expect(first.steps.map((s) => `${s.stepKey}:${s.status}`)).toEqual(["eligibility:SUCCEEDED", "explain:SUCCEEDED", "blueprint:SUCCEEDED", "blueprint_semantics:SKIPPED", "serp_gate:BLOCKED", "recipe_qa:BLOCKED", "quality_gate:SUCCEEDED"]);
+    expect(first.steps.map((s) => `${s.stepKey}:${s.status}`)).toEqual(["eligibility:SUCCEEDED", "explain:SUCCEEDED", "blueprint:SUCCEEDED", "blueprint_semantics:SKIPPED", "serp_gate:BLOCKED", "recipe_qa:BLOCKED", "architecture:BLOCKED", "quality_gate:SUCCEEDED"]);
     expect(stepOf(first, "recipe_qa")).toMatchObject({ error: expect.stringContaining("dependência não concluída: serp_gate") });
     expect(stepOf(first, "serp_gate").error).toMatch(/SERP analisada ou exceção humana/);
     expect(first.reasons[0]).toMatch(/ADR-025/);
@@ -225,8 +225,8 @@ describe("pipeline de página: caminho com bloqueio, retomada idempotente e apro
     expect(second.resumed).toBe(true); expect(second.run.id).toBe(first.run.id);
     expect(second.reused).toEqual(["eligibility", "explain", "blueprint", "blueprint_semantics"]);
     const newCalls = calls.slice(before); expect(newCalls.map((c) => c.agent).sort()).toEqual([7, 8]); // só o editorial e o verificador
-    expect(second.steps.map((s) => `${s.stepKey}:${s.status}`)).toEqual(["eligibility:SUCCEEDED", "explain:SUCCEEDED", "blueprint:SUCCEEDED", "blueprint_semantics:SKIPPED", "serp_gate:SUCCEEDED", "recipe_qa:SUCCEEDED", "quality_gate:SUCCEEDED"]);
-    expect(await count(M, "pipeline_step", `pipeline_run_id = '${first.run.id}'`)).toBe(7); // uma linha por passo (upsert), sem duplicar
+    expect(second.steps.map((s) => `${s.stepKey}:${s.status}`)).toEqual(["eligibility:SUCCEEDED", "explain:SUCCEEDED", "blueprint:SUCCEEDED", "blueprint_semantics:SKIPPED", "serp_gate:SUCCEEDED", "recipe_qa:SUCCEEDED", "architecture:SKIPPED", "quality_gate:SUCCEEDED"]);
+    expect(await count(M, "pipeline_step", `pipeline_run_id = '${first.run.id}'`)).toBe(8); // uma linha por passo (upsert), sem duplicar
     expect(second.run).toMatchObject({ status: "SUCCEEDED", finalOutcome: "APPROVED" });
     expect(second.run.summary).toMatch(/nada foi publicado/);
   });

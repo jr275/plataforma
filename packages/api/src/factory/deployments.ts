@@ -3,6 +3,7 @@ import type { FetchLike } from "../engine/http";
 import type { VerifiedIdentity } from "../identity";
 import { recordDecision } from "../runtime/decision-audit";
 import { listRecipes } from "../qa/store";
+import { analyzeArchitecture, type ArchitectureDeps } from "../architecture/store";
 import { withTenant, type PoolLike, type TenantDb } from "../tenant-context";
 import { renderRecipeDocument } from "./render";
 
@@ -69,10 +70,12 @@ export type CreateResult = { readonly state: "ok"; readonly deployment: Deployme
 export interface CreateInput { readonly opportunityIds: readonly string[]; readonly target: "preview" | "production"; readonly batchId?: string; readonly authorization?: { readonly phrase: string; readonly reason: string }; readonly git?: { readonly branch?: string; readonly commit?: string } }
 
 /** Cria um deployment: valida cada página (aprovação vigente + QA_PASSED da versão mais recente), registra ANTES de chamar a Vercel (QUEUED) e só depois atualiza com o que o provedor respondeu. */
-export async function createDeployment(pool: PoolLike, identity: VerifiedIdentity, tenantId: string, deps: { env: VercelEnv; fetch: FetchLike }, input: CreateInput): Promise<CreateResult> {
+export async function createDeployment(pool: PoolLike, identity: VerifiedIdentity, tenantId: string, deps: { env: VercelEnv; fetch: FetchLike; /** Quality Gate de arquitetura (opcional): página que declara robots=index só entra se a indexação estiver liberada; produção exige a publicação liberada. */ architecture?: ArchitectureDeps }, input: CreateInput): Promise<CreateResult> {
   const cfg = vercelConfig(deps.env); if (!cfg.configured) return { state: "provider_not_configured", missing: cfg.missing };
   const ids = [...new Set(input.opportunityIds)]; if (ids.length === 0 || ids.length > 500) return { state: "refused", reasons: ["selecione de 1 a 500 páginas"] };
   if (input.target === "production" && (input.authorization?.phrase.trim() !== "AUTORIZO PRODUÇÃO" || (input.authorization?.reason ?? "").trim().length < 10)) return { state: "refused", reasons: ["publicação em produção exige a frase AUTORIZO PRODUÇÃO e um motivo de ao menos 10 caracteres"] };
+  const gates = new Map<string, { publication: boolean; indexing: boolean; blockedPublication: readonly string[]; blockedIndexing: readonly string[] }>();
+  if (deps.architecture) { const r = await analyzeArchitecture(pool, identity, tenantId, deps.architecture, { opportunityIds: ids }); for (const a of r.analyses) gates.set(a.opportunityId, { publication: a.gate.eligibility.publication, indexing: a.gate.eligibility.indexing, blockedPublication: a.gate.blockedBy.publication, blockedIndexing: a.gate.blockedBy.indexing }); }
   const prep = await withTenant(pool, identity, tenantId, async (db) => {
     const reasons: string[] = []; const pages: { opportunityId: string; recipeId: string; path: string; html: string }[] = [];
     for (const id of ids) {
@@ -81,6 +84,8 @@ export async function createDeployment(pool: PoolLike, identity: VerifiedIdentit
       if (st.qr !== r.id || st.q !== "QA_PASSED") reasons.push(`${r.recipe.url ?? id}: QA da versão ${r.version} não está aprovado`);
       else if (st.a !== "APPROVED") reasons.push(`${r.recipe.url ?? id}: sem aprovação humana vigente da versão ${r.version}`);
       else if (!r.recipe.url) reasons.push(`${id}: a página não tem URL definida`);
+      else if (gates.get(id) && input.target === "production" && !gates.get(id)!.publication) reasons.push(`${r.recipe.url}: o Quality Gate de arquitetura não libera a publicação (${gates.get(id)!.blockedPublication.join(", ")})`);
+      else if (gates.get(id) && r.recipe.robots === "index" && !gates.get(id)!.indexing) reasons.push(`${r.recipe.url}: a página declara robots=index mas não está elegível para indexação (${gates.get(id)!.blockedIndexing.join(", ")})`);
       else pages.push({ opportunityId: id, recipeId: r.id, path: r.recipe.url, html: renderRecipeDocument(r.recipe).html });
     }
     const dup = pages.map((p) => p.path).filter((p, i, a) => a.indexOf(p) !== i); if (dup.length) reasons.push(`URLs duplicadas no deployment: ${[...new Set(dup)].join(", ")}`);

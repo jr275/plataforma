@@ -66,6 +66,8 @@ export async function compileRecipeAndRunQa(pool: PoolLike, identity: VerifiedId
     const entities: RecipeEntity[] = ents.map((e) => ({ key: e.source_key, name: e.name, uf: ufOf.get(e.id) ?? null }));
     const rfacts: RecipeFact[] = facts.map((f) => ({ factId: f.id, entityKey: keyOf.get(f.entity_id)!, attributeId: f.attribute_id, field: fieldOf.get(f.attribute_id) ?? f.attribute_id, value: f.value as RecipeFact["value"], unit: f.unit, observedAt: f.observed_at.toISOString(), sourceName: f.source_name, confidence: Number(f.confidence), maxAgeDays: maxAge.get(f.attribute_id) ?? null }));
     const known = new Set((await db.query<{ path: string }>(`SELECT path FROM plataforma.page`)).rows.map((r) => r.path));
+    // páginas da própria fábrica (recipes mais recentes) também são destinos conhecidos: um recipe pode linkar outro que já existe
+    for (const r of (await db.query<{ url: string }>(`SELECT DISTINCT ON (opportunity_id) content ->> 'url' AS url FROM plataforma.page_recipe WHERE content ->> 'url' IS NOT NULL ORDER BY opportunity_id, version DESC`)).rows) known.add(r.url);
     for (const l of ["/cidades"]) known.add(l);
     const compiled = compileRecipe({ tenantId, blueprint: bp.content, specBlueprintId: bp.id, specBlueprintVersion: bp.version, templateGap: bp.template_gap, entities, facts: rfacts, knownPaths: known, renderer, referenceTime: now.toISOString() });
     if (!compiled.recipe) throw new RecipeQaError(compiled.problems);

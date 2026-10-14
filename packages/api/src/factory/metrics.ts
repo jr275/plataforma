@@ -23,14 +23,18 @@ export const METRICS: readonly MetricDef[] = [
   { id: "pages_approved", label: "Aprovadas para revisão", kind: "current_state", meaning: "A versão mais recente do recipe tem aprovação humana vigente. Aprovar não publica.", source: "page_approval (última por recipe)", scope: "tenant, estado atual", href: "/engine/pages?stage=approved" },
   { id: "pages_deployed_preview", label: "Em preview (deployment pronto)", kind: "unique_pages", meaning: "Páginas únicas presentes em deployment de PREVIEW com estado READY, VERIFICATION_PENDING ou VERIFIED.", source: "deployment_page + deployment", scope: "tenant, páginas únicas", href: "/engine/deployments" },
   { id: "pages_published", label: "Publicadas", kind: "unique_pages", meaning: "Páginas únicas em deployment de PRODUÇÃO pronto (READY ou além). Publicada não significa indexada.", source: "deployment_page + deployment (production)", scope: "tenant, páginas únicas", href: "/engine/deployments" },
-  { id: "pages_indexed", label: "Indexadas", kind: "unique_pages", meaning: "Páginas efetivamente indexadas pelo buscador.", source: "Search Console", scope: "tenant", href: null },
+  { id: "pages_gate_approval", label: "Gate: aprovação liberada", kind: "current_state", meaning: "Páginas cujo Quality Gate de arquitetura mais recente libera a APROVAÇÃO (contrato, intenção, template, canonical, schema e QA).", source: "quality_gate_result (último por oportunidade)", scope: "tenant, estado atual", href: "/engine/pages?eligibility=approval" },
+  { id: "pages_gate_indexing", label: "Gate: indexação liberada", kind: "current_state", meaning: "Páginas cujo gate libera a INDEXAÇÃO (densidade, proveniência, inlinks contextuais, schema, canonical e política). É elegibilidade, não indexação observada.", source: "quality_gate_result (último por oportunidade)", scope: "tenant, estado atual", href: "/engine/pages?eligibility=indexing" },
+  { id: "pages_insufficient_inlinks", label: "Inlinks insuficientes", kind: "current_state", meaning: "Páginas retidas por INSUFFICIENT_CONTEXTUAL_INLINKS (menos inlinks contextuais válidos que o mínimo da política).", source: "quality_gate_result", scope: "tenant, estado atual", href: "/engine/pages?linkFailure=1" },
+  { id: "intent_conflicts", label: "Páginas com conflito de intenção", kind: "current_state", meaning: "Páginas em conflito determinístico de intenção/URL/canonical (sinais de sobreposição não contam).", source: "quality_gate_result", scope: "tenant, estado atual", href: "/engine/pages?conflict=1" },
+  { id: "pages_indexed", label: "Indexadas (observado)", kind: "unique_pages", meaning: "Páginas cuja observação MAIS RECENTE de indexação é INDEXED. Só medição real (Search Console ou inspeção manual) afirma isso; elegibilidade não conta.", source: "indexation_observation", scope: "tenant, última observação por página", href: null },
   { id: "deployments_total", label: "Deployments", kind: "deployments", meaning: "Deployments registrados (qualquer estado).", source: "deployment", scope: "tenant, acumulado", href: "/engine/deployments" },
   { id: "deployments_verified", label: "Deployments verificados", kind: "deployments", meaning: "Deployments cujas URLs foram verificadas depois do build (VERIFIED).", source: "deployment", scope: "tenant, estado atual", href: "/engine/deployments?status=VERIFIED" },
   { id: "pages_blocked", label: "Páginas bloqueadas", kind: "current_state", meaning: "Oportunidades cuja execução MAIS RECENTE do pipeline terminou BLOCKED.", source: "pipeline_run (última por oportunidade)", scope: "tenant, estado atual", href: "/engine/pipelines" },
   { id: "generation_failures", label: "Falhas de processamento", kind: "period_events", meaning: "Execuções de pipeline FAILED e execuções de agente com falha (failed, invalid_output, timed_out) no período. Eventos, não páginas.", source: "pipeline_run + agent_run", scope: "período", href: "/engine/executions?status=failed" },
   { id: "pipeline_runs", label: "Execuções de pipeline", kind: "attempts", meaning: "Tentativas de pipeline iniciadas no período (uma página pode ter várias).", source: "pipeline_run", scope: "período", href: "/engine/pipelines" },
 ];
-const NOT_INSTRUMENTED: Record<string, string> = { pages_indexed: "Sem Search Console conectado: a indexação não é medida (zero seria uma afirmação falsa)." };
+const NOT_INSTRUMENTED_REASON = "Nenhuma observação de indexação registrada (sem Search Console ou inspeção): a indexação não é medida, então zero seria uma afirmação falsa.";
 
 export interface FactoryMetrics { readonly asOf: Date; readonly periodDays: number; readonly values: Readonly<Record<string, MetricValue>> }
 export async function factoryMetrics(db: TenantDb, o: { periodDays?: number } = {}): Promise<FactoryMetrics> {
@@ -40,6 +44,8 @@ export async function factoryMetrics(db: TenantDb, o: { periodDays?: number } = 
          latest_qa AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, outcome, recipe_id FROM plataforma.qa_report ORDER BY opportunity_id, seq DESC),
          latest_recipe AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, id AS recipe_id FROM plataforma.page_recipe ORDER BY opportunity_id, version DESC),
          latest_appr AS (SELECT DISTINCT ON (recipe_id) recipe_id, decision FROM plataforma.page_approval ORDER BY recipe_id, seq DESC),
+         latest_gate AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, eligible_approval, eligible_indexing, failed_rules, result FROM plataforma.quality_gate_result ORDER BY opportunity_id, seq DESC),
+         latest_obs AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, state FROM plataforma.indexation_observation ORDER BY opportunity_id, observed_at DESC, seq DESC),
          latest_run AS (SELECT DISTINCT ON (opportunity_id) opportunity_id, status, final_outcome FROM plataforma.pipeline_run WHERE pipeline = 'page' AND opportunity_id IS NOT NULL ORDER BY opportunity_id, seq DESC),
          dep_pages AS (SELECT dp.opportunity_id, d.target FROM plataforma.deployment_page dp JOIN plataforma.deployment d ON d.id = dp.deployment_id AND d.tenant_id = dp.tenant_id WHERE d.status IN ('READY', 'VERIFICATION_PENDING', 'VERIFIED'))
     SELECT
@@ -59,6 +65,12 @@ export async function factoryMetrics(db: TenantDb, o: { periodDays?: number } = 
       (SELECT count(*) FROM latest_recipe lr JOIN latest_appr a ON a.recipe_id = lr.recipe_id WHERE a.decision = 'APPROVED') AS pages_approved,
       (SELECT count(DISTINCT opportunity_id) FROM dep_pages WHERE target = 'preview') AS pages_deployed_preview,
       (SELECT count(DISTINCT opportunity_id) FROM dep_pages WHERE target = 'production') AS pages_published,
+      (SELECT count(*) FROM latest_gate WHERE eligible_approval) AS pages_gate_approval,
+      (SELECT count(*) FROM latest_gate WHERE eligible_indexing) AS pages_gate_indexing,
+      (SELECT count(*) FROM latest_gate WHERE failed_rules ? 'INSUFFICIENT_CONTEXTUAL_INLINKS') AS pages_insufficient_inlinks,
+      (SELECT count(*) FROM latest_gate WHERE jsonb_array_length(coalesce(result -> 'intentConflicts', '[]'::jsonb)) > 0 AND EXISTS (SELECT 1 FROM jsonb_array_elements(result -> 'intentConflicts') c WHERE c ->> 'severity' = 'conflict')) AS intent_conflicts,
+      (SELECT count(*) FROM latest_obs WHERE state = 'INDEXED') AS pages_indexed,
+      (SELECT count(*) FROM plataforma.indexation_observation) AS observations_total,
       (SELECT count(*) FROM plataforma.deployment) AS deployments_total,
       (SELECT count(*) FROM plataforma.deployment WHERE status = 'VERIFIED') AS deployments_verified,
       (SELECT count(*) FROM latest_run WHERE final_outcome = 'BLOCKED') AS pages_blocked,
@@ -69,7 +81,7 @@ export async function factoryMetrics(db: TenantDb, o: { periodDays?: number } = 
   `, [days])).rows[0]!;
   const values: Record<string, MetricValue> = {};
   for (const m of METRICS) {
-    if (NOT_INSTRUMENTED[m.id]) { values[m.id] = { state: "not_instrumented", reason: NOT_INSTRUMENTED[m.id]! }; continue; }
+    if (m.id === "pages_indexed" && Number(r.observations_total) === 0) { values[m.id] = { state: "not_instrumented", reason: NOT_INSTRUMENTED_REASON }; continue; }
     values[m.id] = { state: "available", value: Number(r[m.id]), previous: m.kind === "period_events" || m.kind === "attempts" ? Number(r[`${m.id}_prev`] ?? 0) : null };
   }
   return { asOf: new Date(), periodDays: days, values };
