@@ -136,6 +136,8 @@ const META_MAX = 155;
 export interface RenderContext {
   /** Caminhos que EXISTEM no site (por exemplo `/cidades/sp`). Só estes viram link; sem destino, sem link. */
   readonly knownPaths: ReadonlySet<string>;
+  /** Links candidatos configurados no blueprint (editor); sem isto valem os dois padrões. Continuam valendo só os que têm destino existente. */
+  readonly linkCandidates?: readonly { readonly path: string; readonly text: string }[];
 }
 
 export function renderCityPage(template: CityTemplate, factsResult: Extract<FactsResult, { ok: true }>, ctx: RenderContext): RenderResult {
@@ -178,7 +180,7 @@ export function renderCityPage(template: CityTemplate, factsResult: Extract<Fact
   const metaDescription = metas.find((m) => m.length >= META_MIN && m.length <= META_MAX);
   if (!metaDescription) return { ok: false, reason: "meta_out_of_bounds", detail: `nenhuma variante de meta ficou entre ${META_MIN} e ${META_MAX} caracteres` };
 
-  const linkCandidates = [{ path: `/cidades/${uf.toLowerCase()}`, text: `Cidades de ${uf}` }, { path: "/cidades", text: "Todas as cidades" }];
+  const linkCandidates = ctx.linkCandidates ?? [{ path: `/cidades/${uf.toLowerCase()}`, text: `Cidades de ${uf}` }, { path: "/cidades", text: "Todas as cidades" }];
   const links = linkCandidates.filter((l) => ctx.knownPaths.has(l.path));
 
   const path = cityPath(uf, name);

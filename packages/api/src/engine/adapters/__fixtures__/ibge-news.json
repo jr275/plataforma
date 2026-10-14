@@ -1,0 +1,67 @@
+{
+ "count": 505,
+ "page": 1,
+ "totalPages": 85,
+ "nextPage": 2,
+ "previousPage": 0,
+ "showingFrom": 1,
+ "showingTo": 6,
+ "items": [
+  {
+   "id": 48246,
+   "tipo": "Release",
+   "titulo": "IPCA fica em 0,82% em setembro",
+   "introducao": "O Índice Nacional de Preços ao Consumidor Amplo (IPCA) de setembro foi de 0,82%, 1,14 ponto percentual (p.p.) acima do -0,32% registrado em agosto. No ano, o IPCA acumula alta de 3,95% e, nos últimos 12 meses, o índice ficou em 4,58%, acima dos 4,22% dos...",
+   "data_publicacao": "09/10/2026 09:00:00",
+   "produto_id": 0,
+   "produtos": "9256|Índice Nacional de Preços ao Consumidor Amplo|indice-nacional-de-precos-ao-consumidor-amplo|2210;9258|Índice Nacional de Preços ao Consumidor|indice-nacional-de-precos-ao-consumidor|2077",
+   "editorias": "economicas",
+   "imagens": "{\"image_intro\":\"images\\/agenciadenoticias\\/releases\\/INPC_Release1.png\",\"float_intro\":\"\",\"image_intro_alt\":\"\",\"image_intro_caption\":\"\",\"image_fulltext\":\"images\\/agenciadenoticias\\/releases\\/INPC_Release1.png\",\"float_fulltext\":\"\",\"image_fulltext_alt\":\"\",\"image_fulltext_caption\":\"\"}",
+   "produtos_relacionados": "9256, 9258",
+   "destaque": true,
+   "link": "http://agenciadenoticias.ibge.gov.br/agencia-sala-de-imprensa/2013-agencia-de-noticias/releases/48246-ipca-fica-em-0-82-em-setembro.html"
+  },
+  {
+   "id": 48134,
+   "tipo": "Release",
+   "titulo": "IPCA-15 é de 0,70% em setembro",
+   "introducao": "O Índice Nacional de Preços ao Consumidor Amplo 15 (IPCA-15) foi de 0,70% em setembro, ficando 1,10 ponto percentual (p.p.) acima da taxa de agosto (-0,40%). O IPCA-E, que se constitui no IPCA-15 acumulado trimestralmente, ficou em 0,36%, abaixo da taxa...",
+   "data_publicacao": "25/09/2026 09:00:00",
+   "produto_id": 9260,
+   "produtos": "9260|Índice Nacional de Preços ao Consumidor Amplo 15|indice-nacional-de-precos-ao-consumidor-amplo-15|2213",
+   "editorias": "economicas",
+   "imagens": "{\"image_intro\":\"images\\/agenciadenoticias\\/releases\\/IPCA15_Release.png\",\"float_intro\":\"\",\"image_intro_alt\":\"\",\"image_intro_caption\":\"\",\"image_fulltext\":\"images\\/agenciadenoticias\\/releases\\/IPCA15_Release.png\",\"float_fulltext\":\"\",\"image_fulltext_alt\":\"\",\"image_fulltext_caption\":\"\"}",
+   "produtos_relacionados": "9260",
+   "destaque": true,
+   "link": "http://agenciadenoticias.ibge.gov.br/agencia-sala-de-imprensa/2013-agencia-de-noticias/releases/48134-o-ipca-15-e-de-0-70-em-setembro.html"
+  },
+  {
+   "id": 48015,
+   "tipo": "Release",
+   "titulo": "IPCA fica em -0,32% em agosto",
+   "introducao": "O Índice Nacional de Preços ao Consumidor Amplo (IPCA) de agosto foi de -0,32%, 0,39 ponto percentual (p.p.) abaixo do 0,07% registrado em julho. No ano, o IPCA acumula alta de 3,11% e, nos últimos 12 meses, o índice ficou em 4,22%, abaixo dos 4,44% dos...",
+   "data_publicacao": "11/09/2026 09:00:00",
+   "produto_id": 0,
+   "produtos": "9256|Índice Nacional de Preços ao Consumidor Amplo|indice-nacional-de-precos-ao-consumidor-amplo|2210;9258|Índice Nacional de Preços ao Consumidor|indice-nacional-de-precos-ao-consumidor|2077",
+   "editorias": "economicas",
+   "imagens": "{\"image_intro\":\"images\\/agenciadenoticias\\/releases\\/IPCA_Release1.png\",\"float_intro\":\"\",\"image_intro_alt\":\"\",\"image_intro_caption\":\"\",\"image_fulltext\":\"images\\/agenciadenoticias\\/releases\\/IPCA_Release1.png\",\"float_fulltext\":\"\",\"image_fulltext_alt\":\"\",\"image_fulltext_caption\":\"\"}",
+   "produtos_relacionados": "9256, 9258",
+   "destaque": true,
+   "link": "http://agenciadenoticias.ibge.gov.br/agencia-sala-de-imprensa/2013-agencia-de-noticias/releases/48015-ipca-fica-em-0-32-em-agosto.html"
+  },
+  {
+   "id": 47888,
+   "tipo": "Notícia",
+   "titulo": "IBGE disponibiliza microdados da amostra do Censo 2022 com novo modelo e reforço à confidencialidade",
+   "introducao": "O Instituto Brasileiro de Geografia e Estatística (IBGE) disponibilizou, nesta segunda-feira (31), os microdados da amostra do Censo Demográfico 2022, ampliando as possibilidades de pesquisa e análise sobre a realidade socioeconômica e demográfica do...",
+   "data_publicacao": "31/08/2026 10:00:00",
+   "produto_id": 22827,
+   "produtos": "22827|Censo 2022#3|censo-demografico-2022|2098",
+   "editorias": "censo2020",
+   "imagens": "{\"image_intro\":\"images\\/agenciadenoticias\\/ibge\\/2026_08\\/microdados-home.png\",\"float_intro\":\"\",\"image_intro_alt\":\"\",\"image_intro_caption\":\"\",\"image_fulltext\":\"images\\/agenciadenoticias\\/ibge\\/2026_08\\/microdados-home.png\",\"float_fulltext\":\"\",\"image_fulltext_alt\":\"\",\"image_fulltext_caption\":\"\"}",
+   "produtos_relacionados": "22827",
+   "destaque": true,
+   "link": "http://agenciadenoticias.ibge.gov.br/agencia-noticias/2012-agencia-de-noticias/noticias/47888-ibge-disponibiliza-microdados-da-amostra-do-censo-demografico-2022-com-novo-modelo-de-acesso-e-reforco-a-confidencialidade.html"
+  }
+ ]
+}

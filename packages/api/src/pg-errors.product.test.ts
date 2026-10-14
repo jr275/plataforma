@@ -1,6 +1,6 @@
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { devIdentity, isUndefinedTable, withTenant, type TenantDb } from "./index";
+import { devIdentity, isDatabaseUnavailable, isUndefinedTable, withTenant, type TenantDb } from "./index";
 import { productPoolConfig } from "./testing/pool-config";
 
 // Erros REAIS do PostgreSQL (cluster descartável, papel menlo_app): só 42P01 é "migrations pendentes".
@@ -32,6 +32,7 @@ describe("classificação de erros reais do PostgreSQL", () => {
       const e = (await run((db) => db.query(sql)))!;
       expect((e as { code?: string }).code).toBe(code);
       expect(isUndefinedTable(e)).toBe(false);
+      expect(isDatabaseUnavailable(e), `${code} não é indisponibilidade`).toBe(false);
     });
   }
   it("falha de conexão (servidor inexistente) NÃO é migrations pendentes", async () => {
@@ -41,5 +42,23 @@ describe("classificação de erros reais do PostgreSQL", () => {
     await dead.end();
     expect(e).toBeDefined();
     expect(isUndefinedTable(e)).toBe(false);
+  });
+  it("conexão recusada (nada escutando) É indisponibilidade do banco, e não migrations pendentes", async () => {
+    const dead = new pg.Pool({ host: "127.0.0.1", port: 1, user: "x", database: "x", connectionTimeoutMillis: 2000, max: 1 });
+    dead.on("error", () => undefined);
+    const e = await withTenant(dead, devIdentity([T]), T, (db) => db.query("SELECT 1")).then(() => undefined, (x: unknown) => x);
+    await dead.end();
+    expect(isDatabaseUnavailable(e)).toBe(true);
+  });
+  it("timeout de consulta no servidor (57014, statement_timeout real) É indisponibilidade", async () => {
+    const e = (await run(async (db) => { await db.query("SET LOCAL statement_timeout = '50ms'"); await db.query("SELECT pg_sleep(1)"); }))!;
+    expect((e as { code?: string }).code).toBe("57014");
+    expect(isDatabaseUnavailable(e)).toBe(true);
+    expect(isUndefinedTable(e)).toBe(false);
+  });
+  it("sessão encerrada pelo administrador (57P01, pg_terminate_backend real) É indisponibilidade", async () => {
+    const e = await run(async (db) => { await db.query("SELECT pg_terminate_backend(pg_backend_pid())"); await db.query("SELECT 1"); });
+    expect(e).toBeDefined();
+    expect(isDatabaseUnavailable(e)).toBe(true);
   });
 });

@@ -23,6 +23,8 @@ export interface GenerationContext {
   readonly titleOwners: Map<string, string>;
   readonly metaOwners: Map<string, string>;
   readonly existingByEntity: ReadonlyMap<string, ExistingPage>;
+  /** Links configurados no editor de blueprint (opcional). */
+  readonly linkCandidates?: readonly { readonly path: string; readonly text: string }[];
 }
 
 export interface ItemEvaluation {
@@ -95,7 +97,7 @@ export function evaluateCity(city: City, run: Pick<ImportRunSummary, "id" | "sou
   try {
     facts = buildCityFacts(city, run);
     if (!facts.ok) return blockedAll(fail("required_fields", `origem ou execução inválida: ${facts.reason}`));
-    rendered = renderCityPage(ctx.template, facts, { knownPaths: ctx.knownPaths });
+    rendered = renderCityPage(ctx.template, facts, { knownPaths: ctx.knownPaths, ...(ctx.linkCandidates ? { linkCandidates: ctx.linkCandidates } : {}) });
   } catch (e) {
     return blockedAll(fail("required_fields", `erro ao renderizar: ${e instanceof Error ? e.message : String(e)}`));
   }

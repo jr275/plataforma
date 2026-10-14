@@ -47,6 +47,24 @@ describe("busca, filtro, ordenação e paginação de páginas", () => {
     expect(p1.total).toBe(20);
     expect([...p1.rows, ...p2.rows].map((x) => x.id)).toEqual(all.rows.slice(0, 10).map((x) => x.id));
   });
+  it("ordenação por data de atualização (todas EMPATADAS, nascidas na mesma execução): a paginação é estável, sem repetir nem pular, nos dois sentidos", async () => {
+    const ties = await as(G, (db) => db.query<{ n: string }>("SELECT count(DISTINCT updated_at)::text AS n FROM plataforma.page"));
+    expect(Number(ties.rows[0]!.n)).toBeLessThan(20); // o empate existe de fato: sem desempate, a ordem seria indefinida
+    for (const dir of ["asc", "desc"] as const) {
+      const all = await as(G, (db) => searchPages(db, { sort: "updated", dir, limit: 100 }));
+      const pages: string[] = [];
+      for (let offset = 0; offset < 20; offset += 7) pages.push(...(await as(G, (db) => searchPages(db, { sort: "updated", dir, limit: 7, offset }))).rows.map((x) => x.id));
+      expect(pages).toHaveLength(20);
+      expect(new Set(pages).size).toBe(20);
+      expect(pages).toEqual(all.rows.map((x) => x.id));
+      expect((await as(G, (db) => searchPages(db, { sort: "updated", dir, limit: 100 }))).rows.map((x) => x.id)).toEqual(all.rows.map((x) => x.id)); // repetível
+    }
+  });
+  it("página além do fim: nenhuma linha, mas o TOTAL continua correto (a interface distingue 'fora do intervalo' de 'sem dados')", async () => {
+    const r = await as(G, (db) => searchPages(db, { limit: 20, offset: 400 }));
+    expect(r.rows).toHaveLength(0);
+    expect(r.total).toBe(20);
+  });
   it("filtra por status e por UF", async () => {
     expect((await as(G, (db) => searchPages(db, { status: "blocked" }))).total).toBe(0);
     expect((await as(G, (db) => searchPages(db, { uf: "RJ" }))).total).toBe(0);

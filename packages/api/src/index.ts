@@ -80,4 +80,12 @@ export { GATES, META_MAX, META_MIN, TITLE_MAX, checkFactsTraceable, checkLinks, 
 export { DEFAULT_STALE_AFTER_MINUTES, GenerationBusyError, GenerationScopeError, MAX_GENERATION_ITEMS, PILOT_MIN_VALID, meetsPilotAcceptance, recoverStaleGenerationRuns, runGeneration, selectCandidates, type GenerationInput, type GenerationItemSummary, type GenerationResult, type GenerationScope } from "./pages/generate";
 export { getGenerationRunDetail, getPageDetail, listGenerationItems, listGenerationRuns, listPageVersions, listPages, searchPages, type GenerationItemDetail, type GenerationItemView, type GenerationRunDetail, type GenerationRunSummary, type LatestAttempt, type PageDetail, type PageListItem, type PageSearch, type PageSort, type PageSummary, type PageVersionView } from "./pages/read";
 export { FACT_LABELS, FACT_REVIEW_AFTER_DAYS, ageInDays, describeOmissions, reviewFacts, type FactReview, type Omission } from "./pages/diagnostics";
-export { PG_UNDEFINED_TABLE, isUndefinedTable } from "./pg-errors";
+export { PG_UNDEFINED_TABLE, isDatabaseUnavailable, isUndefinedTable } from "./pg-errors";
+export { getCityDetail, normalizeSearchText, searchCities, type CityDetail, type CityListItem, type CityPageLink, type CityRelations, type CitySearch, type CitySort, type CitySource } from "./ingest/city-search";
+export * as graph from "./graph";
+export { toolsFor as graphToolsFor, TOOL_LABEL as GRAPH_TOOL_LABEL } from "./graph/tools";
+export { TEMPLATE_REGISTRY } from "./pages/registry";
+export { previewCityPage, type CityPreview } from "./pages/preview";
+export { previewDraftPage, templateFromDraft, type DraftPreview } from "./pages/preview-draft";
+export * as engine from "./engine";
+export * as draft from "./draft";
