@@ -8,10 +8,10 @@ import { validatePack } from "./types";
 const canon = (v: unknown): string => (v === null || typeof v !== "object" ? JSON.stringify(v) ?? "null" : Array.isArray(v) ? `[${v.map(canon).join(",")}]` : `{${Object.keys(v as object).sort().map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`).join(",")}}`);
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
-export interface ActivePolicy { readonly id: string; readonly version: number; readonly hash: string; readonly content: DiscoveryPolicy }
+export interface ActivePolicy<T = DiscoveryPolicy> { readonly id: string; readonly version: number; readonly hash: string; readonly content: T }
 /** A política ativa é a de maior versão; se o tenant não tem nenhuma, a versão 1 nasce da padrão do pack. */
-export async function ensurePolicy(db: TenantDb, kind: string, defaults: DiscoveryPolicy, actor: string): Promise<ActivePolicy> {
-  const sel = () => db.query<{ id: string; version: number; content: DiscoveryPolicy; content_hash: string }>(`SELECT id, version, content, content_hash FROM plataforma.policy WHERE kind = $1 ORDER BY version DESC LIMIT 1`, [kind]);
+export async function ensurePolicy<T extends object = DiscoveryPolicy>(db: TenantDb, kind: string, defaults: T, actor: string): Promise<ActivePolicy<T>> {
+  const sel = () => db.query<{ id: string; version: number; content: T; content_hash: string }>(`SELECT id, version, content, content_hash FROM plataforma.policy WHERE kind = $1 ORDER BY version DESC LIMIT 1`, [kind]);
   let r = await sel();
   if (r.rows.length === 0) {
     await db.query(`INSERT INTO plataforma.policy (tenant_id, kind, version, content, content_hash, note, created_by) VALUES (plataforma.current_tenant_id(), $1, 1, $2::jsonb, $3, 'versão inicial: política padrão do pack', $4) ON CONFLICT DO NOTHING`, [kind, JSON.stringify(defaults), sha(canon(defaults)), actor]);
@@ -21,7 +21,7 @@ export async function ensurePolicy(db: TenantDb, kind: string, defaults: Discove
   return { id: x.id, version: x.version, hash: x.content_hash, content: x.content };
 }
 /** Nova versão da política (a anterior permanece). Conteúdo igual ao da versão mais recente: nada muda. */
-export async function savePolicyVersion(db: TenantDb, kind: string, content: DiscoveryPolicy, note: string, actor: string): Promise<{ version: number; created: boolean }> {
+export async function savePolicyVersion<T extends object = DiscoveryPolicy>(db: TenantDb, kind: string, content: T, note: string, actor: string): Promise<{ version: number; created: boolean }> {
   const hash = sha(canon(content));
   const same = (await db.query<{ version: number }>(`SELECT version FROM plataforma.policy WHERE kind = $1 AND content_hash = $2`, [kind, hash])).rows[0];
   if (same) return { version: same.version, created: false };

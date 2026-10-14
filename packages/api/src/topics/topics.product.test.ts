@@ -82,8 +82,8 @@ describe("geração e persistência (dados reais de SP)", () => {
     expect(await count(A, "research_run")).toBe(runs);
   });
   it("o motor anterior (descoberta por padrão × entidade) ignora padrões topicOnly", async () => {
-    // a vertical tem exatamente 1 padrão topicOnly e nenhum tópico aparece com pattern_key de padrão do motor anterior
-    expect(realEstateVertical.patterns.filter((p) => p.topicOnly)).toHaveLength(1);
+    // a vertical tem 3 padrões topicOnly e nenhum tópico aparece com pattern_key de padrão do motor anterior
+    expect(realEstateVertical.patterns.filter((p) => p.topicOnly).map((p) => p.key).sort()).toEqual(["topic-city-comparison", "topic-city-overview", "topic-neighborhood"]);
     expect(await count(A, "growth_opportunity", "topic_id IS NOT NULL AND pattern_key <> 'topic-city-overview'")).toBe(0);
   });
 });

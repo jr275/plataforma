@@ -37,6 +37,8 @@ const patterns: engine.QueryPattern[] = [
   P({ key: "mortgage-howto", group: "finance", intent: "informational", stage: "awareness", entityKind: null, templates: ["como financiar um imóvel", "como funciona o financiamento imobiliário"], jtbd: "Aprender a financiar um imóvel", experience: "guide", valueTier: "medium", requiredEvidence: ["editorial"], outcome: "tráfego informativo" }),
   // Padrões que SÓ o motor de tópicos usa (ADR-030): dão ao tópico o contrato de blueprint e de geração; a descoberta por padrão × entidade os ignora.
   P({ key: "topic-city-overview", group: "geo_info", intent: "informational", stage: "awareness", entityKind: "city", topicOnly: true, templates: ["{entity}: população e dados do município"], jtbd: "Entender o tamanho e as características básicas do município", experience: "location_overview", valueTier: "low", requiredEvidence: ["geo_entities"], outcome: "tráfego informativo qualificado" }),
+  P({ key: "topic-city-comparison", group: "comparison", intent: "recommendation", stage: "consideration", entityKind: "city", topicOnly: true, templates: ["{entity}: comparação com outra cidade"], jtbd: "Comparar dois municípios com dados da mesma data-base", experience: "ranking_recommendation", valueTier: "medium", requiredEvidence: ["geo_entities"], outcome: "tráfego comparativo qualificado" }),
+  P({ key: "topic-neighborhood", group: "neighborhood_info", intent: "informational", stage: "consideration", entityKind: null, topicOnly: true, templates: ["dados do bairro"], jtbd: "Entender o bairro com dados verificáveis antes de escolher onde morar", experience: "data_insights", valueTier: "medium", requiredEvidence: ["geo_entities"], outcome: "tráfego local qualificado" }),
 ];
 
 const signals: engine.SignalRule[] = [

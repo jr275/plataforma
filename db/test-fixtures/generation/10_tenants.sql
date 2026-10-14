@@ -53,4 +53,5 @@ INSERT INTO plataforma.tenant (id, slug, name) VALUES
 INSERT INTO plataforma.tenant (id, slug, name) VALUES
   ('fd111111-1111-4111-8111-111111111111', 'topicos-1', 'Tópicos 1'),
   ('fd222222-2222-4222-8222-222222222222', 'topicos-2', 'Tópicos 2'),
-  ('fd333333-3333-4333-8333-333333333333', 'topicos-3', 'Tópicos 3');
+  ('fd333333-3333-4333-8333-333333333333', 'topicos-3', 'Tópicos 3'),
+  ('fd444444-4444-4444-8444-444444444444', 'topicos-4', 'Tópicos 4');
