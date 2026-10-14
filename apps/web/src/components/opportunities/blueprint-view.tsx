@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OpportunityJourney } from "./journey";
 import { engine, type CityPreview } from "@plataforma/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export function BlueprintView({ loaded, vertical, editorActions, generate, harne
   return (
     <div className="space-y-6">
       {header}
+      <OpportunityJourney id={o.id} active="blueprint" base={listBase} />
       <SectionTabs label="Seções do blueprint" items={[["fluxo", "Editor"], ["resumo", "Resumo"], ["serp", "Etapa SERP"], ["dados", "Dados"], ["template", "Template"], ["gates", "Seis gates"], ["previa", "Prévia"], ["pagina", "Rascunho gerado"], ["publicacao", "Publicação"]]} />
 
       <section id="fluxo">
@@ -92,7 +94,7 @@ export function BlueprintView({ loaded, vertical, editorActions, generate, harne
         </div>
       </Panel></section>
 
-      <section id="template"><Panel title="Template, seções, links internos e indexação">
+      <section id="template"><Panel title="Template, seções, links internos e indexação" action={<Link href="/templates" className="text-xs underline underline-offset-4">Explorar contratos</Link>}>
         <div className="space-y-4 text-sm">
           <p><TruthChip state={b.template.status === "selected" ? "live" : "blocked"}>{b.template.status === "selected" ? `${b.template.key} v${b.template.version}` : "sem template"}</TruthChip> <span className="ml-1 text-xs text-muted-foreground">{b.template.reason}</span></p>
           {b.sections.length > 0 ? <table className="w-full text-left text-xs"><caption className="sr-only">Seções planejadas</caption><thead className="font-mono text-[10.5px] tracking-wide text-muted-foreground uppercase"><tr><th scope="col" className="py-1.5 pr-3">Seção</th><th scope="col" className="pr-3">Dados</th><th scope="col">Fatos exigidos</th></tr></thead><tbody>{b.sections.map((s) => (<tr key={s.id} className="border-t border-border"><td className="py-1.5 pr-3 font-medium">{s.label}</td><td className="pr-3">{s.data === "available" ? <TruthChip state="derived">completos</TruthChip> : s.data === "partial" ? <TruthChip state="estimated">parciais</TruthChip> : <TruthChip state="unavailable">sem dados</TruthChip>}</td><td className="font-mono text-[10.5px] text-muted-foreground">{s.requires.join(", ")}{s.missingFacts.length ? ` — faltam: ${s.missingFacts.join(", ")}` : ""}</td></tr>))}</tbody></table> : <p className="text-xs text-muted-foreground">Sem template, não há seções a planejar. Nenhuma foi inventada.</p>}

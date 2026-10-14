@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OpportunityJourney } from "./journey";
 import { engine, type engine as E } from "@plataforma/api";
 import { Badge } from "@/components/ui/badge";
 import { Dl } from "@/components/ui/field";
@@ -45,6 +46,7 @@ export function OpportunityDetailView({ loaded, intents, stages, experiences, ve
         description="Hipótese de crescimento gerada pela vertical: não é volume de busca medido."
         badges={<span className="flex flex-wrap items-center gap-2"><Badge tone={statusTone(o.status)}>{statusLabel(o.status)}</Badge><Badge tone={pk.tone}>{pk.label}{o.priority !== null ? `: ${num1(o.priority)}` : ""}</Badge>{o.hypothesis ? <TruthChip state="estimated">hipótese</TruthChip> : null}<VerticalContext {...vertical} /></span>} />
 
+      <OpportunityJourney id={o.id} active="detail" base={listBase} />
       {inv ? (
         <Frame fig="1" caption="do dado à decisão" bodyClassName="p-0">
           <dl className="grid divide-y divide-border text-sm lg:grid-cols-5 lg:divide-x lg:divide-y-0">
@@ -119,7 +121,7 @@ export function OpportunityDetailView({ loaded, intents, stages, experiences, ve
         <section id="dimensoes"><Panel title="Dimensões e a verdade de cada uma" description={`${15 - (result?.missing.length ?? 0)} de 15 com dado. Desconhecido nunca vira zero.`}>
           <div className="overflow-x-auto"><table className="w-full min-w-[40rem] text-left text-xs"><caption className="sr-only">Dimensões do score</caption>
             <thead className="font-mono text-[10.5px] tracking-wide text-muted-foreground uppercase"><tr><th scope="col" className="py-2 pr-3">Dimensão</th><th scope="col" className="pr-3 text-right">Valor</th><th scope="col" className="pr-3">Verdade</th><th scope="col" className="pr-3">Fonte</th><th scope="col">Nota / o que falta</th></tr></thead>
-            <tbody>{dims.map((d) => (<tr key={d.id} className="border-t border-border align-top"><td className="py-1.5 pr-3 font-medium">{engine.DIMENSION_INFO[d.id].label}</td><td className="pr-3 text-right tabular-nums">{d.value === null ? "—" : num1(d.value * 100)}</td><td className="pr-3"><TruthChip state={truthOfBasis(d.basis)} /></td><td className="pr-3 font-mono text-[10.5px]">{d.source ?? "—"}</td><td className="text-muted-foreground">{d.note}</td></tr>))}</tbody></table></div>
+            <tbody>{dims.map((d) => (<tr key={d.id} className="border-t border-border align-top"><td className="py-1.5 pr-3 font-medium">{engine.DIMENSION_INFO[d.id].label}</td><td className="pr-3 text-right tabular-nums">{d.value === null ? "—" : <span className="inline-flex min-w-24 items-center justify-end gap-2"><meter min={0} max={1} value={d.value} aria-label={engine.DIMENSION_INFO[d.id].label} className="h-2 w-16 accent-[var(--brand)]" />{num1(d.value * 100)}</span>}</td><td className="pr-3"><TruthChip state={truthOfBasis(d.basis)} /></td><td className="pr-3 font-mono text-[10.5px]">{d.source ?? "—"}</td><td className="text-muted-foreground">{d.note}</td></tr>))}</tbody></table></div>
         </Panel></section>
       ) : null}
 

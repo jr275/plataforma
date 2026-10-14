@@ -18,10 +18,10 @@ export function Panel({
   bodyClassName?: string;
 }) {
   return (
-    <section className={cn("border border-border bg-card", className)}>
+    <section className={cn("overflow-hidden rounded-lg border border-border bg-card", className)}>
       <header className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
         <div className="min-w-0">
-          <h2 className="font-mono text-[11px] font-semibold tracking-[0.08em] uppercase">{title}</h2>
+          <h2 className="text-[13px] font-semibold tracking-tight">{title}</h2>
           {description ? <p className="mt-1 text-xs text-muted-foreground">{description}</p> : null}
         </div>
         {action}

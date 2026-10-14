@@ -47,6 +47,7 @@ export interface EligibilitySnapshot {
   readonly attributes: readonly AttributeSnap[];
   /** Fatos correntes (com fonte) das entidades do tópico para os atributos usados. */ readonly facts: readonly FactRef[];
   /** Quantos blocos de dados VARIAM entre as instâncias da família (valores distintos > 1). */ readonly varyingBlocks: number;
+  /** Quais atributos variam (o blueprint os usa como campos únicos por instância). */ readonly varyingAttributes?: readonly string[];
   readonly coherenceConflicts: readonly string[];
   readonly conflicts: readonly Conflict[];
   readonly graph: { readonly siblings: number; readonly children: number };

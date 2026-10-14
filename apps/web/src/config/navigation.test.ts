@@ -16,7 +16,7 @@ describe("integridade da navegação", () => {
     const ids = allNavItems.map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
-  it("itens planejados não têm rota (aparecem desabilitados, com o motivo) e itens reais/demo têm", () => {
+  it("itens planejados abrem um inspetor de dependências, sem inventar uma rota e itens reais/demo têm", () => {
     for (const i of allNavItems) {
       if (i.mode === "planned") { expect(i.href, i.label).toBeUndefined(); expect(i.hint, i.label).toMatch(/\S/); }
       else expect(i.href, i.label).toMatch(/^\//);
@@ -24,7 +24,7 @@ describe("integridade da navegação", () => {
   });
   it("a hierarquia pedida está presente (com rotas reais onde existem)", () => {
     const labels = allNavItems.map((i) => i.label);
-    for (const l of ["Command Center", "Search Intelligence", "Knowledge Graph", "Knowledge Base", "Data Sources", "Oportunidades", "Roadmap", "Tendências e notícias", "Generation Studio", "Content", "Programmatic SEO", "GEO & AI Citations", "Quality & Trust", "Experiments", "Workflows", "Integrations", "Settings"]) expect(labels, l).toContain(l);
+    for (const l of ["Visão geral", "Descoberta", "Roadmap", "Tendências e notícias", "SERP Explorer", "Concorrentes", "Grafo de conhecimento", "Evidências e fontes", "Blueprints", "Templates", "Geração de páginas", "Gates de qualidade", "Visibilidade em IA", "Experimentos", "Workflows", "Integrações", "Configurações"]) expect(labels, l).toContain(l);
   });
   it("as rotas existentes não foram removidas para 'simplificar'", () => {
     const hrefs = linkedNavItems.map((i) => i.href);
@@ -34,11 +34,11 @@ describe("integridade da navegação", () => {
 
 describe("modo de dados: real, demonstração ou desenvolvimento", () => {
   it("só as rotas marcadas como reais leem o banco; as derivadas da navegação não divergem", () => {
-    expect([...REAL_DATA_ROUTES].sort()).toEqual(["/cities", "/data-flow", "/generation", "/graph", "/integrations", "/opportunities", "/roadmap", "/trends"]);
-    for (const r of REAL_DATA_ROUTES) { expect(routeMode(r)).toBe("real"); expect(routeMode(`${r}/abc`)).toBe("real"); }
+    expect([...REAL_DATA_ROUTES].sort()).toEqual(["/", "/blueprints", "/cities", "/data-flow", "/generation", "/graph", "/integrations", "/opportunities", "/roadmap", "/trends"]);
+    for (const r of REAL_DATA_ROUTES) { expect(routeMode(r)).toBe("real"); if (r !== "/") expect(routeMode(`${r}/abc`)).toBe("real"); }
   });
   it("demonstração é o padrão: nenhuma tela de protótipo se passa por real", () => {
-    for (const r of ["/", "/ask", "/entities", "/entities/e1", "/settings", "/qualquer-coisa"]) expect(routeMode(r), r).toBe("demo");
+    for (const r of ["/ask", "/entities", "/entities/e1", "/settings", "/qualquer-coisa"]) expect(routeMode(r), r).toBe("demo");
   });
   it("prévias de desenvolvimento têm modo próprio (nunca real)", () => {
     for (const r of ["/dev/preview", "/dev/graph", "/dev/cities"]) { expect(routeMode(r), r).toBe("dev"); expect(isRealDataRoute(r), r).toBe(false); }
@@ -57,6 +57,18 @@ describe("item ativo", () => {
     expect(activeNavId("/graph")).toBe("knowledge-graph");
     expect(activeNavId("/generation/pages/x")).toBe("generation-studio");
     expect(activeNavId("/nao-existe")).toBeUndefined();
-    expect(navigation.flatMap((g) => g.items).filter((i) => i.mode === "planned").map((i) => activeNavId(`/${i.id}`))).toEqual([undefined, undefined, undefined, undefined, undefined]);
+    expect(navigation.flatMap((g) => g.items).filter((i) => i.mode === "planned").map((i) => activeNavId(`/${i.id}`))).toEqual(allNavItems.filter((i) => i.mode === "planned").map(() => undefined));
+  });
+});
+
+describe("áreas de produto e disponibilidade", () => {
+  it("mantém as sete áreas da visão de produto", () => {
+    expect(navigation.map((g) => g.id)).toEqual(["intelligence", "search", "knowledge", "build", "quality", "performance", "system"]);
+  });
+  it("contratos e capacidades nunca se apresentam como dados reais ou demo", () => {
+    for (const path of ["/templates", "/serp", "/geo"]) { expect(routeMode(path)).toBe("reference"); expect(isRealDataRoute(path)).toBe(false); }
+    expect(routeMode("/opportunities/id/serp")).toBe("real");
+    expect(routeMode("/serpx")).toBe("demo");
+    expect(routeMode("/other")).toBe("demo");
   });
 });

@@ -61,7 +61,8 @@ function buildSnapshot(c: Ctx, t: TopicRow, tenantId: string, ref: Date, deps: E
   const dataAvailable = t.attributes_used.filter(has); const dataMissing = t.required_attributes.filter((a) => !has(a));
   // blocos que VARIAM entre as instâncias da família: valores distintos (> 1) do atributo entre as entidades primárias das instâncias
   const group = c.all.filter((x) => x.pattern_key === t.pattern_key && x.candidate_page_family === t.candidate_page_family && x.topic_origin === t.topic_origin);
-  const varying = dataAvailable.filter((a) => new Set(group.map((x) => JSON.stringify(c.valueByEntityAttr.get(`${x.primary_entity_id}|${a}`) ?? null)).filter((v) => v !== "null")).size > 1).length;
+  const varyingAttrs = dataAvailable.filter((a) => new Set(group.map((x) => JSON.stringify(c.valueByEntityAttr.get(`${x.primary_entity_id}|${a}`) ?? null)).filter((v) => v !== "null")).size > 1);
+  const varying = varyingAttrs.length;
   // Similaridade de INTENÇÃO entre tópicos da mesma família e da mesma entidade primária: Jaccard dos pares dimensão=valor (duas comparações da mesma cidade com cidades diferentes diferem no valor; a mesma intenção
   // com faixas de preço diferentes divide quase todos os pares). Tópico pai/filho não disputa com o próprio pai (o filho é a página específica).
   const pairs = (d: Record<string, string>) => new Set(Object.entries(d).map(([k, v]) => `${k}=${v}`));
@@ -75,7 +76,7 @@ function buildSnapshot(c: Ctx, t: TopicRow, tenantId: string, ref: Date, deps: E
     topic: { topicId: t.topic_id, origin: t.topic_origin, family: t.candidate_page_family, intentType: t.intent_type as never, geoGranularity: t.geo_granularity as never, commercialPotential: t.commercial_potential, queryHypothesis: t.primary_query, parentTopicId: t.parent_topic_id, demand: { value: t.demand_signal?.value ?? null, source: t.demand_signal?.source ?? null }, attributesUsed: t.attributes_used, dataAvailable, dataMissing },
     entity: ent ? { id: t.primary_entity_id, status: ent.status, resolutionConfidence: ent.resolution } : null,
     attributes: t.attributes_used.map((a) => { const d = c.defs.get(a); return { attributeId: a, status: c.catalog.get(a) ?? "DATA_PENDING", usableAsFact: d ? d.origin !== "INFERRED" : false, semanticCategory: d?.semanticCategory ?? "desconhecida", derivationMethod: d?.derivationMethod ?? null }; }),
-    facts, varyingBlocks: varying, coherenceConflicts: coherence, conflicts,
+    facts, varyingBlocks: varying, varyingAttributes: varyingAttrs, coherenceConflicts: coherence, conflicts,
     graph: { siblings: group.length - 1, children: c.all.filter((x) => x.parent_topic_id === t.topic_id).length },
     serp: { opportunity: null },
   };

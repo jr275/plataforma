@@ -27,7 +27,7 @@ export function CommandPalette() {
   const commands = useMemo<Command[]>(() => {
     const go = (href: string) => () => router.push(href);
     const list: Command[] = [];
-    for (const n of linkedNavItems) list.push({ id: `nav-${n.id}`, group: "Ir para", label: n.label, hint: n.mode === "real" ? "dado real" : "demonstração", keywords: n.label, run: go(n.href) });
+    for (const n of linkedNavItems) list.push({ id: `nav-${n.id}`, group: "Ir para", label: n.label, hint: n.mode === "real" ? "dados do tenant" : n.mode === "reference" ? "capacidade" : "demonstração", keywords: n.label, run: go(n.href) });
     for (const e of current.entities) list.push({ id: e.id, group: "Entidades (demonstração)", label: e.label, hint: e.type, keywords: `${e.label} ${e.type} ${e.summary}`, run: go(`/entities/${e.id}`) });
     for (const k of current.knowledge) list.push({ id: k.id, group: "Conhecimento (demonstração)", label: k.title, hint: "registro", keywords: `${k.title} ${k.statement}`, run: go(`/knowledge/${k.id}`) });
     for (const p of current.pages) list.push({ id: p.id, group: "Páginas (demonstração)", label: p.title, hint: p.path, keywords: `${p.title} ${p.path} ${p.summary}`, run: go(`/pages/${p.id}`) });
@@ -77,7 +77,8 @@ export function CommandPalette() {
               aria-expanded="true"
               aria-controls="palette-list"
               aria-activedescendant={results[index] ? `cmd-${results[index].id}` : undefined}
-              placeholder={`Buscar em ${current.workspace.name}…`}
+              aria-label="Buscar páginas, comandos e dados demonstrativos"
+              placeholder="Buscar páginas, comandos e demonstração…"
               className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
           </div>
@@ -112,7 +113,7 @@ export function CommandPalette() {
             <span>↑↓ navegar</span>
             <span>↵ abrir</span>
             <span>esc fechar</span>
-            <span className="ml-auto">Busca local em dados demonstrativos</span>
+            <span className="ml-auto">Navegação global · registros locais de demonstração</span>
           </div>
         </Dialog.Popup>
       </Dialog.Portal>

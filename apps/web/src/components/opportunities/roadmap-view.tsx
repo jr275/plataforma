@@ -7,24 +7,19 @@ import { EmptyState, Panel } from "@/components/ui/panel";
 import { formatInt } from "@/components/generation/format";
 import { StatePanel } from "@/components/generation/state-panel";
 import type { Loaded } from "@/lib/server/tenant-data";
-import { PRIORITY_KIND, num1 } from "./format";
+import { LifecycleBoard } from "./lifecycle-board";
 import type { VerticalMeta } from "./opportunities-home-view";
 import { VerticalContext } from "./vertical-context";
 import { TruthChip } from "@/components/ui/truth-chip";
-import { statusLabel, statusTone } from "./status";
 
 const LANE_TONE: Record<E.Lane, Tone> = { ready: "success", blocked: "danger", awaiting_blueprint: "info", needs_work: "warning" };
-const LANE_HINT: Record<E.Lane, string> = {
-  ready: "Blueprint pronto e etapa de SERP resolvida (ou exceção registrada e visível). Publicar continua dependendo de decisão do dono.", blocked: "Têm blueprint e ele reprovou em algum gate: veja o bloqueio na oportunidade.",
-  awaiting_blueprint: "Elegíveis: falta gerar o blueprint ou resolver a etapa de SERP (analisar com provedor ou registrar a exceção).", needs_work: "Pontuadas, mas não passam na elegibilidade da vertical.",
-};
+
 
 /** Roadmap: derivado do que foi gravado. Agrupa por prontidão e SOMA os bloqueios (o que destrava mais oportunidades vem primeiro). Nada é prometido. */
-export function RoadmapView({ loaded, intents, vertical, detailBase = "/opportunities", listBase = "/opportunities" }: { loaded: Loaded<E.Roadmap>; intents: readonly { id: string; label: string }[]; vertical: VerticalMeta; /** A prévia de desenvolvimento usa outra base de rotas. */ detailBase?: string; listBase?: string }) {
+export function RoadmapView({ loaded, vertical, detailBase = "/opportunities", listBase = "/opportunities" }: { loaded: Loaded<E.Roadmap>; intents: readonly { id: string; label: string }[]; vertical: VerticalMeta; /** A prévia de desenvolvimento usa outra base de rotas. */ detailBase?: string; listBase?: string }) {
   const header = <PageHeader crumbs={[{ label: "Oportunidades", href: listBase }, { label: "Roadmap" }]} badges={<VerticalContext {...vertical} />} title="Roadmap" description="O que está pronto para construir, o que está bloqueado e por quê. Os bloqueios são somados: resolver um deles destrava todas as oportunidades que dependem dele." />;
   if (loaded.state !== "ready") return <div className="space-y-6">{header}<StatePanel state={loaded.state} missing={loaded.state === "not_configured" ? loaded.missing : undefined} /></div>;
   const rm = loaded.data;
-  const intentLabel = new Map(intents.map((i) => [i.id, i.label]));
   if (rm.total === 0) return <div className="space-y-6">{header}<Panel title="Roadmap"><EmptyState title="Nenhuma oportunidade pontuada ainda" hint="O roadmap só considera oportunidades já pontuadas. Inicie uma pesquisa em Oportunidades." action={<Link href="/opportunities" className="text-xs underline underline-offset-2">Ir para Oportunidades</Link>} /></Panel></div>;
   return (
     <div className="space-y-6">
@@ -49,29 +44,7 @@ export function RoadmapView({ loaded, intents, vertical, detailBase = "/opportun
             <tbody>{rm.blockers.slice(0, 15).map((b) => (<tr key={`${b.lane}-${b.key}`} className="border-t border-border"><td className="py-2 pr-4 text-right font-medium tabular-nums">{formatInt(b.count)}</td><td className="pr-4">{b.label}</td><td><Badge tone={LANE_TONE[b.lane]}>{engine.LANE_LABEL[b.lane]}</Badge></td></tr>))}</tbody></table></div>
         )}
       </Panel>
-      {engine.LANES.map((lane) => (
-        <Panel key={lane} title={`${engine.LANE_LABEL[lane]} (${formatInt(rm.counts[lane])})`} description={LANE_HINT[lane]}>
-          {rm.items[lane].length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma oportunidade nesta faixa.</p> : (
-            <>
-              <ul className="divide-y divide-border">
-                {rm.items[lane].map((o) => {
-                  const pk = PRIORITY_KIND[o.priorityKind ?? "none"] ?? PRIORITY_KIND.none!;
-                  return (
-                    <li key={o.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
-                      <Link href={`${detailBase}/${o.id}`} className="font-medium underline-offset-2 hover:underline focus-visible:underline">{o.query}</Link>
-                      <Badge tone={statusTone(o.status)}>{statusLabel(o.status)}</Badge>
-                      <span className="text-xs text-muted-foreground">{intentLabel.get(o.intent) ?? o.intent}</span>
-                      <span className="ml-auto text-xs tabular-nums">{num1(o.priority)} <Badge tone={pk.tone}>{pk.label}</Badge></span>
-                      {o.blockerLabels.length > 0 ? <span className="w-full text-xs text-muted-foreground">Bloqueios: {o.blockerLabels.join("; ")}</span> : null}
-                    </li>
-                  );
-                })}
-              </ul>
-              {rm.counts[lane] > rm.items[lane].length ? <p className="mt-2 text-xs text-muted-foreground">Mostrando {rm.items[lane].length} de {formatInt(rm.counts[lane])} (as de maior prioridade).</p> : null}
-            </>
-          )}
-        </Panel>
-      ))}
+      <LifecycleBoard items={Object.values(rm.items).flat()} stages={engine.STATES.map((st) => ({ id: st, label: engine.STATE_LABEL[st], count: rm.byStatus[st] ?? 0, implemented: engine.IMPLEMENTED_STATES.includes(st) }))} total={rm.total} detailBase={detailBase} />
     </div>
   );
 }

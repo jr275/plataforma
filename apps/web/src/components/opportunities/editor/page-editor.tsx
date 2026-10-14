@@ -44,6 +44,8 @@ function EditorInner({ opportunityId, ctx, base, actions, initial, harness }: Pa
   useEffect(() => { ref.current = state; });
   const rf = useReactFlow();
   const [tab, setTab] = useState<Tab>("issues");
+  const [splitPreview, setSplitPreview] = useState(false);
+  const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");
   const [fit, setFit] = useState(0);
   const [versions, setVersions] = useState<readonly HistoryVersion[]>(initial.versions);
   const [addType, setAddType] = useState<string>(ADDABLE[0] ?? "");
@@ -96,7 +98,7 @@ function EditorInner({ opportunityId, ctx, base, actions, initial, harness }: Pa
     <IssuesPanel issues={[...validation.issues, ...(state.evaluation?.validation.issues.filter((i) => i.code === "base_outdated") ?? [])]} stale={stale} evaluatedAt={state.evaluation ? "server" : "never"} errors={validation.errors} warnings={validation.warnings} onFocus={(id) => { dispatch({ t: "select", nodeId: id }); const n = rf.getNode(id); if (n) void rf.setCenter(n.position.x + 110, n.position.y + 40, { zoom: 1, duration: 250 }); }} />
   );
   const tabs: readonly { id: Tab; label: string; count?: number }[] = [{ id: "issues", label: "Validação", count: validation.errors + validation.warnings }, { id: "list", label: "Lista de nós", count: state.draft.nodes.length }, { id: "preview", label: "Prévia" }, { id: "history", label: "Histórico", count: versions.length }];
-  const tb = "inline-flex h-8 items-center gap-1.5 border border-border bg-card px-2.5 text-xs hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
+  const tb = "inline-flex min-h-10 rounded-md items-center gap-1.5 border border-border bg-card px-2.5 text-xs hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div className="space-y-4" data-testid="page-editor" data-harness={harness ?? "app"}>
@@ -113,16 +115,18 @@ function EditorInner({ opportunityId, ctx, base, actions, initial, harness }: Pa
           <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
           <button type="button" className={tb} onClick={() => void validate()} disabled={busy === "validate"} aria-busy={busy === "validate"}>{busy === "validate" ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <CheckCheck className="size-3.5" aria-hidden="true" />}Validar no servidor</button>
           <Button type="button" onClick={() => void save()} disabled={!dirty || state.save.status === "saving"} aria-busy={state.save.status === "saving"}>{state.save.status === "saving" ? <Loader2 className="animate-spin" data-icon="inline-start" aria-hidden="true" /> : <Save data-icon="inline-start" aria-hidden="true" />}Salvar rascunho</Button>
+          <button type="button" className={tb} aria-pressed={splitPreview} onClick={() => { setSplitPreview((open) => !open); if (!splitPreview && preview === undefined) void refreshPreview(); }}>Editor + prévia</button>
           <span role="status" aria-live="polite" data-testid="save-status" data-status={state.save.status} data-dirty={dirty} className={`ml-auto font-mono text-[10.5px] tracking-wide uppercase ${state.save.status === "error" || state.save.status === "conflict" ? "text-destructive" : "text-muted-foreground"}`}>{dirty && state.save.status !== "saving" && state.save.status !== "error" && state.save.status !== "conflict" ? DIRTY_LABEL : SAVE_LABEL[state.save.status]}{state.savedVersion > 0 ? ` · v${state.savedVersion}` : " · sem versão salva"}</span>
         </div>
         {state.notice ? <p role="alert" data-testid="notice" className="border-b border-border bg-destructive/10 px-3 py-1.5 text-xs text-destructive">{state.notice}</p> : null}
         {validateMsg ? <p role="alert" className="border-b border-border bg-destructive/10 px-3 py-1.5 text-xs text-destructive">{validateMsg}</p> : null}
         {state.save.message && (state.save.status === "error" || state.save.status === "conflict") ? <p role="alert" data-testid="save-error" className="border-b border-border bg-destructive/10 px-3 py-1.5 text-xs text-destructive">{state.save.message}{state.save.status === "conflict" ? <> <button type="button" onClick={() => window.location.reload()} className="underline underline-offset-2">Recarregar</button></> : null}</p> : null}
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className={`grid ${splitPreview ? "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)_22rem]"}`}>
           <div className="h-[26rem] border-b border-border lg:h-[38rem] lg:border-r lg:border-b-0" data-testid="editor-canvas" aria-label="Canvas do editor. Use a Lista de nós para navegar por teclado."><EditorCanvas graph={graph} draft={state.draft} selectedNode={sel.nodeId} selectedEdge={sel.edgeId} fitSignal={fit}
             onSelect={(s) => dispatch({ t: "select", ...s })} onConnect={(a, b) => apply((d) => connect(d, a, b))} onDeleteNodes={(ids) => { for (const id of ids) apply((d) => removeNode(d, id)); }} onDeleteEdges={(ids) => { for (const id of ids) apply((d) => disconnect(d, id)); }}
             onMove={(pos) => dispatch({ t: "layout", layout: { ...ref.current.draft.layout, ...pos } })} /></div>
-          <aside aria-label="Inspector" className="max-h-[38rem] overflow-y-auto p-3"><Inspector key={sel.nodeId ?? sel.edgeId ?? "none"} draft={state.draft} ctx={ctx} base={bp} nodeId={sel.nodeId} edgeId={sel.edgeId} exec={exec} issues={validation.issues} apply={apply} onSelect={(id) => dispatch({ t: "select", nodeId: id })} /></aside>
+          {splitPreview ? <aside aria-label="Prévia ao lado do editor" className="min-w-0 max-h-[38rem] overflow-y-auto bg-muted/20 p-3"><div role="group" aria-label="Largura da prévia" className="mb-3 flex gap-2">{(["desktop", "mobile"] as const).map((v) => <button key={v} type="button" className={tb} aria-pressed={viewport === v} onClick={() => setViewport(v)}>{v === "desktop" ? "Desktop" : "Mobile · 375 px"}</button>)}</div><div className={`mx-auto transition-[max-width] ${viewport === "mobile" ? "max-w-[375px]" : "max-w-full"}`}><PreviewPane preview={preview?.data} stale={preview !== undefined && preview.sig !== sig} pending={busy === "preview"} error={previewError} onRefresh={() => void refreshPreview()} /></div></aside> : null}
+          <aside aria-label="Inspector" className={`max-h-[38rem] overflow-y-auto p-3 ${splitPreview ? "border-t border-border xl:col-span-2" : ""}`}><Inspector key={sel.nodeId ?? sel.edgeId ?? "none"} draft={state.draft} ctx={ctx} base={bp} nodeId={sel.nodeId} edgeId={sel.edgeId} exec={exec} issues={validation.issues} apply={apply} onSelect={(id) => dispatch({ t: "select", nodeId: id })} /></aside>
         </div>
       </Frame>
       <p className="text-xs text-muted-foreground">Editar o rascunho <strong>não gera, não indexa e não publica</strong> nenhuma página. Alterar um nó invalida os resultados dos gates até a próxima validação no servidor. A publicação segue bloqueada: {validation.publication.reasons.join("; ")}.{harness === "dev" ? " (Bancada de desenvolvimento: banco descartável, sem login.)" : ""}</p>

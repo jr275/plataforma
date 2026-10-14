@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { routeMode, type RouteMode } from "@/config/navigation";
 
 const COPY: Record<Exclude<RouteMode, "real">, { title: string; text: string; tone: string }> = {
-  demo: { title: "Demonstração", text: "Os dados desta tela são fictícios e ficam só neste navegador. Não são do tenant RE/MAX, de nenhum banco nem de nenhuma integração.", tone: "border-warning/40 bg-warning/10" },
+  reference: { title: "Capacidade", text: "Contratos e disponibilidade do produto. Esta tela não contém medições de provedores.", tone: "border-border bg-muted/30" },
+  demo: { title: "Demonstração", text: "Os dados desta tela são fictícios e ficam só neste navegador. Não são do tenant autenticado, de nenhum banco nem de nenhuma integração.", tone: "border-warning/40 bg-warning/10" },
   dev: { title: "Fixture de desenvolvimento", text: "Dados reais do IBGE montados em memória, sem banco nem login. Esta rota não existe em produção.", tone: "border-info/30 bg-info/10" },
 };
 
