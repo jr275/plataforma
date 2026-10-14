@@ -26,6 +26,17 @@ export function parseHomeParams(raw: Record<string, string | string[] | undefine
   };
 }
 
+/**
+ * `?v=` do detalhe da página. Contrato: ausente (ou vazio) = a mais recente, sem aviso; inteiro positivo em decimal simples (1 a 999999999)
+ * = a versão pedida; QUALQUER outro valor presente é inválido (a tela avisa e mostra a mais recente, em vez de adivinhar uma versão).
+ */
+export type VersionParam = { kind: "none" } | { kind: "ok"; version: number } | { kind: "invalid" };
+export function parseVersionParam(raw: string | string[] | undefined): VersionParam {
+  if (raw === undefined || raw === "") return { kind: "none" };
+  if (typeof raw !== "string" || !/^[1-9][0-9]{0,8}$/.test(raw)) return { kind: "invalid" };
+  return { kind: "ok", version: Number(raw) };
+}
+
 export function loadGenerationHome(p: HomeParams) {
   const search: PageSearch = { q: p.q || undefined, status: p.status || undefined, uf: p.uf || undefined, sort: p.sort, dir: p.dir, limit: PAGE_SIZE, offset: (p.page - 1) * PAGE_SIZE };
   return loadForTenant(async (db) => {

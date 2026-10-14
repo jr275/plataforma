@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { notFound, redirect } from "next/navigation";
+import { DynamicServerError } from "next/dist/client/components/hooks-server-context";
+import { makeDynamicHangingPromise } from "next/dist/server/dynamic-rendering-utils";
 import { devIdentity } from "@plataforma/api";
 
 // Fronteiras mockadas: a sessão (identity), o pool (db) e a execução no banco (withTenant). A lógica de resolver tenant e classificar
@@ -22,8 +25,10 @@ const mIdentity = vi.mocked(requestIdentity);
 const mPool = vi.mocked(appPool);
 const mWith = vi.mocked(api.withTenant);
 
+let log: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   vi.clearAllMocks();
+  log = vi.spyOn(console, "error").mockImplementation(() => undefined); // o log interno não polui a saída; cada teste confere o que foi registrado
   callOrder.length = 0;
   mPool.mockReturnValue(POOL);
   vi.mocked(dbOrigin).mockReturnValue({ kind: "local", host: "socket local" });
@@ -48,6 +53,14 @@ describe("resolveTenantContext: a identidade verificada determina o escopo", () 
     mIdentity.mockResolvedValue({ state: "ok", identity: identity(A) });
     mPool.mockReturnValue(null);
     expect(await resolveTenantContext()).toMatchObject({ ok: false, reason: "not_configured", missing: expect.stringContaining("PLATAFORMA_APP_DATABASE_URL") });
+  });
+  it("URL do banco inválida (o pool não pode ser criado): not_configured, e não uma falha de login", async () => {
+    mIdentity.mockResolvedValue({ state: "ok", identity: identity(A) });
+    mPool.mockImplementation(() => { throw new Error("URI inválida: postgresql://u:SEGREDO@h/d"); });
+    const ctx = await resolveTenantContext();
+    expect(ctx).toMatchObject({ ok: false, reason: "not_configured", missing: expect.stringContaining("PLATAFORMA_APP_DATABASE_URL") });
+    expect(JSON.stringify(ctx)).not.toMatch(/SEGREDO|postgresql:/);
+    expect(await loadForTenant(vi.fn())).toMatchObject({ state: "not_configured" });
   });
   it("contexto válido: tenant = o PRIMEIRO da claim verificada, com a mesma identidade e o pool", async () => {
     const id = identity(A, B);
@@ -97,10 +110,38 @@ describe("loadForTenant: estados reais, sem vazar detalhes", () => {
     expect(await loadForTenant(vi.fn())).toEqual({ state: "not_migrated" });
     mWith.mockRejectedValueOnce(new Error("embrulho", { cause: { code: "42P01" } }));
     expect(await loadForTenant(vi.fn())).toEqual({ state: "not_migrated" });
-    for (const err of [{ code: "22012" }, { code: "42501" }, { code: "ECONNREFUSED" }, { code: "08006" }, new Error("boom")]) {
+    for (const err of [{ code: "22012" }, { code: "42501" }, { code: "23505" }, new Error("boom")]) {
       mWith.mockRejectedValueOnce(err);
       expect(await loadForTenant(vi.fn())).toEqual({ state: "error" });
     }
+  });
+  it("banco indisponível (conexão recusada ou perdida, desligamento, timeout) é um estado PRÓPRIO, não o erro genérico", async () => {
+    mIdentity.mockResolvedValue({ state: "ok", identity: identity(A) });
+    for (const err of [{ code: "ECONNREFUSED" }, { code: "08006" }, { code: "57014" }, new Error("timeout exceeded when trying to connect"), new Error("embrulho", { cause: { code: "57P01" } })]) {
+      mWith.mockRejectedValueOnce(err);
+      expect(await loadForTenant(vi.fn())).toEqual({ state: "db_unavailable" });
+    }
+  });
+  it("falha INESPERADA do provedor de login ao resolver o contexto: estado próprio, o banco nem é consultado e nada é engolido em silêncio (há log)", async () => {
+    mIdentity.mockRejectedValue(new Error("falha ao buscar chaves em https://projeto.supabase.co/auth/v1/.well-known/jwks.json"));
+    expect(await loadForTenant(vi.fn())).toEqual({ state: "auth_unavailable" });
+    expect(mWith).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledOnce();
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/supabase\.co|https?:/); // o log guarda o tipo e o código, nunca a mensagem
+  });
+  it("erros de infraestrutura e inesperados são REGISTRADOS no servidor com o código, sem mensagem nem segredo", async () => {
+    mIdentity.mockResolvedValue({ state: "ok", identity: identity(A) });
+    mWith.mockRejectedValueOnce(Object.assign(new Error("connection to postgresql://menlo_app:SEGREDO@h/d failed"), { code: "08006" }));
+    await loadForTenant(vi.fn());
+    expect(log).toHaveBeenCalledOnce();
+    expect(JSON.stringify(log.mock.calls)).toContain("08006");
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/SEGREDO|postgresql:/);
+  });
+  it("tabela ausente NÃO é registrada como erro (é um estado esperado, migrations pendentes)", async () => {
+    mIdentity.mockResolvedValue({ state: "ok", identity: identity(A) });
+    mWith.mockRejectedValueOnce({ code: "42P01" });
+    await loadForTenant(vi.fn());
+    expect(log).not.toHaveBeenCalled();
   });
   it("o estado de erro não carrega a mensagem do banco (host, usuário ou senha)", async () => {
     mIdentity.mockResolvedValue({ state: "ok", identity: identity(A) });
@@ -112,5 +153,46 @@ describe("loadForTenant: estados reais, sem vazar detalhes", () => {
     expect(isNotMigrated({ code: "42P01" })).toBe(true);
     expect(isNotMigrated({ code: "22012" })).toBe(false);
     expect(isNotMigrated(undefined)).toBe(false);
+  });
+});
+
+// Erros de CONTROLE DE FLUXO do Next.js (documentação: unstable_rethrow). São os erros REAIS do framework, gerados pelas próprias funções dele
+// (nada de imitação): quem captura exceções ao redor de cookies()/connection() precisa repassá-los, ou a renderização/redirecionamento quebra.
+function realError(make: () => unknown): unknown { try { make(); } catch (e) { return e; } throw new Error("a função do framework não lançou"); }
+async function hangingRejection(): Promise<unknown> {
+  const ac = new AbortController();
+  const p = makeDynamicHangingPromise(ac.signal, "/generation", "`connection()`");
+  const out = p.then(() => undefined, (e: unknown) => e);
+  ac.abort();
+  return out;
+}
+const frameworkErrors: [string, () => Promise<unknown> | unknown][] = [
+  ["redirect()", () => realError(() => redirect("/login"))],
+  ["notFound()", () => realError(() => notFound())],
+  ["DynamicServerError (recurso de requisição durante a pré-renderização)", () => new DynamicServerError("Dynamic server usage: cookies")],
+  ["rejeição da promessa pendente do prerender (connection() abortado)", hangingRejection],
+];
+
+describe("loadForTenant: erros do framework Next.js NÃO viram estado de falha", () => {
+  for (const [nome, make] of frameworkErrors) {
+    it(`${nome}: é repassado intacto; nada é consultado nem registrado como falha`, async () => {
+      const err = await make();
+      expect(err).toBeInstanceOf(Error);
+      mIdentity.mockRejectedValue(err);
+      await expect(loadForTenant(vi.fn())).rejects.toBe(err);
+      expect(mWith).not.toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
+    });
+  }
+  it("erro do framework embrulhado em `cause` também é repassado (o framework recebe o erro INTERNO dele, como unstable_rethrow faz)", async () => {
+    const inner = realError(() => redirect("/login"));
+    mIdentity.mockRejectedValue(new Error("embrulho", { cause: inner }));
+    await expect(loadForTenant(vi.fn())).rejects.toBe(inner);
+    expect(log).not.toHaveBeenCalled();
+  });
+  it("controle: uma falha comum do provedor de login CONTINUA virando auth_unavailable (o tratamento específico foi preservado)", async () => {
+    mIdentity.mockRejectedValue(new TypeError("fetch failed"));
+    expect(await loadForTenant(vi.fn())).toEqual({ state: "auth_unavailable" });
+    expect(log).toHaveBeenCalledOnce();
   });
 });

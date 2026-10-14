@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { buildCityFacts, renderCityPage, CITY_OVERVIEW, type City, type GateResult, type GenerationRunDetail, type ImportRunSummary, type PageDetail, type PageListItem, type PageVersionView } from "@plataforma/api";
-import { parseHomeParams } from "@/lib/server/generation";
+import { parseHomeParams, parseVersionParam } from "@/lib/server/generation";
 import type { Loaded } from "@/lib/server/tenant-data";
 import { GenerationHomeView, homeHref, type HomeData } from "./generation-home-view";
 import { PageDetailView, type PageDetailData } from "./page-detail-view";
@@ -38,10 +38,26 @@ describe("parâmetros da URL (defensivos)", () => {
   });
 });
 
+describe("parâmetro ?v= do detalhe (versão): estrito e explícito", () => {
+  it("ausente ou vazio: sem versão pedida (mostra a mais recente, sem aviso)", () => {
+    expect(parseVersionParam(undefined)).toEqual({ kind: "none" });
+    expect(parseVersionParam("")).toEqual({ kind: "none" });
+  });
+  it("inteiro positivo em decimal simples: versão pedida", () => {
+    for (const [raw, v] of [["1", 1], ["2", 2], ["99", 99], ["999999999", 999999999]] as const) expect(parseVersionParam(raw), raw).toEqual({ kind: "ok", version: v });
+  });
+  it("qualquer outra coisa PRESENTE é inválida (nada de aceitar '1abc' como 1 nem cair em silêncio na mais recente)", () => {
+    for (const raw of ["0", "-3", "abc", "1abc", "01", "1.5", "1e3", " 2", "2 ", "+2", "0x10", "٣", "99999999999999999999", "1000000000", ["1", "2"], ["1"]]) {
+      expect(parseVersionParam(raw as string | string[]), JSON.stringify(raw)).toEqual({ kind: "invalid" });
+    }
+  });
+});
+
 describe("estados em que a tela não pode mostrar dados", () => {
   const cases: [BlockedState, RegExp][] = [
     ["not_configured", /não está configurada/], ["unauthenticated", /Sessão não encontrada/], ["no_tenant", /não está associado a um workspace/],
     ["not_migrated", /As tabelas de geração ainda não existem neste banco[\s\S]*migrations 0005, 0006 e 0007 ainda não foram aplicadas/], ["error", /Não foi possível ler/],
+    ["db_unavailable", /banco de dados não respondeu/], ["auth_unavailable", /não conseguimos verificar a sua sessão/i],
   ];
   for (const [state, text] of cases) {
     it(`${state}: explica o motivo e nunca simula dados`, () => {
@@ -53,7 +69,14 @@ describe("estados em que a tela não pode mostrar dados", () => {
     });
   }
   it("a mensagem de erro não vaza detalhes do banco", () => {
-    expect(html(<StatePanel state="error" />)).not.toMatch(/postgres|host|password|connection/i);
+    for (const st of ["error", "db_unavailable", "auth_unavailable"] as const) expect(html(<StatePanel state={st} />), st).not.toMatch(/postgres|host|password|connection|https?:/i);
+  });
+  it("infraestrutura fora do ar NÃO se parece com ausência de dados: nunca diz que não há páginas", () => {
+    for (const st of ["error", "db_unavailable", "auth_unavailable"] as const) {
+      const out = html(<GenerationHomeView loaded={{ state: st } as Loaded<HomeData>} params={P} pageSize={20} />);
+      expect(out, st).not.toMatch(/Nenhuma página/);
+      expect(out, st).toMatch(/Tente novamente|tente novamente|Tente de novo/);
+    }
   });
 });
 
@@ -87,6 +110,20 @@ describe("lista de páginas e formulário de geração", () => {
     expect(out).toContain('href="/generation?q=a&amp;page=3"'); // próxima
     expect(out).toContain("Banco: local (ambiente de desenvolvimento)");
     expect(out).toContain("Fonte dos fatos: IBGE (origem real)");
+  });
+  it("página fora do intervalo (há dados, mas esta página não existe): NÃO diz 'nenhuma página gerada' e leva à primeira e à última", () => {
+    const out = html(<GenerationHomeView loaded={ready(homeData({ pages: { rows: [], total: 45 }, drafts: 45 }))} params={{ ...P, q: "", page: 9 }} pageSize={20} />);
+    expect(out).not.toContain("Nenhuma página gerada ainda");
+    expect(out).not.toContain("Nenhuma página com esses filtros");
+    expect(out).toContain("Esta página de resultados não existe");
+    expect(out).toContain("45 página(s)");
+    expect(out).toContain('href="/generation"'); // primeira página
+    expect(out).toContain('href="/generation?page=3"'); // última: ceil(45/20) = 3
+    expect(out).not.toMatch(/Mostrando 161 a/); // sem faixa de itens impossível
+  });
+  it("fora do intervalo preservando os filtros nos links", () => {
+    const out = html(<GenerationHomeView loaded={ready(homeData({ pages: { rows: [], total: 21 } }))} params={{ ...P, q: "campinas", status: "draft", page: 5 }} pageSize={20} />);
+    expect(out).toContain('href="/generation?q=campinas&amp;status=draft&amp;page=2"');
   });
   it("na última página, 'Próxima' não é link", () => {
     const out = html(<GenerationHomeView loaded={ready(homeData({ pages: { rows: [listItem()], total: 1 } }))} params={P} pageSize={20} />);
@@ -159,6 +196,26 @@ describe("detalhe da página: pré-visualização, gates, fatos e ações", () =
     const old = html(<PageDetailView loaded={ready(detail())} version={1} />);
     expect(old).toContain("Você está vendo a <strong>versão 1</strong>");
     expect(old).toContain("em exibição");
+  });
+  it("versão pedida que não existe: avisa em vez de mostrar a mais recente como se fosse a pedida", () => {
+    const out = html(<PageDetailView loaded={ready(detail())} version={99} />);
+    expect(out).toContain("A versão 99 não existe");
+    expect(out).toContain("mostrando a mais recente");
+    expect(html(<PageDetailView loaded={ready(detail())} version={1} />)).not.toContain("não existe para esta página");
+    expect(html(<PageDetailView loaded={ready(detail())} />)).not.toContain("não existe para esta página");
+  });
+  it("parâmetro de versão inválido: avisa explicitamente e mostra a mais recente; versão válida existente não gera aviso nenhum", () => {
+    const bad = html(<PageDetailView loaded={ready(detail())} invalidVersion />);
+    expect(bad).toContain("O parâmetro de versão da URL é inválido");
+    expect(bad).toContain("mostrando a mais recente (versão 2)");
+    expect(bad).not.toContain("Você está vendo a <strong>");
+    const good = html(<PageDetailView loaded={ready(detail())} version={1} />);
+    expect(good).not.toContain("parâmetro de versão");
+    expect(good).not.toContain("não existe para esta página");
+    expect(html(<PageDetailView loaded={ready(detail())} />)).not.toContain("parâmetro de versão");
+  });
+  it("sem nenhuma versão, o aviso de parâmetro inválido não aparece (não há 'mais recente' a mostrar)", () => {
+    expect(html(<PageDetailView loaded={ready(detail({ versions: [] }))} invalidVersion />)).not.toContain("parâmetro de versão");
   });
   it("campos editáveis e dados estruturados: declara o que NÃO existe, sem fingir", () => {
     const out = html(<PageDetailView loaded={ready(detail())} />);

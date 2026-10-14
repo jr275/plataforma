@@ -2,13 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Fronteiras mockadas: redirect do Next (lança, como o real), a resolução de sessão/tenant e a execução no banco. A validação, a escolha do
 // escopo e as mensagens que vão à interface são a lógica REAL de actions.ts.
-vi.mock("next/navigation", () => ({ redirect: vi.fn((url: string) => { throw new Error(`NEXT_REDIRECT:${url}`); }) }));
+vi.mock("next/navigation", async (orig) => ({ ...(await orig<typeof import("next/navigation")>()), redirect: vi.fn((url: string) => { throw new Error(`NEXT_REDIRECT:${url}`); }) }));
 vi.mock("next/server", () => ({ connection: vi.fn(async () => undefined) }));
 vi.mock("@/lib/server/identity", () => ({ requestIdentity: vi.fn() }));
 vi.mock("@/lib/server/db", () => ({ appPool: vi.fn(), dbOrigin: vi.fn() }));
 vi.mock("@/lib/server/tenant-data", async (orig) => ({ ...(await orig<typeof import("@/lib/server/tenant-data")>()), resolveTenantContext: vi.fn() }));
 vi.mock("@plataforma/api", async (orig) => ({ ...(await orig<typeof import("@plataforma/api")>()), runGeneration: vi.fn(), withTenant: vi.fn(), getPageDetail: vi.fn() }));
 
+import { notFound } from "next/navigation";
+import { DynamicServerError } from "next/dist/client/components/hooks-server-context";
 import * as api from "@plataforma/api";
 import { resolveTenantContext } from "@/lib/server/tenant-data";
 import { generateAction, reprocessAction } from "./actions";
@@ -18,6 +20,7 @@ const POOL = { fake: "pool" } as never;
 const ID = api.devIdentity([A]);
 const RUN_ID = "11111111-1111-4111-8111-111111111111";
 const PAGE_ID = "22222222-2222-4222-8222-222222222222";
+const OTHER_TENANT_PAGE_ID = "44444444-4444-4444-8444-444444444444";
 const ENTITY_ID = "33333333-3333-4333-8333-333333333333";
 const mCtx = vi.mocked(resolveTenantContext);
 const mRun = vi.mocked(api.runGeneration);
@@ -27,8 +30,10 @@ const form = (fields: Record<string, string>) => { const f = new FormData(); for
 const okCtx = () => mCtx.mockResolvedValue({ ok: true, pool: POOL, identity: ID, tenantId: A });
 const ok = { runId: RUN_ID, status: "succeeded", total: 20, generated: 20, unchanged: 0, blocked: 0, items: [] } as never;
 
+let log: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   vi.clearAllMocks();
+  log = vi.spyOn(console, "error").mockImplementation(() => undefined); // o log interno não polui a saída; cada teste confere o que foi registrado
   okCtx();
   mRun.mockResolvedValue(ok);
   mWith.mockImplementation(async (_p, _i, _t, fn) => fn({ query: vi.fn() } as never));
@@ -121,7 +126,6 @@ describe("reprocessAction: só a página do próprio tenant, sem publicação", 
   it("página inexistente ou de outro workspace (a consulta devolve undefined): erro explícito e NENHUMA geração", async () => {
     mDetail.mockResolvedValue(undefined);
     expect(await reprocessAction(null, form({ pageId: PAGE_ID }))).toEqual({ error: "Página não encontrada neste workspace." });
-    expect(await reprocessAction(null, new FormData())).toEqual({ error: "Página não encontrada neste workspace." }); // sem pageId
     expect(mRun).not.toHaveBeenCalled();
   });
   it("sem sessão, sem workspace ou sem configuração: mensagem e nenhuma consulta nem geração", async () => {
@@ -150,5 +154,80 @@ describe("reprocessAction: só a página do próprio tenant, sem publicação", 
     await expect(reprocessAction(null, form({ pageId: PAGE_ID }))).rejects.toThrow("NEXT_REDIRECT");
     expect(Object.keys(api).filter((k) => /publi[cs]h|aprov|approve/i.test(k))).toEqual([]);
     expect(JSON.stringify(mRun.mock.calls[0]![3])).not.toMatch(/publi|status|approve/i);
+  });
+});
+
+describe("falhas de infraestrutura e entrada inválida nas ações", () => {
+  it("falha inesperada ao verificar a sessão (provedor de login fora): mensagem clara, nenhuma geração, nenhuma consulta e sem vazar a causa", async () => {
+    mCtx.mockRejectedValue(new Error("falha ao buscar chaves em https://projeto.supabase.co/auth/v1/.well-known/jwks.json"));
+    const g = await generateAction(null, form({ uf: "SP", limit: "20" }));
+    const r = await reprocessAction(null, form({ pageId: PAGE_ID }));
+    for (const x of [g, r]) { expect(x?.error).toMatch(/Não foi possível verificar sua sessão agora/); expect(x?.error).not.toMatch(/supabase|https?:/); }
+    expect(mRun).not.toHaveBeenCalled();
+    expect(mWith).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledTimes(2);
+  });
+  it("banco indisponível é dito como tal (e não como erro genérico) em gerar e em reprocessar", async () => {
+    mRun.mockRejectedValue(Object.assign(new Error("x"), { code: "ECONNREFUSED" }));
+    expect((await generateAction(null, form({ uf: "SP", limit: "20" })))?.error).toMatch(/banco de dados não respondeu/);
+    mDetail.mockResolvedValue({ page: { entityId: ENTITY_ID } } as never);
+    expect((await reprocessAction(null, form({ pageId: PAGE_ID })))?.error).toMatch(/banco de dados não respondeu/);
+    mWith.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "57014" }));
+    expect((await reprocessAction(null, form({ pageId: PAGE_ID })))?.error).toMatch(/banco de dados não respondeu/);
+  });
+  it("falha inesperada é registrada no servidor (tipo e código, sem a mensagem) e a interface recebe a mensagem genérica", async () => {
+    mRun.mockRejectedValue(Object.assign(new Error("falha com postgresql://u:SEGREDO@h/d"), { code: "XX000" }));
+    await generateAction(null, form({ uf: "SP", limit: "20" }));
+    expect(log).toHaveBeenCalledOnce();
+    expect(JSON.stringify(log.mock.calls)).toContain("XX000");
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/SEGREDO|postgresql:/);
+  });
+  it("erros ESPERADOS (execução em andamento, cidade inexistente) não poluem o log de erros", async () => {
+    mRun.mockRejectedValueOnce(new api.GenerationBusyError(RUN_ID));
+    await generateAction(null, form({ uf: "SP", limit: "20" }));
+    mRun.mockRejectedValueOnce(new api.GenerationScopeError(["x"]));
+    await generateAction(null, form({ uf: "SP", limit: "20" }));
+    expect(log).not.toHaveBeenCalled();
+  });
+  it("reprocessar: identificador mal formado é ENTRADA INVÁLIDA, dito como tal, e nada é consultado nem gerado", async () => {
+    for (const bad of ["", "abc", "1", "../../etc", "22222222-2222-4222-8222-22222222222", "22222222-2222-4222-8222-2222222222222", `${PAGE_ID}'; DROP TABLE plataforma.page;--`]) {
+      expect(await reprocessAction(null, form({ pageId: bad })), JSON.stringify(bad)).toEqual({ error: "Identificador de página inválido." });
+    }
+    expect(await reprocessAction(null, new FormData())).toEqual({ error: "Identificador de página inválido." });
+    expect(mCtx).not.toHaveBeenCalled();
+    expect(mWith).not.toHaveBeenCalled();
+    expect(mRun).not.toHaveBeenCalled();
+  });
+  it("reprocessar uma página BEM FORMADA de outro tenant: o banco (RLS) devolve vazio, o erro é 'não encontrada' e NENHUMA geração roda", async () => {
+    mDetail.mockResolvedValue(undefined);
+    expect(await reprocessAction(null, form({ pageId: OTHER_TENANT_PAGE_ID }))).toEqual({ error: "Página não encontrada neste workspace." });
+    expect(mDetail).toHaveBeenCalledWith(expect.anything(), OTHER_TENANT_PAGE_ID);
+    expect(mRun).not.toHaveBeenCalled();
+  });
+  it("uma execução que TERMINA em `failed` (sem lançar) leva à tela da execução, onde o resultado real aparece: a ação não declara sucesso por conta própria", async () => {
+    mDetail.mockResolvedValue({ page: { entityId: ENTITY_ID } } as never);
+    mRun.mockResolvedValue({ runId: RUN_ID, status: "failed", total: 0, generated: 0, unchanged: 0, blocked: 0, items: [], error: "x" } as never);
+    await expect(reprocessAction(null, form({ pageId: PAGE_ID }))).rejects.toThrow(`NEXT_REDIRECT:/generation/runs/${RUN_ID}`);
+  });
+});
+
+describe("ações: erros do framework Next.js NÃO viram mensagem de falha da sessão", () => {
+  // Erros REAIS do framework (gerados por ele mesmo); o `redirect` do módulo está mockado neste arquivo, então usamos notFound() e DynamicServerError.
+  const real = (make: () => unknown): unknown => { try { make(); } catch (e) { return e; } throw new Error("a função do framework não lançou"); };
+  const errors: [string, unknown][] = [["notFound()", real(() => notFound())], ["DynamicServerError", new DynamicServerError("Dynamic server usage: cookies")]];
+  for (const [nome, err] of errors) {
+    it(`${nome} lançado ao resolver o contexto é repassado nas duas ações; nada é executado nem registrado como falha`, async () => {
+      mCtx.mockRejectedValue(err);
+      await expect(generateAction(null, form({ uf: "SP", limit: "20" }))).rejects.toBe(err);
+      await expect(reprocessAction(null, form({ pageId: PAGE_ID }))).rejects.toBe(err);
+      expect(mRun).not.toHaveBeenCalled();
+      expect(mWith).not.toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
+    });
+  }
+  it("controle: uma falha comum ao resolver o contexto CONTINUA virando a mensagem clara", async () => {
+    mCtx.mockRejectedValue(new TypeError("fetch failed"));
+    expect((await generateAction(null, form({ uf: "SP", limit: "20" })))?.error).toMatch(/Não foi possível verificar sua sessão agora/);
+    expect(log).toHaveBeenCalledOnce();
   });
 });

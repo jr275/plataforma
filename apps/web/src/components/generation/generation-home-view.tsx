@@ -38,6 +38,8 @@ export function GenerationHomeView({ loaded, params, pageSize, rowHref = (p) => 
   const from = pages.total === 0 ? 0 : (params.page - 1) * pageSize + 1;
   const to = Math.min(params.page * pageSize, pages.total);
   const hasFilter = Boolean(params.q || params.status || params.uf);
+  const lastPage = Math.max(1, Math.ceil(pages.total / pageSize));
+  const outOfRange = pages.rows.length === 0 && pages.total > 0; // há dados, mas esta página de resultados não existe (URL antiga ou editada)
 
   return (
     <div className="space-y-6">
@@ -65,7 +67,10 @@ export function GenerationHomeView({ loaded, params, pageSize, rowHref = (p) => 
           <label className="block"><span className="sr-only">Ordenar por</span><select name="sort" defaultValue={params.sort} className={inputClass}>{(Object.keys(SORT_LABEL) as HomeParams["sort"][]).map((k) => (<option key={k} value={k}>Ordenar: {SORT_LABEL[k]}</option>))}</select></label>
           <div className="flex gap-2"><input type="hidden" name="dir" value={params.dir} /><Button type="submit" variant="outline">Aplicar</Button>{hasFilter ? <Link href="/generation" className="inline-flex h-8 items-center px-2 text-xs underline underline-offset-2">Limpar</Link> : null}</div>
         </form>
-        {pages.rows.length === 0 ? (
+        {outOfRange ? (
+          <EmptyState title="Esta página de resultados não existe" hint={`Há ${formatInt(pages.total)} página(s) com os filtros atuais, em ${lastPage} página(s) de resultados.`}
+            action={<span className="flex gap-3 text-xs"><Link href={homeHref(params, { page: 1 })} className="underline underline-offset-2">Ir para a primeira</Link>{lastPage > 1 ? <Link href={homeHref(params, { page: lastPage })} className="underline underline-offset-2">Ir para a última</Link> : null}</span>} />
+        ) : pages.rows.length === 0 ? (
           hasFilter ? <EmptyState title="Nenhuma página com esses filtros" hint="Ajuste a busca ou limpe os filtros." action={<Link href="/generation" className="text-xs underline underline-offset-2">Limpar filtros</Link>} />
                     : <EmptyState title="Nenhuma página gerada ainda" hint="Use “Gerar rascunhos” acima para criar as primeiras a partir dos dados do IBGE." />
         ) : (

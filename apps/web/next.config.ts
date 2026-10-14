@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  transpilePackages: ["@plataforma/api"],
+  transpilePackages: ["@plataforma/api", "@plataforma/pack-real-estate"],
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

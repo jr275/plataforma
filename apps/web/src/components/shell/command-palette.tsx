@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Search } from "lucide-react";
 import { Dialog } from "@base-ui/react/dialog";
 import { useAppState } from "@/components/app-state";
-import { allNavItems } from "@/config/navigation";
+import { linkedNavItems } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 
 type Command = { id: string; group: string; label: string; hint?: string; keywords: string; run: () => void };
@@ -27,14 +27,13 @@ export function CommandPalette() {
   const commands = useMemo<Command[]>(() => {
     const go = (href: string) => () => router.push(href);
     const list: Command[] = [];
-    for (const n of allNavItems) list.push({ id: `nav-${n.id}`, group: "Ir para", label: n.label, keywords: n.label, run: go(n.href) });
-    for (const o of current.opportunities) list.push({ id: o.id, group: "Oportunidades", label: o.title, hint: o.kind, keywords: `${o.title} ${o.summary} ${o.intent}`, run: go(`/opportunities/${o.id}`) });
-    for (const e of current.entities) list.push({ id: e.id, group: "Entidades", label: e.label, hint: e.type, keywords: `${e.label} ${e.type} ${e.summary}`, run: go(`/entities/${e.id}`) });
-    for (const k of current.knowledge) list.push({ id: k.id, group: "Conhecimento", label: k.title, hint: "registro", keywords: `${k.title} ${k.statement}`, run: go(`/knowledge/${k.id}`) });
-    for (const p of current.pages) list.push({ id: p.id, group: "Páginas", label: p.title, hint: p.path, keywords: `${p.title} ${p.path} ${p.summary}`, run: go(`/pages/${p.id}`) });
-    for (const q of current.queries) list.push({ id: q.id, group: "Buscas", label: q.text, hint: q.cluster, keywords: `${q.text} ${q.cluster}`, run: go(`/search-universe?q=${encodeURIComponent(q.text)}`) });
-    for (const a of current.agents) list.push({ id: a.id, group: "Agentes", label: a.name, hint: a.role, keywords: `${a.name} ${a.description}`, run: go(`/agents/${a.id}`) });
-    for (const s of current.sources) list.push({ id: s.id, group: "Fontes de dados", label: s.name, hint: s.type, keywords: `${s.name} ${s.type} ${s.description}`, run: go(`/data-sources/${s.id}`) });
+    for (const n of linkedNavItems) list.push({ id: `nav-${n.id}`, group: "Ir para", label: n.label, hint: n.mode === "real" ? "dado real" : "demonstração", keywords: n.label, run: go(n.href) });
+    for (const e of current.entities) list.push({ id: e.id, group: "Entidades (demonstração)", label: e.label, hint: e.type, keywords: `${e.label} ${e.type} ${e.summary}`, run: go(`/entities/${e.id}`) });
+    for (const k of current.knowledge) list.push({ id: k.id, group: "Conhecimento (demonstração)", label: k.title, hint: "registro", keywords: `${k.title} ${k.statement}`, run: go(`/knowledge/${k.id}`) });
+    for (const p of current.pages) list.push({ id: p.id, group: "Páginas (demonstração)", label: p.title, hint: p.path, keywords: `${p.title} ${p.path} ${p.summary}`, run: go(`/pages/${p.id}`) });
+    for (const q of current.queries) list.push({ id: q.id, group: "Buscas (demonstração)", label: q.text, hint: q.cluster, keywords: `${q.text} ${q.cluster}`, run: go(`/search-universe?q=${encodeURIComponent(q.text)}`) });
+    for (const a of current.agents) list.push({ id: a.id, group: "Agentes (demonstração)", label: a.name, hint: a.role, keywords: `${a.name} ${a.description}`, run: go(`/agents/${a.id}`) });
+    for (const s of current.sources) list.push({ id: s.id, group: "Fontes de dados (demonstração)", label: s.name, hint: s.type, keywords: `${s.name} ${s.type} ${s.description}`, run: go(`/data-sources/${s.id}`) });
     for (const w of workspaces.filter((w) => w.workspace.id !== current.workspace.id)) {
       list.push({ id: `ws-${w.workspace.id}`, group: "Workspace", label: `Trocar para ${w.workspace.name}`, keywords: `workspace trocar ${w.workspace.name}`, run: () => { selectWorkspace(w.workspace.id); notify(`Workspace alterado para ${w.workspace.name}.`); } });
     }

@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { AppStateProvider } from "@/components/app-state";
 import { DEFAULT_WORKSPACE_ID, listWorkspaceData } from "@/data/source";
+import { Suspense } from "react";
 import { CommandPalette } from "./command-palette";
+import { ModeBannerByRoute } from "./mode-banner";
 import { NavDrawer } from "./nav-drawer";
 import { Sidebar } from "./sidebar-nav";
 import { Toaster } from "./toaster";
@@ -19,7 +21,8 @@ export async function AppShell({ children }: { children: ReactNode }) {
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar />
-          <main id="conteudo" className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <main id="conteudo" className="mx-auto w-full max-w-[1280px] flex-1 px-4 py-6 sm:px-6 lg:px-8">
+            <Suspense fallback={null}><ModeBannerByRoute /></Suspense>
             {children}
           </main>
         </div>

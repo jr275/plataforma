@@ -15,7 +15,7 @@ import { StatePanel } from "./state-panel";
 
 export interface PageDetailData { detail: PageDetail | undefined; now: Date }
 
-export function PageDetailView({ loaded, version }: { loaded: Loaded<PageDetailData>; version?: number }) {
+export function PageDetailView({ loaded, version, invalidVersion = false }: { loaded: Loaded<PageDetailData>; version?: number; /** O `?v=` da URL está presente e não é um inteiro positivo válido (ver parseVersionParam). */ invalidVersion?: boolean }) {
   const crumbs = [{ label: "Geração de páginas", href: "/generation" }, { label: "Página" }];
   if (loaded.state !== "ready") return <div className="space-y-6"><PageHeader crumbs={crumbs} title="Página" /><StatePanel state={loaded.state} missing={loaded.state === "not_configured" ? loaded.missing : undefined} /></div>;
   const { detail, now } = loaded.data;
@@ -24,6 +24,7 @@ export function PageDetailView({ loaded, version }: { loaded: Loaded<PageDetailD
   const { page, versions, latestAttempt } = detail;
   const latest = versions[0];
   const shown = versions.find((v) => v.version === version) ?? latest;
+  const missingVersion = version !== undefined && !versions.some((v) => v.version === version) && latest !== undefined;
   const isOld = shown !== undefined && latest !== undefined && shown.version !== latest.version;
   const failed = latestAttempt?.gates.filter((g) => g.outcome === "fail") ?? [];
   const omissions = shown ? describeOmissions(shown.content) : [];
@@ -54,6 +55,14 @@ export function PageDetailView({ loaded, version }: { loaded: Loaded<PageDetailD
             <ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground">{failed.map((g) => (<li key={g.gate}><strong className="text-foreground">{g.gate}:</strong> {g.detail}</li>))}</ul>
             <p className="mt-1 text-xs text-muted-foreground">A última versão aprovada continua abaixo. Corrija o dado de origem e reprocesse.</p></div>
         </div>
+      ) : null}
+
+      {invalidVersion && latest ? (
+        <p role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm">{`O parâmetro de versão da URL é inválido (use um número inteiro positivo); mostrando a mais recente (versão ${latest.version}).`}</p>
+      ) : null}
+
+      {missingVersion && latest ? (
+        <p role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm">{`A versão ${version} não existe para esta página; mostrando a mais recente (versão ${latest.version}).`}</p>
       ) : null}
 
       {isOld && shown ? (
