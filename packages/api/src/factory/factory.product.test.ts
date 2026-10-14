@@ -43,23 +43,23 @@ let pool: pg.Pool;
 const id = () => devIdentity([O, P]);
 const as = <X>(t: string, fn: (db: TenantDb) => Promise<X>) => withTenant(pool, id(), t, fn);
 const oppOf = (key: string) => as(O, async (db) => (await db.query<{ id: string; status: string }>(`SELECT o.id, o.status FROM plataforma.growth_opportunity o JOIN plataforma.entity e ON e.id = o.primary_entity_id WHERE e.source_key = $1 AND o.pattern_key = 'topic-city-overview'`, [key])).rows[0]!);
-const env = (over: Partial<BatchEnv> = {}): BatchEnv => ({ pool, identity: id(), tenantId: O, tenantName: "Tenant O", domainPack: { id: "real-estate", version: "0.1.0" }, agents: { ctx: baseCtx(llm), budget: RunBudget.create(), editorialStyle: "direto" }, eligibility: eligDeps, blueprint: bpDeps,
+const env = (over: Partial<BatchEnv> = {}): BatchEnv => ({ mode: "test_simulation", pool, identity: id(), tenantId: O, tenantName: "Tenant O", domainPack: { id: "real-estate", version: "0.1.0" }, agents: { ctx: baseCtx(llm), budget: RunBudget.create(), editorialStyle: "direto" }, eligibility: eligDeps, blueprint: bpDeps,
   recipeQa: { vertical: realEstateVertical, recipes: RECIPES, renderers: RENDERERS, qaPolicy: TEST_QA, attributes: realEstateCatalog.attributes, now: () => T0 }, now: () => T0, sleep: async () => undefined, ...over });
 const cfg = (over: Partial<BatchConfig> = {}): BatchConfig => ({ ...DEFAULT_CONFIG, limit: 5, concurrency: 1, batchSize: 2, target: "preview", ...over });
 let sp: { id: string }, cb: { id: string }, st: { id: string };
 
 // "Vercel" em memória: guarda os arquivos enviados e os serve como o provedor faria (a verificação de verdade lê o que foi enviado)
 function fakeVercel() {
-  const files = new Map<string, string>(); const calls: { method: string; url: string; auth: string | null }[] = []; let state = "QUEUED"; let created = 0; let pageStatus = 200;
+  const files = new Map<string, string>(); const calls: { method: string; url: string; auth: string | null }[] = []; let state = "QUEUED"; let created = 0; let pageStatus = 200; let failPath: string | null = null;
   const f: FetchLike = async (url, init) => {
     calls.push({ method: init?.method ?? "GET", url, auth: init?.headers?.Authorization ?? null });
     const res = (status: number, body: string) => ({ ok: status >= 200 && status < 300, status, headers: { get: () => "application/json" }, body: null, text: async () => body });
     if (url.startsWith("https://api.vercel.com/v13/deployments?") && init?.method === "POST") { created += 1; const b = JSON.parse(init.body!) as { files: { file: string; data: string }[] }; for (const x of b.files) files.set(`/${x.file.replace(/index\.html$/, "")}`, x.data); return res(200, JSON.stringify({ id: "dpl_1", url: "plataforma-abc.vercel.app", readyState: "QUEUED" })); }
     if (url.startsWith("https://api.vercel.com/v13/deployments/dpl_1")) return res(200, JSON.stringify({ id: "dpl_1", url: "plataforma-abc.vercel.app", readyState: state, errorMessage: state === "ERROR" ? "Build falhou" : undefined }));
-    if (url.startsWith("https://plataforma-abc.vercel.app")) { const path = new URL(url).pathname; const html = files.get(path.endsWith("/") ? path : `${path}/`); return pageStatus !== 200 ? res(pageStatus, "") : html ? res(200, html) : res(404, ""); }
+    if (url.startsWith("https://plataforma-abc.vercel.app")) { const path = new URL(url).pathname; const html = files.get(path.endsWith("/") ? path : `${path}/`); if (failPath && path.startsWith(failPath)) return res(404, ""); return pageStatus !== 200 ? res(pageStatus, "") : html ? res(200, html) : res(404, ""); }
     return res(500, "{}");
   };
-  return { fetch: f, calls, files, set: (s: string) => { state = s; }, setPageStatus: (s: number) => { pageStatus = s; }, get created() { return created; } };
+  return { fetch: f, calls, files, set: (s: string) => { state = s; }, setPageStatus: (s: number) => { pageStatus = s; }, setFailPath: (p: string | null) => { failPath = p; }, get created() { return created; } };
 }
 
 beforeAll(async () => {
@@ -154,12 +154,20 @@ describe("lote: selecionar, validar, estimar, confirmar, gerar, cancelar, falhar
     const before = llmCalls.length; const again = await runBatch(env(), a.id); expect(again.status).toBe("COMPLETED"); expect(llmCalls.length).toBe(before);
     expect(await as(O, async (db) => Number((await db.query<{ n: string }>(`SELECT count(*) AS n FROM plataforma.page_recipe WHERE narrative_source = 'agent7'`)).rows[0]!.n))).toBe(2);
   });
+  it("não mistura simulação com execução real: retomar um lote de simulação com ambiente real é recusado", async () => {
+    await expect(runBatch(env({ mode: "real" }), a.id, { reprocessAwaiting: true })).rejects.toThrow(/não se mistura simulação e execução real/);
+  });
   it("registrar a exceção de SERP e reprocessar só as que esperavam revisão humana aprova a terceira, sem refazer as outras", async () => {
     await applySerpWaiver(pool, id(), O, { opportunityId: st.id, reason: "Exceção de SERP de teste: não há provedor de SERP; nada é publicado." });
     const before = llmCalls.filter((c) => c.agent === 7).length;
     await runBatch(env(), a.id, { reprocessAwaiting: true });
     const v = (await as(O, (db) => getBatchView(db, a.id)))!; expect(v.counters).toMatchObject({ approved: 3, awaitingHuman: 0 });
     expect(llmCalls.filter((c) => c.agent === 7).length - before).toBe(1); // só a Santos chamou o Agente 7 de novo
+  });
+  it("páginas em paralelo não colidem na avaliação exclusiva do tenant: esperam a vez em vez de falhar", async () => {
+    const e = { ...env(), sleep: async () => new Promise<void>((r) => setTimeout(r, 5)) }; const { runPagePipeline } = await import("../runtime");
+    const runs = await Promise.all([sp, cb, st].map((o, i) => runPagePipeline({ ...e, mode: "test_simulation" }, { opportunityId: o.id, correlationId: `par-${i}` })));
+    expect(runs.map((r) => r.steps.find((s) => s.stepKey === "eligibility")!.status)).toEqual(["SUCCEEDED", "SUCCEEDED", "SUCCEEDED"]); expect(runs.every((r) => r.run.status !== "FAILED")).toBe(true);
   });
   it("histórico: lotes listados com a quantidade de itens; ações ficam na auditoria; outro tenant não vê", async () => {
     const l = await as(O, (db) => listBatches(db)); expect(l.length).toBeGreaterThanOrEqual(2); expect(l.find((x) => x.id === a.id)!.items).toBe(5);
@@ -202,6 +210,10 @@ describe("Page Factory: lista no servidor, filtros, estados distintos, preview e
     await decidePages(pool, id(), O, { opportunityIds: [cb.id], decision: "REVOKED", reason: "revogada em teste" }); expect((await as(O, (db) => listPages(db, { stage: "awaiting_approval" }))).total).toBe(2);
     await expect(decidePages(pool, id(), O, { opportunityIds: [], decision: "APPROVED", reason: "motivo válido" })).rejects.toThrow(/1 a 200/); await expect(decidePages(pool, id(), O, { opportunityIds: [sp.id], decision: "APPROVED", reason: "ab" })).rejects.toThrow(/motivo/);
     expect((await as(O, (db) => listDecisionAudit(db, { subjectKind: "page", subjectRef: sp.id }))).some((a) => a.decision === "APPROVAL_APPROVED" && a.decidedBy === "human")).toBe(true);
+    // QA reprovado na versão atual bloqueia a aprovação (relatório mais novo copiado com outro desfecho); restaurado em seguida
+    const qaCopy = (outcome: string) => as(O, (db) => db.query(`INSERT INTO plataforma.qa_report (tenant_id, opportunity_id, recipe_id, reference_time, results, outcome, blocking_failures, created_by) SELECT tenant_id, opportunity_id, recipe_id, reference_time, results, $2, blocking_failures, created_by FROM plataforma.qa_report WHERE opportunity_id = $1 ORDER BY seq DESC LIMIT 1`, [st.id, outcome]));
+    await qaCopy("QA_FAILED"); expect((await decidePages(pool, id(), O, { opportunityIds: [st.id], decision: "APPROVED", reason: "tentativa" }))[0]).toMatchObject({ ok: false, message: expect.stringContaining("QA da versão mais recente não está aprovado") });
+    await qaCopy("QA_PASSED");
     await decidePages(pool, id(), O, { opportunityIds: [st.id, cb.id], decision: "APPROVED", reason: "revisão de teste" }); // as três ficam aprovadas para o deployment
   });
 });
@@ -235,10 +247,12 @@ describe("Deployment Center: o estado vem do provedor, nunca do pedido", () => {
   it("verificação que falha NÃO vira VERIFIED (fica VERIFICATION_PENDING com o motivo); quando as páginas respondem 200 com o h1, vira VERIFIED", async () => {
     vc.setPageStatus(401); const bad = await verifyDeployment(pool, id(), O, { fetch: vc.fetch }, dep);
     expect(bad.verified).toBe(false); expect(bad.deployment.status).toBe("VERIFICATION_PENDING"); expect(bad.results.every((x) => x.httpStatus === 401 && x.reason === "HTTP 401")).toBe(true); expect(bad.deployment.error).toMatch(/2 URL/);
-    vc.setPageStatus(200); const ok = await verifyDeployment(pool, id(), O, { fetch: vc.fetch }, dep);
+    vc.setPageStatus(200); vc.setFailPath("/cidades/sp/campinas"); const partial = await verifyDeployment(pool, id(), O, { fetch: vc.fetch }, dep);
+    expect(partial.verified).toBe(false); expect(partial.deployment.status).toBe("VERIFICATION_PENDING"); expect(partial.results.filter((x) => x.ok)).toHaveLength(1); // basta uma URL falhar para não verificar
+    vc.setFailPath(null); vc.setPageStatus(200); const ok = await verifyDeployment(pool, id(), O, { fetch: vc.fetch }, dep);
     expect(ok.verified).toBe(true); expect(ok.deployment).toMatchObject({ status: "VERIFIED", error: null }); expect(ok.results.every((x) => x.ok)).toBe(true);
-    const g = (await as(O, (db) => getDeployment(db, dep)))!; expect(g.events.map((e) => e.status)).toEqual(["VERIFIED", "VERIFICATION_PENDING", "VERIFICATION_PENDING", "READY", "BUILDING", "QUEUED", "QUEUED"]); // QUEUED duas vezes: registrado aqui e depois aceito pela Vercel
-    expect(g.events[5]!.detail).toMatchObject({ accepted: true }); expect(g.events[6]!.detail).toMatchObject({ pages: 2 }); expect(g.pages.every((p) => p.httpStatus === 200 && p.verifiedAt !== null)).toBe(true);
+    const g = (await as(O, (db) => getDeployment(db, dep)))!; expect(g.events.map((e) => e.status)).toEqual(["VERIFIED", "VERIFICATION_PENDING", "VERIFICATION_PENDING", "VERIFICATION_PENDING", "READY", "BUILDING", "QUEUED", "QUEUED"]); // QUEUED duas vezes: registrado aqui e depois aceito pela Vercel
+    expect(g.events[6]!.detail).toMatchObject({ accepted: true }); expect(g.events[7]!.detail).toMatchObject({ pages: 2 }); expect(g.pages.every((p) => p.httpStatus === 200 && p.verifiedAt !== null)).toBe(true);
     expect(g.events.find((e) => e.status === "QUEUED")!.source).toBe("request"); expect(g.events.find((e) => e.status === "READY")!.source).toBe("poll");
   });
   it("é idempotente: o mesmo conjunto de versões e destino reutiliza o deployment e não chama a Vercel de novo", async () => {

@@ -12,7 +12,7 @@ import { DECISION_TONE, FAILURE_KIND, MODE, OUTCOME, PIPELINE_STATE, PROMPT_STAT
 
 // Control Plane do motor de páginas e dos agentes (ADR-031). Cada tela mostra o que o BANCO registrou: sem execução, zero. Real, simulação de teste, falha, saída inválida e
 // bloqueio externo são estados distintos e sempre rotulados. Nenhum botão existe sem uma ação real por trás.
-export const ENGINE_SECTIONS = [["/engine", "Visão geral"], ["/engine/agents", "Agentes"], ["/engine/prompts", "Prompts"], ["/engine/executions", "Execuções"], ["/engine/pipelines", "Pipelines"], ["/engine/topics", "Tópicos"], ["/engine/eligibility", "Elegibilidade"]] as const;
+export const ENGINE_SECTIONS = [["/engine", "Visão geral"], ["/engine/pipeline", "Pipeline"], ["/engine/topics", "Tópicos"], ["/engine/eligibility", "Elegibilidade"], ["/engine/pages", "Páginas"], ["/engine/batches", "Lotes"], ["/engine/deployments", "Deployments"], ["/engine/templates", "Templates"], ["/engine/agents", "Agentes"], ["/engine/prompts", "Prompts"], ["/engine/executions", "Execuções"], ["/engine/pipelines", "Runtime"], ["/engine/progress", "Andamento"]] as const;
 
 export function EngineNav({ current }: { current: string }) {
   return (
@@ -23,22 +23,22 @@ export function EngineNav({ current }: { current: string }) {
     </nav>
   );
 }
-function Shell({ current, title, description, crumbs, children, actions }: { current: string; title: string; description: string; crumbs?: readonly { label: string; href?: string }[]; children: React.ReactNode; actions?: React.ReactNode }) {
+export function Shell({ current, title, description, crumbs, children, actions }: { current: string; title: string; description: string; crumbs?: readonly { label: string; href?: string }[]; children: React.ReactNode; actions?: React.ReactNode }) {
   return <div className="space-y-6"><PageHeader crumbs={[{ label: "Motor de páginas", href: "/engine" }, ...(crumbs ?? [{ label: title }])]} title={title} description={description} actions={actions} /><EngineNav current={current} />{children}</div>;
 }
 /** Estados em que a tela não tem dados: explica o motivo em vez de simular conteúdo. */
-function Gate<T>({ loaded, current, title, description, crumbs, children }: { loaded: Loaded<T>; current: string; title: string; description: string; crumbs?: readonly { label: string; href?: string }[]; children: (data: T) => React.ReactNode }) {
+export function Gate<T>({ loaded, current, title, description, crumbs, children }: { loaded: Loaded<T>; current: string; title: string; description: string; crumbs?: readonly { label: string; href?: string }[]; children: (data: T) => React.ReactNode }) {
   if (loaded.state !== "ready") return <Shell current={current} title={title} description={description} {...(crumbs ? { crumbs } : {})}><StatePanel state={loaded.state as BlockedState} {...(loaded.state === "not_configured" ? { missing: loaded.missing } : {})} /></Shell>;
   return <Shell current={current} title={title} description={description} {...(crumbs ? { crumbs } : {})}>{children(loaded.data)}</Shell>;
 }
-const Stat = ({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) => <div className="rounded-lg border border-border px-3 py-2"><p className="text-[11px] text-muted-foreground">{label}</p><p className="text-lg font-semibold tabular-nums">{value}</p>{hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}</div>;
-const Pre = ({ v, label }: { v: unknown; label: string }) => <details className="rounded-lg border border-border"><summary className="cursor-pointer px-3 py-2 text-xs font-medium">{label}</summary><pre className="max-h-96 overflow-auto border-t border-border bg-muted/40 p-3 text-[11px] leading-snug">{json(v)}</pre></details>;
-const when = (d: Date | string | null) => (d ? formatDateTime(d) : "—");
+export const Stat = ({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) => <div className="rounded-lg border border-border px-3 py-2"><p className="text-[11px] text-muted-foreground">{label}</p><p className="text-lg font-semibold tabular-nums">{value}</p>{hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}</div>;
+export const Pre = ({ v, label }: { v: unknown; label: string }) => <details className="rounded-lg border border-border"><summary className="cursor-pointer px-3 py-2 text-xs font-medium">{label}</summary><pre className="max-h-96 overflow-auto border-t border-border bg-muted/40 p-3 text-[11px] leading-snug">{json(v)}</pre></details>;
+export const when = (d: Date | string | null) => (d ? formatDateTime(d) : "—");
 
 // --- Visão geral + registro de andamento (quatro estados distintos) -------------------------------------------------------------------------------------------------------------------
 export function EngineOverview({ progress, registry }: { progress: readonly E.ProgressItem[]; registry: Loaded<{ agents: readonly runtime.AgentRegistryRow[]; llmConfigured: boolean }> }) {
   return (
-    <Shell current="/engine" title="Motor de páginas" description="O LLM propõe, a aplicação valida, o motor determinístico decide, o Control Plane explica e a auditoria prova. Nada aqui publica uma página.">
+    <Shell current="/engine/progress" title="Andamento do motor" description="O LLM propõe, a aplicação valida, o motor determinístico decide, o Control Plane explica e a auditoria prova. Nada aqui publica uma página.">
       {registry.state === "ready" ? (
         <Panel title="Estado do runtime de agentes">
           <div className="grid gap-3 sm:grid-cols-3">

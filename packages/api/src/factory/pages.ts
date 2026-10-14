@@ -54,6 +54,11 @@ export async function listPages(db: TenantDb, f: PageFilters = {}): Promise<{ to
   const total = rows[0] ? Number(rows[0].total) : f.offset ? Number((await db.query<{ n: string }>(`${SQL} SELECT count(*) AS n FROM base ${WHERE}`, args)).rows[0]!.n) : 0;
   return { total, byStage: Object.fromEntries(by.map((r) => [r.stage, Number(r.n)])), rows: rows.map(toRow) };
 }
+export async function getPageRow(db: TenantDb, opportunityId: string): Promise<PageRow | null> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(opportunityId)) return null;
+  const r = (await db.query<R>(`${SQL} SELECT *, 1 AS total FROM base WHERE opportunity_id = $1`, [opportunityId])).rows[0];
+  return r ? toRow(r) : null;
+}
 export async function pageFacets(db: TenantDb): Promise<{ families: string[]; templates: string[] }> {
   const fam = (await db.query<{ v: string }>(`SELECT DISTINCT candidate_page_family AS v FROM plataforma.growth_opportunity WHERE topic_id IS NOT NULL AND candidate_page_family IS NOT NULL ORDER BY 1`)).rows.map((r) => r.v);
   const tpl = (await db.query<{ v: string }>(`SELECT DISTINCT template_id AS v FROM plataforma.spec_blueprint ORDER BY 1`)).rows.map((r) => r.v);

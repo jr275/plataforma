@@ -40,3 +40,14 @@ async function engineCombinationFilters(db: TenantDb) { const l = await combinat
 export const loadEligibility = (decision: string, gate: string) => loadForTenant((db) => eligibility.listLatestDecisions(db, { ...(decision && (eligibility.DECISIONS as readonly string[]).includes(decision) ? { decision: decision as eligibility.Decision } : {}), ...(gate ? { gate } : {}), limit: 50 }));
 export const loadEngineOpportunity = (id: string) => loadForTenant(async (db) => ({ view: await runtime.getEngineView(db, id), detail: await engine.getOpportunity(db, id) }));
 export const progressItems = () => engine.ENGINE_PROGRESS;
+
+/** Ambiente do pipeline (produção): LLM só se houver chave; sem ela os passos de agente ficam bloqueados externamente. Nunca simula. */
+export async function pipelineEnvFor(ctx: { pool: import("@plataforma/api").PoolLike; identity: import("@plataforma/api").VerifiedIdentity; tenantId: string }) {
+  const { withTenant, provider } = await import("@plataforma/api");
+  const { realFetch } = await import("./vertical");
+  let tenantName = "workspace";
+  try { tenantName = await withTenant(ctx.pool, ctx.identity, ctx.tenantId, async (db) => (await db.query<{ name: string }>(`SELECT name FROM plataforma.tenant WHERE id = plataforma.current_tenant_id()`)).rows[0]?.name ?? "workspace"); } catch { /* rótulo apenas */ }
+  return { pool: ctx.pool, identity: ctx.identity, tenantId: ctx.tenantId, tenantName, domainPack: { id: PACK_ID, version: PACK_VERSION },
+    agents: { ctx: { fetch: realFetch, userAgent: provider.PUBLIC_UA, gate: new provider.RateGate({}), env: process.env as Record<string, string | undefined>, prompts: FILE_PROMPTS, vars: PIPELINE_VARS(tenantName) }, budget: provider.RunBudget.create(), editorialStyle: "direto" },
+    eligibility: PACK_DEPS.eligibility, blueprint: PACK_DEPS.blueprint, recipeQa: PACK_DEPS.recipeQa } as const;
+}

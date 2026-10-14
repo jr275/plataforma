@@ -21,6 +21,8 @@ export PLATAFORMA_LOCAL_URL="$URL" NODE_ENV=development
 ( cd "$ROOT/packages/api" && pnpm exec tsx src/ingest/cli.ts --env-var PLATAFORMA_LOCAL_URL --tenant "$TENANT" --file "$ROOT/db/test-fixtures/generation/sp-ibge-2026-10-12.csv" --origin real --source IBGE | cut -c1-160 )
 echo "== fluxo do motor com dados reais (SIDRA para $SIDRA municípios)"
 ( cd "$ROOT/packages/api" && pnpm exec tsx ../../packs/real-estate/src/engine-cli.ts --env-var PLATAFORMA_LOCAL_URL --tenant "$TENANT" --sidra "$SIDRA" | tail -25 )
+echo "== bancada da Fábrica: demanda de TESTE, lote com LLM ROTEIRIZADO (rotulado test_simulation)"
+( cd "$ROOT/packages/api" && pnpm exec tsx ../../packs/real-estate/src/dev-factory-seed.ts --env-var PLATAFORMA_LOCAL_URL --tenant "$TENANT" --cities 4 | tail -30 )
 echo "== aplicativo em http://localhost:$PORT_WEB/engine (sem login; banco descartável)"
 cd "$ROOT/apps/web"
 NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= PLATAFORMA_APP_DATABASE_URL= ANTHROPIC_API_KEY= PLATAFORMA_DEV_EDITOR_DATABASE_URL="$URL" PLATAFORMA_DEV_EDITOR_TENANT="$TENANT" pnpm exec next dev --port "$PORT_WEB" &

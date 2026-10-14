@@ -109,7 +109,12 @@ export async function runPagePipeline(env: PipelineEnv, input: { opportunityId: 
   const steps: StepDef[] = [
     { key: "eligibility", kind: "engine", dependsOn: [], idempotencyKey: () => `eligibility:${input.opportunityId}`, run: async () => {
       if (!oppRow || !oppRow.topic_id) return { status: "FAILED", error: "oportunidade não encontrada ou não é um tópico do motor" };
-      const ev = await runEvaluation(env.pool, env.identity, env.tenantId, env.eligibility, { topicIds: [oppRow.topic_id] });
+      // a avaliação é exclusiva por tenant (uma execução do motor por vez): com páginas em paralelo (lote) espera a vez, com limite, em vez de falhar
+      let ev: Awaited<ReturnType<typeof runEvaluation>> | undefined;
+      for (let attempt = 0; ; attempt++) {
+        try { ev = await runEvaluation(env.pool, env.identity, env.tenantId, env.eligibility, { topicIds: [oppRow.topic_id] }); break; }
+        catch (e) { if (!(e instanceof Error && e.name === "ResearchBusyError") || attempt >= 60) throw e; await (env.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))))(150 + Math.floor(Math.random() * 150)); }
+      }
       if (ev.status !== "succeeded") return { status: "FAILED", error: ev.error ?? "a avaliação de elegibilidade falhou" };
       const d = (await withTenant(env.pool, env.identity, env.tenantId, (db) => listDecisionHistory(db, input.opportunityId)))[0] ?? null;
       if (!d) return { status: "FAILED", error: "a avaliação não gerou decisão" };

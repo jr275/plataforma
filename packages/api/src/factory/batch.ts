@@ -89,13 +89,15 @@ export async function requestBatchCancel(pool: PoolLike, identity: VerifiedIdent
 }
 
 /** `cancel` é o cancelamento em processo (além do flag no banco); só impede NOVOS itens: o item em curso termina. */
-export type BatchEnv = Omit<PipelineEnv, "mode" | "cancel"> & { readonly cancel?: { cancelled: boolean } };
+export type BatchEnv = Omit<PipelineEnv, "cancel"> & { readonly cancel?: { cancelled: boolean } };
 /** GENERATE + QA: executa (ou retoma; `reprocessAwaiting` reenvia as páginas que pararam em revisão humana, por exemplo depois de registrar a exceção de SERP) um lote CONFIRMED/RUNNING/CANCELLED/FAILED. Itens SUCCEEDED/BLOCKED/SKIPPED não são refeitos; FAILED volta até MAX_ATTEMPTS. */
 export async function runBatch(env: BatchEnv, batchId: string, opts: { readonly reprocessAwaiting?: boolean } = {}): Promise<BatchRecord> {
   const { pool, identity, tenantId } = env;
   const b0 = await withTenant(pool, identity, tenantId, async (db) => {
     const b = (await db.query<Row>(`SELECT ${COLS} FROM plataforma.generation_batch WHERE id = $1 FOR UPDATE`, [batchId])).rows[0]; if (!b) throw new BatchError("lote não encontrado");
     if (b.status === "PLANNED") throw new BatchError("confirme o lote antes de executar");
+    // um lote não mistura proveniências: planejado como simulação só roda/retoma com o ambiente de simulação, e o real só com o real
+    if (b.mode !== env.mode) throw new BatchError(`o lote foi planejado em modo ${b.mode}; este ambiente é ${env.mode}. Retome com o mesmo modo (não se mistura simulação e execução real)`);
     if (b.status === "COMPLETED") {
       // concluído e sem nada a refazer: não faz nada (idempotente); com falha retentável ou revisão a reprocessar, o lote é retomado
       const redo = Number((await db.query<{ n: string }>(`SELECT count(*) AS n FROM plataforma.generation_batch_item WHERE batch_id = $1 AND ((status = 'FAILED' AND attempts < $2) OR ($3 AND status = 'SUCCEEDED' AND final_outcome = 'NEEDS_REVIEW'))`, [batchId, MAX_ATTEMPTS, opts.reprocessAwaiting === true])).rows[0]!.n);
@@ -115,7 +117,7 @@ export async function runBatch(env: BatchEnv, batchId: string, opts: { readonly 
     for (;;) {
       const it = await next(); if (!it) return;
       try {
-        const { cancel: _c, ...penv } = env; const r = await runPagePipeline({ ...penv, mode: b0.mode, maxModelCalls: cfg.maxModelCallsPerPage }, { opportunityId: it.opportunity_id, correlationId: `batch-${batchId}-${it.opportunity_id}` });
+        const { cancel: _c, ...penv } = env; const r = await runPagePipeline({ ...penv, maxModelCalls: cfg.maxModelCallsPerPage }, { opportunityId: it.opportunity_id, correlationId: `batch-${batchId}-${it.opportunity_id}` });
         const failed = r.run.status === "FAILED";
         await withTenant(pool, identity, tenantId, (db) => db.query(`UPDATE plataforma.generation_batch_item SET status = $2, stage = $3, pipeline_run_id = $4, final_outcome = $5, error = $6, finished_at = now() WHERE id = $1`, [it.id, failed ? "FAILED" : r.outcome === "BLOCKED" ? "BLOCKED" : "SUCCEEDED", failed ? (r.steps.find((s) => s.status === "FAILED")?.stepKey ?? "pipeline") : "done", r.run.id, r.outcome, failed ? (r.run.summary ?? "falha").slice(0, 900) : r.outcome === "BLOCKED" ? (r.reasons[0] ?? "").slice(0, 900) : null]));
       } catch (e) {
@@ -158,7 +160,7 @@ export async function getBatchView(db: TenantDb, batchId: string): Promise<Batch
   const rec = toRec(b); const now = Date.now();
   const elapsedMs = rec.startedAt ? (rec.finishedAt ? rec.finishedAt.getTime() : now) - rec.startedAt.getTime() : null;
   const finished = counters.approved + counters.awaitingHuman + counters.blocked + counters.failed;
-  const rate = elapsedMs && elapsedMs > 0 && finished >= 3 ? finished / (elapsedMs / 60_000) : null;
+  const rate = elapsedMs && elapsedMs >= 5_000 && finished >= 3 ? finished / (elapsedMs / 60_000) : null;
   const etaMs = rate && finished >= 5 && counters.pending + counters.running > 0 && rec.status === "RUNNING" ? ((counters.pending + counters.running) / rate) * 60_000 : null;
   return { batch: rec, counters, byStage, elapsedMs, ratePerMinute: rate, etaMs, recent, errors, blockReasons, awaiting };
 }
