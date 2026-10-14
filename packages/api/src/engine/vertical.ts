@@ -27,6 +27,8 @@ export interface QueryPattern {
   /** Ids de `evidenceRequirements` necessários para uma experiência fundamentada. */
   readonly requiredEvidence: readonly string[];
   readonly outcome: string;
+  /** Padrão que só o motor de tópicos usa: a descoberta por padrão × entidade do motor anterior o ignora (ADR-030). */
+  readonly topicOnly?: boolean;
 }
 export interface SignalRule {
   readonly topic: string; readonly label: string;

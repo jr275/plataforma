@@ -21,7 +21,7 @@ export function classifyQuery(def: VerticalDefinition, index: EntityIndex, query
   if (ex.resolved.length > 1) return { status: "ambiguous", reason: "a query cita mais de uma entidade", candidates: ex.resolved.map((m) => m.record.name) };
   const entity = ex.resolved[0]?.record ?? null;
   const q = entity ? ex.residual.map((t) => syn[t] ?? t) : tokens(query, syn);
-  const scored = def.patterns
+  const scored = def.patterns.filter((p) => !p.topicOnly)
     .filter((p) => (p.entityKind === null) === (entity === null) && (p.entityKind === null || p.entityKind === entity!.kind))
     .map((p) => ({ p, score: Math.max(...p.templates.map((t) => jaccard(q, template(t, syn)))) }))
     .sort((a, b) => b.score - a.score || (a.p.key < b.p.key ? -1 : 1));

@@ -90,5 +90,6 @@ export { previewDraftPage, templateFromDraft, type DraftPreview } from "./pages/
 export * as engine from "./engine";
 export * as provider from "./provider";
 export * as catalog from "./catalog";
+export * as topics from "./topics";
 export { lastCallPerProvider, type LastCall } from "./provider/store";
 export * as draft from "./draft";

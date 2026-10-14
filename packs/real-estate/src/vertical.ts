@@ -35,6 +35,8 @@ const patterns: engine.QueryPattern[] = [
   P({ key: "selic-mortgage", group: "finance", intent: "informational", stage: "awareness", entityKind: null, templates: ["selic e financiamento imobiliário", "como a selic afeta o financiamento imobiliário"], jtbd: "Entender o efeito da Selic no financiamento", experience: "guide", valueTier: "medium", requiredEvidence: ["credit_rates"], outcome: "tráfego informativo" }),
   P({ key: "rent-adjustment", group: "rent", intent: "informational", stage: "consideration", entityKind: null, templates: ["reajuste do aluguel igp-m", "igp-m aluguel"], jtbd: "Calcular o reajuste do aluguel", experience: "data_insights", valueTier: "medium", requiredEvidence: ["rent_indices"], outcome: "tráfego de locatários e proprietários" }),
   P({ key: "mortgage-howto", group: "finance", intent: "informational", stage: "awareness", entityKind: null, templates: ["como financiar um imóvel", "como funciona o financiamento imobiliário"], jtbd: "Aprender a financiar um imóvel", experience: "guide", valueTier: "medium", requiredEvidence: ["editorial"], outcome: "tráfego informativo" }),
+  // Padrões que SÓ o motor de tópicos usa (ADR-030): dão ao tópico o contrato de blueprint e de geração; a descoberta por padrão × entidade os ignora.
+  P({ key: "topic-city-overview", group: "geo_info", intent: "informational", stage: "awareness", entityKind: "city", topicOnly: true, templates: ["{entity}: população e dados do município"], jtbd: "Entender o tamanho e as características básicas do município", experience: "location_overview", valueTier: "low", requiredEvidence: ["geo_entities"], outcome: "tráfego informativo qualificado" }),
 ];
 
 const signals: engine.SignalRule[] = [

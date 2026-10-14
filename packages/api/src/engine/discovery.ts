@@ -54,7 +54,7 @@ export function buildOpportunities(input: DiscoveryInput): { drafts: Opportunity
   const ambiguous = new Set([...nameCount].filter(([, n]) => n > 1).map(([k]) => k));
 
   const queries: string[] = [];
-  for (const p of def.patterns) {
+  for (const p of def.patterns.filter((x) => !x.topicOnly)) {
     if (p.entityKind === null) queries.push(...p.templates);
     else for (const e of picked.filter((x) => x.kind === p.entityKind)) for (const t of p.templates) queries.push(queryText(t, e, ambiguous));
   }

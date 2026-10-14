@@ -49,3 +49,8 @@ INSERT INTO plataforma.tenant (id, slug, name) VALUES
 INSERT INTO plataforma.tenant (id, slug, name) VALUES
   ('fc111111-1111-4111-8111-111111111111', 'catalogo-y', 'Catálogo Y'),
   ('fc222222-2222-4222-8222-222222222222', 'catalogo-z', 'Catálogo Z');
+-- Tenants A2, B2 e C2 (fd...): motor de tópicos, combinações e decisões (ADR-030 em diante).
+INSERT INTO plataforma.tenant (id, slug, name) VALUES
+  ('fd111111-1111-4111-8111-111111111111', 'topicos-1', 'Tópicos 1'),
+  ('fd222222-2222-4222-8222-222222222222', 'topicos-2', 'Tópicos 2'),
+  ('fd333333-3333-4333-8333-333333333333', 'topicos-3', 'Tópicos 3');
