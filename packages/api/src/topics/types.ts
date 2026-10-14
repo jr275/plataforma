@@ -26,7 +26,7 @@ export interface Topic {
   readonly topicId: string; readonly tenantId: string; readonly primaryEntityId: string; readonly primaryEntityType: string;
   readonly patternId: string; readonly queryPatternKey: string;
   readonly dimensions: Readonly<Record<string, string>>;
-  readonly attributesUsed: readonly string[]; readonly relationshipsUsed: readonly string[];
+  readonly attributesUsed: readonly string[]; /** Subconjunto de `attributesUsed` sem o qual o tópico não tem dado suficiente. */ readonly requiredAttributes: readonly string[]; readonly relationshipsUsed: readonly string[];
   readonly geoGranularity: GeoGranularity; readonly intentType: IntentType; readonly queryHypothesis: string; readonly userNeed: string;
   readonly evidenceRequired: readonly string[]; readonly dataAvailable: readonly string[]; readonly dataMissing: readonly string[];
   readonly candidatePageFamily: string; readonly commercialPotential: CommercialPotential; readonly refreshDependencies: readonly string[];

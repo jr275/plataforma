@@ -16,9 +16,10 @@ export const STATE_LABEL: Record<LifecycleState, string> = {
 export const TRANSITIONS: Readonly<Record<LifecycleState, readonly LifecycleState[]>> = {
   discovered: ["validated", "rejected", "retired"],
   validated: ["scored", "rejected", "retired"],
-  scored: ["eligible", "retired"],
+  // `scored → rejected` e `eligible → rejected`: a reavaliação (política ou dados mudaram) pode concluir REJECTED depois de uma decisão anterior (ADR-030)
+  scored: ["eligible", "rejected", "retired"],
   // `eligible -> blueprinted` é a DISPENSA registrada da etapa SERP (ADR-024): só enquanto não há provedor de SERP; o blueprint grava a SERP como não avaliada.
-  eligible: ["serp_analyzed", "blueprinted", "scored", "retired"],
+  eligible: ["serp_analyzed", "blueprinted", "scored", "rejected", "retired"],
   serp_analyzed: ["blueprinted", "scored", "retired"],
   blueprinted: ["data_assembled", "serp_analyzed", "retired"],
   data_assembled: ["evidence_validated", "blueprinted", "retired"],

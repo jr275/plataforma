@@ -6,6 +6,7 @@ ALTER TABLE plataforma.growth_opportunity
   ADD COLUMN dimensions            jsonb,
   ADD COLUMN attributes_used       text[] NOT NULL DEFAULT '{}',
   ADD COLUMN relationships_used    text[] NOT NULL DEFAULT '{}',
+  ADD COLUMN required_attributes   text[] NOT NULL DEFAULT '{}',
   ADD COLUMN data_available        text[] NOT NULL DEFAULT '{}',
   ADD COLUMN data_missing          text[] NOT NULL DEFAULT '{}',
   ADD COLUMN evidence_required     text[] NOT NULL DEFAULT '{}',

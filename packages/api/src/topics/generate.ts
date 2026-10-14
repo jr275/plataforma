@@ -39,7 +39,7 @@ export function generateTopics(input: GenerateInput): { topics: Topic[]; skipped
       if (topics.has(id)) { duplicates++; continue; }
       topics.set(id, {
         topicId: id, tenantId: input.tenantId, primaryEntityId: e.id, primaryEntityType: e.entityType, patternId: p.id, queryPatternKey: p.queryPatternKey, dimensions: dims,
-        attributesUsed: all, relationshipsUsed: p.relationshipsUsed, geoGranularity: p.geoGranularity, intentType: p.intentType, queryHypothesis: fill(p.queryTemplate, e), userNeed: p.userNeed,
+        attributesUsed: all, requiredAttributes: p.requiredAttributes, relationshipsUsed: p.relationshipsUsed, geoGranularity: p.geoGranularity, intentType: p.intentType, queryHypothesis: fill(p.queryTemplate, e), userNeed: p.userNeed,
         evidenceRequired: p.evidenceRequired, dataAvailable: all.filter((a) => have.has(a)), dataMissing: p.requiredAttributes.filter((a) => !have.has(a)),
         candidatePageFamily: p.family, commercialPotential: p.commercialPotential, refreshDependencies: p.requiredAttributes, origin: p.origin, parentTopicId: null,
         demandSignal: { value: null, source: null, period: null, method: null, uncertainty: "sem fonte de demanda" },

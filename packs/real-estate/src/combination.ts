@@ -20,7 +20,7 @@ export const DEFAULT_COMBINATION_POLICY: combination.CombinationPolicy = { maxDi
 
 export const FAMILIES: readonly combination.CombinationFamily[] = [
   { id: "city-comparison", pageFamily: "13-comparacao", rootPatternKeys: ["topic-city-overview"], expandable: ["compare_with"], longTail: false, minItemsKey: "city_comparison", parentRedundancy: false,
-    child: { queryPatternKey: "topic-city-comparison", intentType: "comparative", geoGranularity: "city", userNeed: "Comparar dois municípios do mesmo estado com dados da mesma data-base", evidenceRequired: ["population", "common_attributes"], commercialPotential: "medium", attributesUsed: ["city.population"], relationshipsUsed: ["compared_with"] } },
+    child: { queryPatternKey: "topic-city-comparison", intentType: "comparative", geoGranularity: "city", userNeed: "Comparar dois municípios do mesmo estado com dados da mesma data-base", evidenceRequired: ["population", "common_attributes"], commercialPotential: "medium", attributesUsed: ["city.population", "city.population_census_2022", "city.density_census_2022"], relationshipsUsed: ["compared_with"] } },
   { id: "neighborhood-typology", pageFamily: "05-tipologia-lugar", rootPatternKeys: ["topic-neighborhood"], expandable: ["property_type", "transaction", "bedrooms"], longTail: false, minItemsKey: "typology_place",
     child: { queryPatternKey: "topic-neighborhood", intentType: "transactional", geoGranularity: "neighborhood", userNeed: "Encontrar imóveis de um tipo no bairro", evidenceRequired: ["active_listings"], commercialPotential: "high", attributesUsed: ["neighborhood.active_listings"], relationshipsUsed: ["located_in", "available_for"] } },
 ];

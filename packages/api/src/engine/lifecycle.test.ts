@@ -32,7 +32,7 @@ describe("ciclo de vida: transições válidas e inválidas", () => {
     for (const s of STATES) if (s !== "retired") expect(isTerminal(s), s).toBe(false);
   });
   it("só 'descoberta' e 'validada' podem ser rejeitadas (rejeitar é decisão de validação, não de execução)", () => {
-    expect(STATES.filter((s) => canTransition(s, "rejected")).sort()).toEqual(["discovered", "validated"]);
+    expect(STATES.filter((s) => canTransition(s, "rejected")).sort()).toEqual(["discovered", "eligible", "scored", "validated"]);
   });
   it("retornos permitidos são só os de refazer a etapa anterior; o ciclo de aprendizado reentra por 'pontuada'", () => {
     expect(canTransition("qa", "experience_built")).toBe(true);
