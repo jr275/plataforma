@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { cancelBatchAction, confirmBatchAction, createDeploymentAction, decidePagesAction, planBatchAction, refreshDeploymentAction, startBatchAction, verifyDeploymentAction, type FactoryState } from "@/app/(app)/engine/factory-actions";
+import { analyzeArchitectureAction, cancelBatchAction, setMinInlinksAction, confirmBatchAction, createDeploymentAction, decidePagesAction, planBatchAction, refreshDeploymentAction, startBatchAction, verifyDeploymentAction, type FactoryState } from "@/app/(app)/engine/factory-actions";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass } from "@/components/ui/field";
 
@@ -112,6 +112,31 @@ export function DeploymentControls({ id, status }: { id: string; status: string 
     <div className="flex flex-wrap items-start gap-3">
       {!final ? <form action={refresh} className="space-y-1"><input type="hidden" name="id" value={id} /><Button type="submit" size="sm" variant="outline" disabled={rp}><Spin pending={rp} />Consultar a Vercel</Button><Feedback state={r} /></form> : null}
       {["READY", "VERIFICATION_PENDING"].includes(status) ? <form action={verify} className="space-y-1"><input type="hidden" name="id" value={id} /><Button type="submit" size="sm" disabled={vp}><Spin pending={vp} />Verificar URLs</Button><Feedback state={v} /></form> : null}
+    </div>
+  );
+}
+
+/** Reanalisar a arquitetura e ajustar o mínimo de inlinks. Nada aqui gera, aprova ou publica páginas. */
+export function ArchitectureControls({ minInlinks }: { minInlinks: number }) {
+  const [a, runA, pa] = useActionState<FactoryState, FormData>(analyzeArchitectureAction, null);
+  const [m, runM, pm] = useActionState<FactoryState, FormData>(setMinInlinksAction, null);
+  return (
+    <div className="grid gap-3 lg:grid-cols-2">
+      <form action={runA} className="space-y-2 rounded-lg border border-border p-3">
+        <p className="text-xs font-medium">Reanalisar arquitetura</p>
+        <p className="text-[11px] text-muted-foreground">Recalcula o grafo de links e o Quality Gate de todas as páginas com recipe. Só grava um resultado novo quando algo mudou. Não gera, não aprova e não publica.</p>
+        <Button type="submit" size="sm" disabled={pa}><Spin pending={pa} />Reanalisar</Button>
+        <Feedback state={a} />
+      </form>
+      <form action={runM} noValidate className="space-y-2 rounded-lg border border-border p-3">
+        <p className="text-xs font-medium">Mínimo de inlinks contextuais</p>
+        <div className="grid gap-2 sm:grid-cols-[6rem_1fr]">
+          <input name="minInlinks" type="number" min={1} max={20} defaultValue={minInlinks} className={inputClass} aria-label="Mínimo de inlinks" />
+          <input name="note" maxLength={300} placeholder="Motivo (fica na auditoria)" className={inputClass} aria-label="Motivo da alteração" />
+        </div>
+        <Button type="submit" size="sm" variant="outline" disabled={pm}><Spin pending={pm} />Salvar política</Button>
+        <Feedback state={m} />
+      </form>
     </div>
   );
 }

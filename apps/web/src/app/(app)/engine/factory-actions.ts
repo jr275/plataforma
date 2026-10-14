@@ -2,9 +2,9 @@
 
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
-import { factory, withTenant } from "@plataforma/api";
+import { architecture, factory, withTenant } from "@plataforma/api";
 import { actionContext, explainFailure } from "@/lib/server/action-context";
-import { pipelineEnvFor } from "@/lib/server/engine-runtime";
+import { ARCH_DEPS, pipelineEnvFor } from "@/lib/server/engine-runtime";
 import { realFetch } from "@/lib/server/vertical";
 
 // Ações da Fábrica de páginas (ADR-032). Identidade e tenant da sessão; entradas validadas aqui E na camada de dados; nada publica sem autorização explícita; o padrão de destino é preview.
@@ -102,4 +102,30 @@ export async function verifyDeploymentAction(_p: FactoryState, fd: FormData): Pr
   if (!c.ok) return { error: c.message };
   try { const r = await factory.verifyDeployment(c.ctx.pool, c.ctx.identity, c.ctx.tenantId, { fetch: realFetch }, id); revalidatePath("/engine", "layout"); return r.verified ? { ok: `Verificado: ${r.results.length} URL(s) responderam 200 com o conteúdo esperado.` } : { error: `Não verificado: ${r.results.filter((x) => !x.ok).map((x) => `${x.path} (${x.reason})`).slice(0, 5).join("; ")}` }; }
   catch (e) { if (e instanceof factory.DeploymentError) return { error: e.message }; return { error: explainFailure("factory-verify", e) }; }
+}
+
+/** Recalcula o grafo de links e o Quality Gate de arquitetura de todas as páginas com recipe. Não gera, não aprova e não publica: só registra um novo resultado quando algo mudou. */
+export async function analyzeArchitectureAction(_p: FactoryState, _fd: FormData): Promise<FactoryState> {
+  const c = await actionContext("architecture-analyze");
+  if (!c.ok) return { error: c.message };
+  try {
+    const r = await architecture.analyzeArchitecture(c.ctx.pool, c.ctx.identity, c.ctx.tenantId, ARCH_DEPS);
+    revalidatePath("/engine", "layout");
+    return { ok: `${r.analyses.length} página(s) analisada(s): ${r.created} resultado(s) novo(s), ${r.unchanged} sem mudança; grafo com ${r.graph.edges} aresta(s) (${r.graph.valid} válidas, ${r.graph.invalid} inválidas)${r.skipped.length ? `; ${r.skipped.length} fora do escopo (sem archetype ou blueprint)` : ""}.` };
+  } catch (e) { return { error: e instanceof architecture.ArchitectureError ? e.message : explainFailure("architecture-analyze", e) }; }
+}
+
+/** Mínimo de inlinks contextuais válidos por página (padrão 3). Cria uma nova versão da política, com autor e motivo na auditoria; não cria exceções. */
+export async function setMinInlinksAction(_p: FactoryState, fd: FormData): Promise<FactoryState> {
+  const min = Number.parseInt(String(fd.get("minInlinks") ?? ""), 10); const note = String(fd.get("note") ?? "");
+  if (!Number.isInteger(min) || min < 1 || min > 20) return { error: "Informe um mínimo entre 1 e 20." };
+  if (note.trim().length < 5) return { error: "Informe o motivo da alteração (mín. 5 caracteres)." };
+  const c = await actionContext("architecture-link-policy");
+  if (!c.ok) return { error: c.message };
+  try {
+    const cur = await withTenant(c.ctx.pool, c.ctx.identity, c.ctx.tenantId, (db) => architecture.getLinkPolicy(db, c.ctx.identity.userId));
+    const r = await architecture.setLinkPolicy(c.ctx.pool, c.ctx.identity, c.ctx.tenantId, { ...cur.policy, minInlinks: min }, note);
+    revalidatePath("/engine", "layout");
+    return { ok: r.created ? `Política de links v${r.version}: mínimo de ${min} inlink(s). Rode "Reanalisar" para aplicar às páginas.` : `A política já exige ${min} inlink(s) (v${r.version}).` };
+  } catch (e) { return { error: e instanceof architecture.ArchitectureError ? e.message : explainFailure("architecture-link-policy", e) }; }
 }

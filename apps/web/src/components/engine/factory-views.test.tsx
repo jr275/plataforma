@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", async (orig) => ({ ...(await orig<typeof import("next/navigation")>()), useRouter: () => ({ refresh: () => undefined, push: () => undefined, replace: () => undefined }) }));
-vi.mock("@/app/(app)/engine/factory-actions", () => ({ cancelBatchAction: async () => null, confirmBatchAction: async () => null, createDeploymentAction: async () => null, decidePagesAction: async () => null, planBatchAction: async () => null, refreshDeploymentAction: async () => null, startBatchAction: async () => null, verifyDeploymentAction: async () => null }));
+vi.mock("@/app/(app)/engine/factory-actions", () => ({ cancelBatchAction: async () => null, confirmBatchAction: async () => null, createDeploymentAction: async () => null, decidePagesAction: async () => null, analyzeArchitectureAction: async () => null, setMinInlinksAction: async () => null, planBatchAction: async () => null, refreshDeploymentAction: async () => null, startBatchAction: async () => null, verifyDeploymentAction: async () => null }));
 import { factory } from "@plataforma/api";
 import type { Loaded } from "@/lib/server/tenant-data";
 import { FactoryOverview, PagesView, PipelineView, stageState } from "./factory-views";
@@ -16,7 +16,7 @@ const values = Object.fromEntries(factory.METRICS.map((m) => [m.id, m.id === "pa
 const metrics = { asOf: T, periodDays: 7, values } as factory.FactoryMetrics;
 const stage = (over: Partial<factory.StageView> = {}): factory.StageView => ({ id: "eligibility", n: 7, label: "Eligibility", unit: "tópicos", source: "eligibility_decision", definition: "def", instrumented: true, note: null, total: 10, completed: 4, running: 0, waiting: 0, blocked: 6, failed: 0, skipped: 0, avgDurationMs: null, successRate: 0.4, lastUpdate: T, reasons: [{ reason: "DATA_REQUIRED", count: 6 }], ...over });
 const row = (over: Partial<factory.PageRow> = {}): factory.PageRow => ({ opportunityId: "o1", topicId: "t".repeat(64), primaryQuery: "Guarulhos", archetypeId: null, clusterId: null, clusterName: null, qualityScore: null, gate: null, insufficientInlinks: false, hasConflicts: false, family: "04-cidade", intent: "informational", lifecycle: "qa", stage: "awaiting_approval", entity: "Guarulhos", title: "Guarulhos: dados", h1: "Guarulhos", url: "/cidades/sp/guarulhos", templateId: "city-overview", blueprintStatus: "COMPLETE", recipeVersion: 2, blocksFilled: 5, blocksInsufficient: 1, editorial: "agent7", qaOutcome: "QA_PASSED", approval: null, deploymentStatus: null, deploymentTarget: null, publishedVersion: null, updatedAt: T, ...over });
-const params = { q: "", stage: "" as const, family: "", template: "", qa: "", deployment: "", editorial: "" as const, page: 1 };
+const params = { q: "", stage: "" as const, family: "", template: "", qa: "", deployment: "", editorial: "" as const, archetype: "", cluster: "", eligibility: "" as const, linkFailure: false, conflict: false, page: 1 };
 
 describe("visão geral", () => {
   it("mostra os seis estados distintos, cada métrica com fonte e escopo, e a indexação como NÃO instrumentada (nunca zero)", () => {

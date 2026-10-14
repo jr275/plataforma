@@ -1,7 +1,7 @@
 import "server-only";
 import { TEMPLATE_REGISTRY, combination, eligibility, engine, runtime } from "@plataforma/api";
 import type { TenantDb } from "@plataforma/api";
-import { AGENT_HEADER, AGENT_PROMPTS, AGENT_PROMPTS_SOURCE, AGENT_PROMPT_VERSION, BLUEPRINT_RECIPES, DEFAULT_ELIGIBILITY_POLICY, DEFAULT_QA_POLICY, RECIPE_RENDERERS, eligibilityCoherence, realEstateCatalog } from "@plataforma/pack-real-estate";
+import { AGENT_HEADER, AGENT_PROMPTS, AGENT_PROMPTS_SOURCE, AGENT_PROMPT_VERSION, BLUEPRINT_RECIPES, DEFAULT_ELIGIBILITY_POLICY, DEFAULT_QA_POLICY, RECIPE_RENDERERS, eligibilityCoherence, realEstateArchitecture, realEstateCatalog } from "@plataforma/pack-real-estate";
 import { activeVertical } from "./vertical";
 import { loadForTenant } from "./tenant-data";
 
@@ -16,6 +16,8 @@ export const PACK_DEPS = {
   blueprint: { vertical: activeVertical, recipes: BLUEPRINT_RECIPES, templates: TEMPLATE_REGISTRY, attributes: realEstateCatalog.attributes },
   recipeQa: { vertical: activeVertical, recipes: BLUEPRINT_RECIPES, renderers: RECIPE_RENDERERS, qaPolicy: DEFAULT_QA_POLICY, attributes: realEstateCatalog.attributes },
 } as const;
+/** Arquitetura de conteúdo (ADR-033): o núcleo é agnóstico; o pack liga família → archetype. */
+export const ARCH_DEPS = { pack: realEstateArchitecture, templates: TEMPLATE_REGISTRY } as const;
 
 export const loadAgentRegistry = () => loadForTenant(async (db) => ({ agents: await runtime.listAgentRegistry(db, PACK_ID), filePromptVersion: AGENT_PROMPT_VERSION, llmConfigured: (process.env.ANTHROPIC_API_KEY ?? "").trim() !== "" }));
 export const loadPromptVersions = (agent?: number) => loadForTenant(async (db) => ({ versions: await runtime.listPromptVersions(db, { domainPackId: PACK_ID, ...(agent ? { agent } : {}) }), filePromptVersion: AGENT_PROMPT_VERSION }));
@@ -49,5 +51,5 @@ export async function pipelineEnvFor(ctx: { pool: import("@plataforma/api").Pool
   try { tenantName = await withTenant(ctx.pool, ctx.identity, ctx.tenantId, async (db) => (await db.query<{ name: string }>(`SELECT name FROM plataforma.tenant WHERE id = plataforma.current_tenant_id()`)).rows[0]?.name ?? "workspace"); } catch { /* rótulo apenas */ }
   return { pool: ctx.pool, identity: ctx.identity, tenantId: ctx.tenantId, tenantName, domainPack: { id: PACK_ID, version: PACK_VERSION },
     agents: { ctx: { fetch: realFetch, userAgent: provider.PUBLIC_UA, gate: new provider.RateGate({}), env: process.env as Record<string, string | undefined>, prompts: FILE_PROMPTS, vars: PIPELINE_VARS(tenantName) }, budget: provider.RunBudget.create(), editorialStyle: "direto" },
-    eligibility: PACK_DEPS.eligibility, blueprint: PACK_DEPS.blueprint, recipeQa: PACK_DEPS.recipeQa } as const;
+    eligibility: PACK_DEPS.eligibility, blueprint: PACK_DEPS.blueprint, recipeQa: PACK_DEPS.recipeQa, architecture: ARCH_DEPS } as const;
 }

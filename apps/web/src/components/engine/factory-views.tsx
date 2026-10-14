@@ -9,6 +9,7 @@ import type { Loaded } from "@/lib/server/tenant-data";
 import type { PageDetail, PageParams } from "@/lib/server/factory";
 import { Gate, Pre, when } from "./engine-views";
 import { AutoRefresh, DevicePreview, PageBatchForm } from "./factory-client";
+import { ArchitectureSection, EligibilityBadges } from "./architecture-views";
 import { DEPLOY_STATE, PIPELINE_STATE, QA_OUTCOME, STAGE_TONE, dur, pct } from "./format";
 
 // Fábrica de páginas: visão geral, pipeline de 16 etapas, lista e detalhe de páginas. Cada número vem de uma consulta ao banco com definição explícita; "não instrumentado" nunca aparece como zero.
@@ -127,7 +128,7 @@ const LINKS: Record<string, [string, string][]> = {
 
 // --- Lista de páginas ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 export function PagesView({ loaded, params, pageSize }: { loaded: Loaded<{ list: { total: number; byStage: Record<string, number>; rows: factory.PageRow[] }; facets: { families: string[]; templates: string[] } }>; params: PageParams; pageSize: number }) {
-  const href = (o: Partial<PageParams>) => { const n = { ...params, ...o }; const q = new URLSearchParams(); for (const [k, v] of Object.entries(n)) if (v && !(k === "page" && v === 1)) q.set(k, String(v)); return `/engine/pages${q.size ? `?${q}` : ""}`; };
+  const href = (o: Partial<PageParams>) => { const n = { ...params, ...o }; const q = new URLSearchParams(); for (const [k, v] of Object.entries(n)) if (v && !(k === "page" && v === 1)) q.set(k, v === true ? "1" : String(v)); return `/engine/pages${q.size ? `?${q}` : ""}`; };
   return (
     <Gate loaded={loaded} current="/engine/pages" title="Página Factory" description="Candidatas, blueprints, páginas geradas, aprovadas e publicadas: cada estágio é derivado dos registros. Filtros e paginação rodam no banco.">
       {({ list, facets }) => (
@@ -143,17 +144,24 @@ export function PagesView({ loaded, params, pageSize }: { loaded: Loaded<{ list:
             <select name="qa" defaultValue={params.qa} className={inputClass} aria-label="QA"><option value="">Qualquer QA</option>{Object.entries(QA_OUTCOME).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
             <select name="deployment" defaultValue={params.deployment} className={inputClass} aria-label="Deployment"><option value="">Qualquer deployment</option>{Object.keys(DEPLOY_STATE).map((k) => <option key={k} value={k}>{DEPLOY_STATE[k]!.label}</option>)}</select>
             <select name="editorial" defaultValue={params.editorial} className={inputClass} aria-label="Editorial"><option value="">Qualquer editorial</option><option value="agent7">Narrativa do Agente 7</option><option value="template">Texto determinístico</option></select>
+            <select name="archetype" defaultValue={params.archetype} className={inputClass} aria-label="Archetype"><option value="">Qualquer archetype</option>{Array.from({ length: 12 }, (_, i) => `T${String(i + 1).padStart(2, "0")}`).map((a) => <option key={a} value={a}>{a}</option>)}</select>
+            <select name="eligibility" defaultValue={params.eligibility} className={inputClass} aria-label="Elegibilidade"><option value="">Qualquer elegibilidade</option><option value="approval">Liberada para aprovação</option><option value="publication">Liberada para publicação</option><option value="indexing">Liberada para indexação</option><option value="not_indexing">Bloqueada para indexação</option><option value="no_gate">Sem análise de arquitetura</option></select>
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" name="linkFailure" value="1" defaultChecked={params.linkFailure} className="size-4" />Inlinks insuficientes</label>
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" name="conflict" value="1" defaultChecked={params.conflict} className="size-4" />Com conflito de intenção</label>
+            {params.cluster ? <input type="hidden" name="cluster" value={params.cluster} /> : null}
             <Button type="submit" size="sm">Filtrar</Button>
           </form>
+          {params.cluster ? <p className="text-xs" data-testid="cluster-filter">Filtrando por cluster. <Link className="underline" href={href({ cluster: "", page: 1 })}>Remover</Link></p> : null}
           <Panel title={`Páginas (${fmt(list.total)})`}>
             {list.rows.length === 0 ? <EmptyState title="Nenhuma página com esses filtros" hint="Ajuste os filtros. A lista só mostra o que o banco registrou." /> : (
-              <div className="overflow-x-auto"><table className="w-full text-xs" data-testid="pages-table"><thead><tr className="text-left text-[11px] text-muted-foreground"><th className="py-1 pr-2"><span className="sr-only">Selecionar</span></th><th className="pr-3">Página</th><th className="pr-3">Estágio</th><th className="pr-3">Template</th><th className="pr-3">Blocos</th><th className="pr-3">Editorial</th><th className="pr-3">QA</th><th className="pr-3">Aprovação</th><th className="pr-3">Deployment</th><th className="pr-3">Versão</th><th>Atualizada</th></tr></thead>
+              <div className="overflow-x-auto"><table className="w-full text-xs" data-testid="pages-table"><thead><tr className="text-left text-[11px] text-muted-foreground"><th className="py-1 pr-2"><span className="sr-only">Selecionar</span></th><th className="pr-3">Página</th><th className="pr-3">Estágio</th><th className="pr-3">Template</th><th className="pr-3">Arquitetura</th><th className="pr-3">Blocos</th><th className="pr-3">Editorial</th><th className="pr-3">QA</th><th className="pr-3">Aprovação</th><th className="pr-3">Deployment</th><th className="pr-3">Versão</th><th>Atualizada</th></tr></thead>
                 <tbody>{list.rows.map((r) => (
                   <tr key={r.opportunityId} className="border-t border-border align-top" data-page={r.opportunityId} data-stage={r.stage}>
                     <td className="py-1.5 pr-2"><input type="checkbox" name="id" value={r.opportunityId} form="decide-form" aria-label={`Selecionar ${r.title ?? r.primaryQuery}`} className="size-4" /></td>
                     <td className="max-w-[34ch] pr-3"><Link className="font-medium underline" href={`/engine/pages/${r.opportunityId}`}>{r.title ?? r.primaryQuery}</Link><div className="truncate text-[11px] text-muted-foreground">{r.url ?? "URL ainda não definida"} · {r.entity ?? "—"} · {r.family ?? "—"} · {r.intent ?? "—"}</div></td>
                     <td className="pr-3"><Badge tone={STAGE_TONE[r.stage] ?? "neutral"}>{STAGE_COPY[r.stage]}</Badge></td>
                     <td className="pr-3">{r.templateId ?? "—"}{r.blueprintStatus === "SEMANTIC_INSUFFICIENT" ? <div className="text-warning">blueprint insuficiente</div> : null}</td>
+                    <td className="pr-3">{r.archetypeId ? <><span className="font-medium">{r.archetypeId}</span> <span className="text-muted-foreground">{r.clusterName ?? ""}</span><div className="mt-0.5"><EligibilityBadges gate={r.gate} /></div><div className="text-[11px] text-muted-foreground">{r.qualityScore === null ? "" : `qualidade ${r.qualityScore.toFixed(2)}`}{r.insufficientInlinks ? " · inlinks insuficientes" : ""}{r.hasConflicts ? " · conflito" : ""}</div></> : "—"}</td>
                     <td className="pr-3 tabular-nums">{r.blocksFilled === null ? "—" : <>{r.blocksFilled} preenchidos{r.blocksInsufficient ? <div className="text-muted-foreground">{r.blocksInsufficient} sem dado</div> : null}</>}</td>
                     <td className="pr-3">{r.editorial === "agent7" ? "Agente 7" : r.editorial === "template" ? "determinístico" : "—"}</td>
                     <td className="pr-3">{r.qaOutcome ? <Badge tone={QA_OUTCOME[r.qaOutcome]?.tone ?? "neutral"}>{QA_OUTCOME[r.qaOutcome]?.label ?? r.qaOutcome}</Badge> : "—"}</td>
@@ -193,6 +201,7 @@ function Detail({ d, preview, diff, versions }: { d: PageDetail; preview: Previe
       {preview ? (
         <Panel title="Preview" description="HTML gerado pelo renderer único a partir do recipe compilado (o mesmo que o deployment envia). O iframe não executa scripts."><DevicePreview clean={preview.clean} annotated={preview.annotated} title={r.title ?? r.primaryQuery} /></Panel>
       ) : <Panel title="Preview"><EmptyState title="Sem recipe compilado" hint="O preview só existe depois do blueprint, da SERP (ou exceção humana) e da compilação do recipe." /></Panel>}
+      <ArchitectureSection a={d.architecture} />
       {preview ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <Panel title="SEO e metadados"><Dl items={[{ label: "Title", value: preview.doc.seo.title }, { label: "H1", value: preview.doc.seo.h1 }, { label: "Meta description", value: preview.doc.seo.metaDescription }, { label: "URL prevista", value: preview.doc.seo.url ?? "—" }, { label: "Canonical", value: preview.doc.seo.canonical ?? "—" }, { label: "Robots", value: preview.doc.seo.robots }, { label: "Blocos (preenchidos / sem dado)", value: `${preview.doc.stats.paragraphs} / ${preview.doc.stats.insufficiencies}` }, { label: "Texto do Agente 7", value: `${preview.doc.stats.textFromAgent7} bloco(s)` }]} /></Panel>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { eligibility, engine as E, runtime } from "@plataforma/api";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHead, SubNav } from "./chrome";
 import { EmptyState, Panel } from "@/components/ui/panel";
 import { Dl } from "@/components/ui/field";
 import { formatDateTime } from "@/components/generation/format";
@@ -12,19 +12,11 @@ import { DECISION_TONE, FAILURE_KIND, MODE, OUTCOME, PIPELINE_STATE, PROMPT_STAT
 
 // Control Plane do motor de páginas e dos agentes (ADR-031). Cada tela mostra o que o BANCO registrou: sem execução, zero. Real, simulação de teste, falha, saída inválida e
 // bloqueio externo são estados distintos e sempre rotulados. Nenhum botão existe sem uma ação real por trás.
-export const ENGINE_SECTIONS = [["/engine", "Visão geral"], ["/engine/pipeline", "Pipeline"], ["/engine/topics", "Tópicos"], ["/engine/eligibility", "Elegibilidade"], ["/engine/pages", "Páginas"], ["/engine/batches", "Lotes"], ["/engine/deployments", "Deployments"], ["/engine/templates", "Templates"], ["/engine/agents", "Agentes"], ["/engine/prompts", "Prompts"], ["/engine/executions", "Execuções"], ["/engine/pipelines", "Runtime"], ["/engine/progress", "Andamento"]] as const;
+export { ENGINE_SECTIONS } from "./chrome";
 
-export function EngineNav({ current }: { current: string }) {
-  return (
-    <nav aria-label="Seções do motor" className="flex overflow-x-auto border border-border bg-card">
-      {ENGINE_SECTIONS.map(([href, label]) => (
-        <Link key={href} href={href} aria-current={href === current ? "page" : undefined} className={`h-10 min-w-max flex-1 shrink-0 border-r border-border px-4 text-center font-mono text-[11px] font-medium leading-10 tracking-[0.08em] uppercase focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${href === current ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{label}</Link>
-      ))}
-    </nav>
-  );
-}
+export function EngineNav({ current }: { current: string }) { return <SubNav current={current} />; }
 export function Shell({ current, title, description, crumbs, children, actions }: { current: string; title: string; description: string; crumbs?: readonly { label: string; href?: string }[]; children: React.ReactNode; actions?: React.ReactNode }) {
-  return <div className="space-y-6"><PageHeader crumbs={[{ label: "Motor de páginas", href: "/engine" }, ...(crumbs ?? [{ label: title }])]} title={title} description={description} actions={actions} /><EngineNav current={current} />{children}</div>;
+  return <div className="space-y-5"><PageHead crumbs={crumbs ?? [{ label: "Motor de páginas", href: "/engine" }, { label: title }]} title={title} context={description} actions={actions} /><SubNav current={current} /><div className="space-y-4">{children}</div></div>;
 }
 /** Estados em que a tela não tem dados: explica o motivo em vez de simular conteúdo. */
 export function Gate<T>({ loaded, current, title, description, crumbs, children }: { loaded: Loaded<T>; current: string; title: string; description: string; crumbs?: readonly { label: string; href?: string }[]; children: (data: T) => React.ReactNode }) {
@@ -252,7 +244,7 @@ export function PipelineRunDetailView({ loaded }: { loaded: Loaded<{ run: runtim
 }
 
 // --- Tópicos e elegibilidade ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-export function TopicDiscoveryView({ loaded }: { loaded: Loaded<{ summary: runtime.TopicDiscoverySummary; combination: { total: number; byFilter: Record<string, number> } }> }) {
+export function TopicDiscoveryView({ loaded, after }: { loaded: Loaded<{ summary: runtime.TopicDiscoverySummary; combination: { total: number; byFilter: Record<string, number> } }>; after?: React.ReactNode }) {
   return (
     <Gate loaded={loaded} current="/engine/topics" title="Descoberta de tópicos" description="O que o motor gerou e podou: tópicos por estado e padrão, intenção modelada (observada ou hipótese) e o que cada filtro do Combination Engine removeu.">
       {(d) => (
@@ -263,6 +255,7 @@ export function TopicDiscoveryView({ loaded }: { loaded: Loaded<{ summary: runti
             <Panel title="Por padrão de consulta">{Object.keys(d.summary.byPattern).length === 0 ? <EmptyState title="Sem padrões" /> : <ul className="space-y-1 text-xs">{Object.entries(d.summary.byPattern).sort().map(([k, n]) => <li key={k} className="flex justify-between"><span>{k}</span><span className="tabular-nums">{n}</span></li>)}</ul>}</Panel>
           </div>
           <Panel title="Podas do Combination Engine" description="Quantas combinações cada filtro removeu na leitura mais recente do log.">{Object.keys(d.combination.byFilter).length === 0 ? <EmptyState title="Nenhuma poda registrada" /> : <ul className="space-y-1 text-xs">{Object.entries(d.combination.byFilter).sort().map(([k, n]) => <li key={k} className="flex justify-between"><span>{k}</span><span className="tabular-nums">{n}</span></li>)}</ul>}</Panel>
+          {after}
         </>
       )}
     </Gate>
