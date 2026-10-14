@@ -57,7 +57,7 @@ export function CommandPalette() {
   return (
     <Dialog.Root open={paletteOpen} onOpenChange={(o) => (o ? setPaletteOpen(true) : close())}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/25 backdrop-blur-[2px] transition-opacity dark:bg-background/70 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/60 transition-opacity data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
         <Dialog.Popup className="fixed top-[12vh] left-1/2 z-50 w-[min(40rem,calc(100vw-1.5rem))] -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl shadow-black/50 outline-none transition-opacity data-[ending-style]:opacity-0 data-[starting-style]:opacity-0">
           <Dialog.Title className="sr-only">Busca e comandos</Dialog.Title>
           <div className="flex items-center gap-2 border-b border-border px-3">

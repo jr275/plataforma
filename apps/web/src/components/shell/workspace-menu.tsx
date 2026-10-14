@@ -11,9 +11,9 @@ export function WorkspaceMenu({ onDone, onPrimary = false }: { onDone?: () => vo
     <Menu.Root>
       <Menu.Trigger
         aria-label={`Workspace atual: ${current.workspace.name}. Trocar workspace`}
-        className={`flex h-8 max-w-56 items-center gap-2 border px-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${onPrimary ? "border-white/30 bg-white/10 text-primary-foreground hover:bg-white/20 data-[popup-open]:bg-white/20" : "rounded-md border-border bg-card hover:bg-accent data-[popup-open]:bg-accent"}`}
+        className={`flex h-8 max-w-56 items-center gap-2 border px-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${onPrimary ? "border-white/30 bg-white/10 text-primary-foreground hover:bg-white/20 data-[popup-open]:bg-white/20" : "border-border bg-card hover:bg-accent data-[popup-open]:bg-accent"}`}
       >
-        <span className={`grid size-5 shrink-0 place-items-center text-[10px] font-semibold ${onPrimary ? "bg-white text-primary" : "rounded-sm bg-brand/10 text-brand"}`} aria-hidden="true">
+        <span className={`grid size-5 shrink-0 place-items-center text-[10px] font-semibold ${onPrimary ? "bg-white text-primary" : "bg-secondary"}`} aria-hidden="true">
           {current.workspace.name.slice(0, 1)}
         </span>
         <span className="hidden min-w-0 truncate text-[13px] font-medium sm:block">{current.workspace.name}</span>
@@ -21,7 +21,7 @@ export function WorkspaceMenu({ onDone, onPrimary = false }: { onDone?: () => vo
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner sideOffset={6} align="start" className="z-[70]">
-          <Menu.Popup className="min-w-64 rounded-lg border border-border bg-popover p-1 text-sm shadow-lg shadow-foreground/10 dark:shadow-black/40 outline-none">
+          <Menu.Popup className="min-w-64 rounded-lg border border-border bg-popover p-1 text-sm shadow-xl shadow-black/40 outline-none">
             <Menu.Group>
               <Menu.GroupLabel className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground">Workspaces de demonstração (dados fictícios)</Menu.GroupLabel>
               <Menu.RadioGroup

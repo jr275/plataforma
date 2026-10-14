@@ -2,10 +2,10 @@
 
 import { cn } from "@/lib/utils";
 
-/** Barra de abas sublinhada: a ativa ganha texto pleno e traço na cor de marca. role=tablist, setas do teclado. */
+/** Barra de abas: células com borda, rótulo em maiúsculas; a ativa fica em azul sólido. role=tablist, setas do teclado. */
 export function Tabs<T extends string>({ label, tabs, value, onChange }: { label: string; tabs: readonly { id: T; label: string; count?: number }[]; value: T; onChange: (id: T) => void }) {
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1 overflow-x-auto border-b border-border">
+    <div role="tablist" aria-label={label} className="flex overflow-x-auto border border-border bg-card">
       {tabs.map((t, i) => (
         <button
           key={t.id}
@@ -25,12 +25,12 @@ export function Tabs<T extends string>({ label, tabs, value, onChange }: { label
             }
           }}
           className={cn(
-            "-mb-px h-10 min-w-max shrink-0 rounded-t-md border-b-2 px-3 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
-            value === t.id ? "border-brand text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+            "h-11 min-w-max flex-1 shrink-0 border-r border-border px-4 font-mono text-[11px] font-medium tracking-[0.08em] uppercase transition-colors last:border-r-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+            value === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
           )}
         >
           {t.label}
-          {t.count !== undefined ? <span className={cn("ml-1.5 font-mono text-[11px] tabular-nums", value === t.id ? "text-foreground/70" : "text-muted-foreground/70")}>{t.count}</span> : null}
+          {t.count !== undefined ? <span className={cn("ml-2 tabular-nums", value === t.id ? "text-primary-foreground/80" : "text-muted-foreground/70")}>{t.count}</span> : null}
         </button>
       ))}
     </div>
