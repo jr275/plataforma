@@ -102,3 +102,30 @@ export * as qa from "./qa";
 export * as runtime from "./runtime";
 export * as factory from "./factory";
 export * as architecture from "./architecture";
+export {
+  GSC_CHECKS,
+  GSC_STATUSES,
+  classifyApiError,
+  diagnoseGscConfiguration,
+  lastSevenCompleteDays,
+  parseGscProperty,
+  redactSecrets,
+  remediationFor,
+  toProviderStatus,
+  validateGscConnection,
+  validationEvent,
+  type GoogleFetch,
+  type GscCheck,
+  type GscCheckId,
+  type GscCheckState,
+  type GscError,
+  type GscErrorCode,
+  type GscIdentity,
+  type GscProperty,
+  type GscStatus,
+  type GscValidationResult,
+  type PropertyKind,
+  type Remediation,
+} from "./intel/gsc-diagnostics";
+export { normalizeSearchFacts, overlappingTargets, type SearchPerformanceFact, type SearchFactProvenance } from "./intel/gsc-facts";
+export { resolveDataForSeoConfig } from "./intel/dataforseo";

@@ -1,0 +1,7 @@
+import { PlannedArea, plannedMetadata } from "@/components/intel/planned-area";
+
+export const metadata = plannedMetadata("audit");
+
+export default function Page() {
+  return <PlannedArea id="audit" />;
+}

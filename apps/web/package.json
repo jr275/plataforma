@@ -22,6 +22,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "elkjs": "^0.12.0",
+    "d3-force": "^3.0.0",
     "lucide-react": "^1.55.0",
     "next": "16.4.0",
     "react": "19.3.0",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
+    "@types/d3-force": "^3.0.10",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

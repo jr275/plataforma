@@ -63,7 +63,7 @@ describe("estados em que a tela não pode mostrar dados", () => {
     it(`${state}: explica o motivo e nunca simula dados`, () => {
       const out = html(<GenerationHomeView loaded={state === "not_configured" ? { state, missing: "banco" } : ({ state } as Loaded<HomeData>)} params={P} pageSize={20} />);
       expect(out).toMatch(text);
-      expect(out).not.toMatch(/Aurora|Northgate/); // nenhum workspace fictício aparece
+      expect(out).not.toMatch(/Exemplo Labs|Northgate/); // nenhum workspace fictício aparece
       expect(out).not.toContain("<table");
       expect(out).not.toMatch(/Gerar rascunhos/); // sem estado pronto não há como gerar
     });
