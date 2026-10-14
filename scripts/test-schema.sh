@@ -32,9 +32,9 @@ su() { "${PSQL[@]}" -d "$DB" -c "$1" 2>&1; }
 o="$(bash "$BOOT" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --user rls_bootstrap --dbname "$DB" 2>&1)"; rc=$?
 expect "bootstrap provisiona e verifica o ambiente" eq "$rc" 0
 OUT="$(bash "$RUNNER" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --dbname "$DB" --user "$MIG" --app-role "$APP" 2>&1)"; rc=$?
-expect "o runner aplica 0001 a 0007 com o gate de segurança ativo (código 0)" eq "$rc" 0
+expect "o runner aplica 0001 a 0008 com o gate de segurança ativo (código 0)" eq "$rc" 0
 [[ "$rc" -eq 0 ]] || echo "$OUT" | tail -8
-expect "o ledger tem exatamente as migrations 1 a 7" eq "$(su "SELECT string_agg(seq::text, ',' ORDER BY seq) FROM plataforma_migrations.ledger")" "1,2,3,4,5,6,7"
+expect "o ledger tem exatamente as migrations 1 a 8" eq "$(su "SELECT string_agg(seq::text, ',' ORDER BY seq) FROM plataforma_migrations.ledger")" "1,2,3,4,5,6,7,8"
 OUT2="$(bash "$RUNNER" --socket-dir "$TMP" --port "$PORT" --psql "$PGBIN/psql" --dbname "$DB" --user "$MIG" --app-role "$APP" 2>&1)"; rc=$?
 expect "reaplicar não muda nada (código 0)" eq "$rc" 0
 expect "as migrations não semeiam dados de tenant" eq "$(su "SELECT (SELECT count(*) FROM plataforma.tenant) + (SELECT count(*) FROM plataforma.opportunity) + (SELECT count(*) FROM plataforma.import_run) + (SELECT count(*) FROM plataforma.import_record) + (SELECT count(*) FROM plataforma.city) + (SELECT count(*) FROM plataforma.generation_run) + (SELECT count(*) FROM plataforma.page) + (SELECT count(*) FROM plataforma.page_version) + (SELECT count(*) FROM plataforma.generation_item)")" 0
