@@ -60,4 +60,6 @@ INSERT INTO plataforma.tenant (id, slug, name) VALUES
   ('fd777777-7777-4777-8777-777777777777', 'topicos-7', 'Tópicos 7'),
   ('fd888888-8888-4888-8888-888888888888', 'topicos-8', 'Tópicos 8'),
   ('fe111111-1111-4111-8111-111111111111', 'blueprint-i', 'Blueprint I'),
-  ('fe222222-2222-4222-8222-222222222222', 'blueprint-j', 'Blueprint J');
+  ('fe222222-2222-4222-8222-222222222222', 'blueprint-j', 'Blueprint J'),
+  ('fe333333-3333-4333-8333-333333333333', 'recipe-k', 'Recipe K'),
+  ('fe444444-4444-4444-8444-444444444444', 'recipe-l', 'Recipe L');

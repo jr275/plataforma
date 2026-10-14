@@ -16,9 +16,9 @@ export const RECIPES: readonly blueprintSpec.FamilyRecipe[] = [
     moduleRequirements: ["hero", "data-table", "sources"], kpis: ["impressions", "clicks", "ctr", "position"], refreshTrigger: "novo ano de referência da população ou nova importação do IBGE", maxAgeDays: 800 },
   { family: "13-comparacao", pageType: "comparação entre cidades", archetype: "comparison", templateId: "city-comparison",
     urlFor: () => null,
-    modules: [{ moduleId: "comparacao-demografica", fields: [{ field: "population", attribute: "city.population" }, { field: "census_population", attribute: "city.population_census_2022" }, { field: "census_density", attribute: "city.density_census_2022" }], minItems: 2, onMissing: "remove" }],
+    modules: [{ moduleId: "comparacao-demografica", fields: [{ field: "city_name", attribute: null }, { field: "compare_name", attribute: null }, { field: "population", attribute: "city.population" }, { field: "census_population", attribute: "city.population_census_2022" }, { field: "census_density", attribute: "city.density_census_2022" }], minItems: 2, onMissing: "remove" }],
     schemaTypes: ["Dataset"], derivedMetrics: [],
     claims: [{ claimType: "população", sourceClass: "IBGE", attribute: "city.population" }],
-    defaultPatterns: { title: "{population}: comparação de cidades", h1: "Comparação entre cidades", meta: "Comparação de indicadores demográficos de duas cidades do mesmo estado, com a mesma data-base." },
+    defaultPatterns: { title: "{city_name} e {compare_name}: comparação", h1: "{city_name} × {compare_name}", meta: "Comparação de {city_name} e {compare_name} com indicadores demográficos da mesma data-base, com a fonte de cada dado." },
     moduleRequirements: ["comparison-table", "sources"], kpis: ["impressions", "clicks", "ctr", "position"], refreshTrigger: "novo ano de referência dos indicadores", maxAgeDays: 800 },
 ];

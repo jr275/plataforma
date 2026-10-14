@@ -1,7 +1,9 @@
 import type { TenantDb } from "../tenant-context";
+import { numbersIn } from "../qa/checks";
+import type { PageRecipe, RecipeBlock } from "../recipe/types";
 import { validateProposal, type Proposal, type ProposalContext } from "../topics/generate";
 import { runAgent, type AgentBase, type AgentCtx, type AgentResult, type AgentSpec } from "./runner";
-import { agent1Schema, agent2Schema, agent3Schema, agent4Schema, agent5Schema, agent6Schema, agent7Schema, agent8Schema, type Agent1Out, type Agent2Out, type Agent3Out, type Agent4Out, type Agent5Out, type Agent6Out } from "./schemas";
+import { agent1Schema, agent2Schema, agent3Schema, agent4Schema, agent5Schema, agent6Schema, agent7Schema, agent8Schema, type Agent1Out, type Agent2Out, type Agent3Out, type Agent4Out, type Agent5Out, type Agent6Out, type Agent7Out, type Agent8Out } from "./schemas";
 
 // Os agentes PROPÕEM, DESCREVEM e REDIGEM; o CÓDIGO valida e decide (R7). Cada função: monta a entrada (só o recorte de dados), valida a saída com regras do código e, quando cabe, aplica o resultado.
 const sentences = (t: string): number => t.split(/(?<=[.!?])\s+/).filter((x) => x.trim() !== "").length;
@@ -126,4 +128,40 @@ export function blueprintFieldErrors(o: Agent6Out, d: BlueprintDraftInput): stri
 export const blueprintWriterSpec = (d: BlueprintDraftInput): AgentSpec<Agent6Out> => ({ agent: 6, inputVar: "BLUEPRINT_DRAFT_JSON", schema: agent6Schema, validate: (o) => blueprintFieldErrors(o, d) });
 export const writeBlueprintFields = (ctx: AgentCtx, base: AgentBase, input: BlueprintDraftInput) => runAgent(ctx, base, blueprintWriterSpec(input), input, { kind: "blueprint", ref: input.page_id });
 
-export { agent7Schema, agent8Schema };
+
+
+// --- Agente 7: narrativa do recipe (escreve SOMENTE sobre os dados do recipe) -------------------------------------------------------------
+export interface NarrativeSlot { readonly slot_id: string; readonly module_id: string; readonly facts: readonly { readonly fact_id: string; readonly field: string; readonly value: string | number | boolean | null; readonly unit: string | null }[]; readonly template_text: string }
+export interface NarrativeInput { readonly page_id: string; readonly narrative_slots: readonly NarrativeSlot[]; readonly blueprint: { readonly topic_definition: string; readonly page_type: string }; readonly editorial_style: string }
+const TRAVEL = /(\d+\s*(min|minutos?)\b|a pé|de carro|de ônibus|a poucos passos|rapidinho|pertinho)/i;
+export function narrativeErrors(o: Agent7Out, i: NarrativeInput, hasTravelTime: boolean): string[] {
+  const e: string[] = []; const slots = new Map(i.narrative_slots.map((x) => [x.slot_id, x])); const seen = new Set<string>();
+  if (o.page_id !== i.page_id) e.push("page_id difere do INPUT");
+  for (const s of o.slots) {
+    const slot = slots.get(s.slot_id); if (!slot) { e.push(`slot fora do INPUT: ${s.slot_id}`); continue; } if (seen.has(s.slot_id)) e.push(`slot repetido: ${s.slot_id}`); seen.add(s.slot_id);
+    if (s.status === "INSUFFICIENT") { if (s.text.trim() !== "") e.push(`${s.slot_id}: slot INSUFFICIENT deve ter texto vazio`); continue; }
+    if (s.text.trim() === "") { e.push(`${s.slot_id}: slot OK sem texto`); continue; }
+    const allowed = new Set(slot.facts.map((f) => f.fact_id));
+    const inline = [...s.text.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]!);
+    if (inline.length === 0) e.push(`${s.slot_id}: nenhuma referência [fact_id] no texto`);
+    for (const r of [...inline, ...s.evidence_refs]) if (!allowed.has(r)) e.push(`${s.slot_id}: referência fora dos fatos do slot: ${r}`);
+    const nums = new Set<string>(); for (const f of slot.facts) if (typeof f.value === "number") for (const d of [0, 1, 2]) nums.add(f.value.toFixed(d));
+    for (const n of numbersIn(s.text.replace(/\[[^\]]+\]/g, ""))) if (!nums.has(String(n)) && !nums.has(n.toFixed(0)) && !nums.has(n.toFixed(2))) e.push(`${s.slot_id}: o número ${n} não existe nos fatos do slot`);
+    if (!hasTravelTime && TRAVEL.test(s.text)) e.push(`${s.slot_id}: expressão de tempo de deslocamento sem travel_time com fonte (R3)`);
+  }
+  for (const k of slots.keys()) if (!seen.has(k)) e.push(`slot sem resposta: ${k}`);
+  return e;
+}
+export const narrativeSpec = (i: NarrativeInput, hasTravelTime: boolean): AgentSpec<Agent7Out> => ({ agent: 7, inputVar: "COMPILED_RECIPE_JSON", schema: agent7Schema, validate: (o) => narrativeErrors(o, i, hasTravelTime) });
+export const writeNarrative = (ctx: AgentCtx, base: AgentBase, i: NarrativeInput, hasTravelTime: boolean) => runAgent(ctx, base, narrativeSpec(i, hasTravelTime), i, { kind: "recipe", ref: i.page_id });
+/** Aplica os slots OK ao recipe (blocos de origem agent7); os INSUFFICIENT mantêm o texto determinístico do template. */
+export function applyNarrative(recipe: PageRecipe, o: Agent7Out): PageRecipe {
+  const bySlot = new Map(o.slots.filter((s) => s.status === "OK").map((s) => [s.slot_id, s]));
+  const blocks: RecipeBlock[] = recipe.blocks.map((b) => { const s = bySlot.get(b.blockId); if (!s) return b; const refs = [...new Set([...[...s.text.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]!), ...s.evidence_refs])]; return { ...b, text: s.text.replace(/\s*\[[^\]]+\]/g, "").trim(), refs, source: "agent7" as const }; });
+  return { ...recipe, blocks };
+}
+
+// --- Agente 8: verificador de QA (Q1, Q2, Q8, Q13, Q14): SINALIZA; o código bloqueia ---------------------------------------------------------------------
+export interface QaBundleInput { readonly page_id: string; readonly page_text: string; readonly facts: readonly { readonly fact_id: string; readonly value: string | number | boolean | null; readonly unit: string | null }[]; readonly sibling_summaries: readonly string[]; readonly parent_summary: string | null; readonly travel_time_source: string | null }
+export const qaVerifierSpec = (i: QaBundleInput): AgentSpec<Agent8Out> => ({ agent: 8, inputVar: "PAGE_QA_BUNDLE_JSON", schema: agent8Schema, validate: (o) => (o.page_id === i.page_id ? [] : ["page_id difere do INPUT"]) });
+export const verifyQaWithAgent8 = (ctx: AgentCtx, base: AgentBase, i: QaBundleInput) => runAgent(ctx, base, qaVerifierSpec(i), i, { kind: "page", ref: i.page_id });
