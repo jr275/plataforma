@@ -104,7 +104,7 @@ As defesas abaixo reduzem o impacto de (2) e (3) e fecham classes de contorno co
 | `3` | tempo esgotado esperando o lock |
 | `4` | falha de conexão ou perda da conexão |
 
-Em falha de SQL, a migration é desfeita; corrija o arquivo (ainda não aplicado) e execute de novo. Em inconsistência de histórico, **nada é aplicado**; restaure o arquivo original ou investigue com decisão humana. O runner nunca altera nem apaga linhas do ledger.
+Em falha de SQL, a migration é desfeita; corrija o arquivo (ainda não aplicado) e execute de novo. Isso vale **para aquele banco**: antes de editar uma migration que possa ter sido aplicada em outro ambiente, siga `docs/POLITICA_DE_ENGENHARIA.md` (verificar todos os ambientes e classificar o estado da migration). Em inconsistência de histórico, **nada é aplicado**; restaure o arquivo original ou investigue com decisão humana. O runner nunca altera nem apaga linhas do ledger.
 
 ## Como executar
 
