@@ -18,7 +18,7 @@ function explain(e: unknown): string {
 async function context(): Promise<{ ok: true; ctx: Extract<Awaited<ReturnType<typeof resolveTenantContext>>, { ok: true }> } | { ok: false; message: string }> {
   const ctx = await resolveTenantContext();
   if (ctx.ok) return { ok: true, ctx };
-  const message = ctx.reason === "unauthenticated" ? "Sua sessão expirou. Entre novamente." : ctx.reason === "no_tenant" ? "Seu usuário ainda não está associado a um workspace." : "A geração não está configurada neste ambiente.";
+  const message = ctx.reason === "unauthenticated" ? "Sua sessão expirou. Entre novamente." : ctx.reason === "no_tenant" ? "Seu usuário ainda não está associado a um workspace." : ctx.reason === "tenant_selection_required" ? "Seu usuário tem mais de um workspace e a seleção explícita ainda não está disponível: nenhuma ação foi executada." : "A geração não está configurada neste ambiente.";
   return { ok: false, message };
 }
 

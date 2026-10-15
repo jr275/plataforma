@@ -2,13 +2,14 @@ import "server-only";
 import { connection } from "next/server";
 import { diagnoseGscConfiguration, resolveDataForSeoConfig, validateGscConnection, validationEvent, type GoogleFetch, type GscValidationResult } from "@plataforma/api";
 import { requestIdentity } from "./identity";
+import { activeTenantFor } from "./tenant-selection";
 
 // Integração com o Search Console no servidor. A credencial é lida e usada só aqui: o cliente recebe um resultado
 // estruturado (status, etapas, e-mail da service account, código de erro) e nunca a chave, o JSON ou o token.
 
 export type IntegrationAccess =
   | { ok: true; tenantId: string | null; actor: string | null; mode: "session" | "local_dev" }
-  | { ok: false; reason: "unauthenticated" | "no_tenant" | "login_not_configured" };
+  | { ok: false; reason: "unauthenticated" | "no_tenant" | "tenant_selection_required" | "login_not_configured" };
 
 /**
  * Ver e validar a integração exige sessão verificada com tenant. Sem login configurado, só é permitido fora de produção
@@ -18,8 +19,10 @@ export async function integrationAccess(): Promise<IntegrationAccess> {
   await connection();
   const who = await requestIdentity();
   if (who.state === "ok") {
-    const tenantId = who.identity.tenantIds[0];
-    if (!tenantId) return { ok: false, reason: "no_tenant" };
+    const pick = activeTenantFor(who.identity); // nunca "o primeiro da lista": 1 tenant = ele; vários = só o escolhido E autorizado
+    if (pick.kind === "none") return { ok: false, reason: "no_tenant" };
+    if (pick.kind === "selection_required") return { ok: false, reason: "tenant_selection_required" };
+    const tenantId = pick.tenantId;
     return { ok: true, tenantId, actor: who.identity.userId, mode: "session" };
   }
   if (who.state === "unauthenticated") return { ok: false, reason: "unauthenticated" };
