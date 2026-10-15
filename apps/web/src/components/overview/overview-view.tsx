@@ -80,7 +80,7 @@ export function OverviewView() {
         <ol className="flex items-stretch overflow-x-auto pb-1">
           {pipeline.map((stage, i) => (
             <li key={stage.id} className="flex items-center">
-              <Link href={stage.href} className="block min-w-28 border border-border bg-card p-3 transition-colors hover:border-primary focus-visible:border-primary focus-visible:outline-none">
+              <Link href={stage.href} className="block min-w-28 card-cut p-4 transition-shadow hover:shadow-[inset_0_0_0_1.5px_var(--primary)] focus-visible:shadow-[inset_0_0_0_1.5px_var(--primary)] focus-visible:outline-none">
                 <span className={`${labelClass} flex items-center gap-1.5 text-[10px] text-muted-foreground`}>
                   <StatusDot tone={stageDot[stage.state]} label={stageLabel[stage.state]} />
                   {String(i + 1).padStart(2, "0")} {stage.label}
@@ -92,7 +92,7 @@ export function OverviewView() {
             </li>
           ))}
         </ol>
-        <p className={`${labelClass} mt-4 border border-border bg-card px-3 py-2 text-center text-[10px] text-muted-foreground`}>O sistema avança onde você decide · nada é publicado sem passar nos gates</p>
+        <p className={`${labelClass} mt-4 card-cut px-3 py-2 text-center text-[10px] text-muted-foreground`}>O sistema avança onde você decide · nada é publicado sem passar nos gates</p>
       </Frame>
 
       <Tabs

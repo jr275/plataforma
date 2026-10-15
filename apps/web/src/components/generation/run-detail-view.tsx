@@ -1,13 +1,16 @@
 import Link from "next/link";
 import type { GenerationRunDetail } from "@plataforma/api";
+import { AutoRefresh } from "@/components/flow/auto-refresh";
+import { FlowWorkspace } from "@/components/flow/flow-workspace";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, Panel } from "@/components/ui/panel";
 import type { Loaded } from "@/lib/server/tenant-data";
+import { buildRunFlow } from "./flow-model";
 import { GATE_LABEL, OUTCOME, RUN_STATUS, formatDateTime, formatInt } from "./format";
 import { StatePanel } from "./state-panel";
 
-export function RunDetailView({ loaded }: { loaded: Loaded<GenerationRunDetail | undefined> }) {
+export function RunDetailView({ loaded, flowBanner }: { loaded: Loaded<GenerationRunDetail | undefined>; flowBanner?: string }) {
   const crumbs = [{ label: "Geração de páginas", href: "/generation" }, { label: "Execução" }];
   if (loaded.state !== "ready") return <div className="space-y-6"><PageHeader crumbs={crumbs} title="Execução de geração" />{<StatePanel state={loaded.state} missing={loaded.state === "not_configured" ? loaded.missing : undefined} />}</div>;
   const d = loaded.data;
@@ -17,11 +20,13 @@ export function RunDetailView({ loaded }: { loaded: Loaded<GenerationRunDetail |
     <div className="space-y-6">
       <PageHeader crumbs={crumbs} title={`Execução de ${formatDateTime(run.startedAt)}`} description={`Template ${run.templateKey} v${run.templateVersion}. Criada por ${run.createdBy}.`} badges={<Badge tone={RUN_STATUS[run.status].tone}>{RUN_STATUS[run.status].label}</Badge>} />
       {run.error ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{run.error}</p> : null}
+      <AutoRefresh active={run.status === "running"} />
+      <FlowWorkspace definition={buildRunFlow(d)} banner={flowBanner} />
       <div className="grid gap-4 sm:grid-cols-4">
-        <Panel title="Cidades"><p className="text-2xl font-semibold tabular-nums">{formatInt(run.totalItems)}</p></Panel>
-        <Panel title="Geradas"><p className="text-2xl font-semibold tabular-nums">{formatInt(run.generatedItems)}</p></Panel>
-        <Panel title="Inalteradas"><p className="text-2xl font-semibold tabular-nums">{formatInt(run.unchangedItems)}</p><p className="mt-1 text-xs text-muted-foreground">Mesmo conteúdo: nenhuma versão nova.</p></Panel>
-        <Panel title="Bloqueadas"><p className="text-2xl font-semibold tabular-nums">{formatInt(run.blockedItems)}</p></Panel>
+        <Panel title="Cidades"><p className="text-4xl font-medium tabular-nums">{formatInt(run.totalItems)}</p></Panel>
+        <Panel title="Geradas"><p className="text-4xl font-medium tabular-nums">{formatInt(run.generatedItems)}</p></Panel>
+        <Panel title="Inalteradas"><p className="text-4xl font-medium tabular-nums">{formatInt(run.unchangedItems)}</p><p className="mt-1 text-xs text-muted-foreground">Mesmo conteúdo: nenhuma versão nova.</p></Panel>
+        <Panel title="Bloqueadas"><p className="text-4xl font-medium tabular-nums">{formatInt(run.blockedItems)}</p></Panel>
       </div>
       <Panel title="Resultado por cidade" description="Uma linha por cidade tentada, com os gates que reprovaram (se houver).">
         {items.length === 0 ? <EmptyState title="Esta execução não gravou itens" hint="Execuções que falharam antes de processar não deixam itens." /> : (

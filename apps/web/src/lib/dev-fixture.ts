@@ -1,7 +1,7 @@
 import "server-only";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { CITY_OVERVIEW, GATES, classifyCityRows, evaluateCity, parseCsv, type City, type GateResult, type ImportRunSummary, type PageDetail, type PageVersionView, type RenderedPage } from "@plataforma/api";
+import { CITY_OVERVIEW, GATES, classifyCityRows, evaluateCity, parseCsv, type City, type GateResult, type GenerationItemDetail, type GenerationRunDetail, type ImportRunSummary, type PageDetail, type PageVersionView, type RenderedPage } from "@plataforma/api";
 
 // FIXTURE DE DESENVOLVIMENTO (nunca em produção): aplica o MOTOR REAL (render + gates) ao extrato REAL do IBGE versionado em
 // db/test-fixtures/generation/. Nada é persistido e nenhum dado é inventado; serve para inspecionar a interface sem login nem banco.
@@ -46,4 +46,27 @@ export function devListRows(): import("@plataforma/api").PageListItem[] {
     const d = buildDevDetail(c.ibgeCode, "ok");
     return d!.detail.page;
   });
+}
+
+/**
+ * REPLAY de uma execução (fixture): as 20 maiores populações de SP avaliadas pelo MOTOR e pelos GATES reais, com três cidades forçadas a
+ * reprovar (um caso de URL duplicada e dois sem população) para exercitar o ramo de falha. `registered` itens já "gravados": enquanto
+ * houver itens faltando, o estado é `running`. Nada é persistido e não é uma execução real: a interface rotula como replay.
+ */
+export function buildDevRun(registered: number, startedAt: Date, now: Date): GenerationRunDetail {
+  const top = topCities(20);
+  const kindFor = (i: number): DevCase => (i === 4 ? "blocked" : i === 8 || i === 13 ? "no-population" : "ok");
+  const all: GenerationItemDetail[] = top.map((c, i) => {
+    const d = buildDevDetail(c.code, kindFor(i))!.detail;
+    const a = d.latestAttempt!;
+    return { entityId: d.page.entityId, outcome: a.outcome, gates: a.gates, pageId: null, pageVersionId: null, error: null, ibgeCode: c.code, cityName: d.page.cityName, uf: d.page.uf, pagePath: d.page.path || null };
+  });
+  const items = all.slice(0, Math.max(0, Math.min(registered, all.length)));
+  const finished = items.length >= all.length;
+  const count = (o: GenerationItemDetail["outcome"]) => items.filter((i) => i.outcome === o).length;
+  return {
+    run: { id: "00000000-0000-4000-8000-0000000000aa", templateKey: CITY_OVERVIEW.key, templateVersion: CITY_OVERVIEW.version, status: finished ? (count("blocked") > 0 ? "partial" : "succeeded") : "running", totalItems: all.length, generatedItems: count("generated"), unchangedItems: count("unchanged"), blockedItems: count("blocked"), error: null, startedAt, finishedAt: finished ? now : null, createdBy: "fixture (replay)" },
+    scope: { uf: "SP", limit: 20 },
+    items,
+  };
 }

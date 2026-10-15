@@ -31,7 +31,7 @@ export function SearchGraph({ data, cluster }: { data: WorkspaceData; cluster?: 
 
   return (
     <div className={cn("grid grid-cols-1 gap-4", focus ? "lg:grid-cols-[minmax(0,1fr)_340px]" : "")}>
-      <div className="min-w-0 overflow-x-auto border border-border bg-card">
+      <div className="min-w-0 overflow-x-auto card-cut">
         <div className="grid min-w-[960px] grid-cols-6 divide-x divide-border">
           {SG_COLUMNS.map((col) => {
             const nodes = graph.nodes.filter((n) => n.kind === col.kind);

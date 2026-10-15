@@ -1,5 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// O fluxo vivo usa o roteador do Next (atualização automática da execução em andamento); na renderização estática dos testes ele não existe.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 import { buildCityFacts, renderCityPage, CITY_OVERVIEW, type City, type GateResult, type GenerationRunDetail, type ImportRunSummary, type PageDetail, type PageListItem, type PageVersionView } from "@plataforma/api";
 import { parseHomeParams } from "@/lib/server/generation";
 import type { Loaded } from "@/lib/server/tenant-data";
@@ -62,9 +65,8 @@ describe("lista de páginas e formulário de geração", () => {
     const out = html(<GenerationHomeView loaded={ready(homeData({ pages: { rows: [], total: 0 }, drafts: 0 }))} params={P} pageSize={20} />);
     expect(out).toContain("Nenhuma página gerada ainda");
     expect(out).toContain('for="gen-uf"');
-    expect(out).toContain('for="gen-limit"');
     expect((out.match(/<option value="[A-Z]{2}"/g) ?? []).length).toBeGreaterThanOrEqual(27);
-    expect(out).toMatch(/name="limit"[^>]*value="20"|value="20"[^>]*name="limit"/);
+    expect(out).toMatch(/type="hidden"[^>]*name="limit"[^>]*value="20"|name="limit"[^>]*type="hidden"[^>]*value="20"|value="20"[^>]*name="limit"/); // padrão do piloto, sem pedir ao usuário
     expect(out).toContain("Gerar rascunhos");
     expect(out).toContain("rascunho</strong>; nada é publicado");
   });
@@ -210,5 +212,14 @@ describe("detalhe da execução", () => {
     expect(out).toContain('role="alert"');
     expect(out).toContain("falha injetada");
     expect(out).toContain("não gravou itens");
+  });
+  it("mostra o fluxo de produção da execução: REGISTRO quando terminou, AO VIVO só quando está em andamento", () => {
+    const done = html(<RunDetailView loaded={ready<GenerationRunDetail | undefined>(run())} />);
+    expect(done).toContain("Fluxo de produção");
+    expect(done).toContain("REGISTRO · estado da última tentativa");
+    expect(done).not.toContain("AO VIVO");
+    const running = html(<RunDetailView loaded={ready<GenerationRunDetail | undefined>(run({ run: { ...run().run, status: "running", finishedAt: null } }))} />);
+    expect(running).toContain("AO VIVO · atualiza a cada 3 s");
+    expect(running).toContain("Nada é animado por conta própria");
   });
 });

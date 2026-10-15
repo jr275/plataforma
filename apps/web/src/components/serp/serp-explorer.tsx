@@ -36,7 +36,7 @@ export function SerpExplorer() {
         Posições, formatos de resultado (snippet, PAA, vídeo, local) e domínios ranqueados não são exibidos porque nada foi observado. As observações de concorrência abaixo são editoriais e estão rotuladas como tal.
       </StateNotice>
 
-      <div className="flex flex-wrap items-center gap-3 border border-border bg-card p-3">
+      <div className="flex flex-wrap items-center gap-3 card-cut p-3">
         <div role="tablist" aria-label="Visualização" className="flex border border-border">
           {(["queries", "graph"] as const).map((v) => (
             <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className={cn("h-7 px-3 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", view === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
@@ -51,7 +51,7 @@ export function SerpExplorer() {
         <SearchGraph data={current} cluster={cluster || undefined} />
       ) : (
         <div className={cn("grid grid-cols-1 gap-4", selected ? "lg:grid-cols-[minmax(0,1fr)_360px]" : "")}>
-          <div className="min-w-0 overflow-x-auto border border-border bg-card">
+          <div className="min-w-0 overflow-x-auto card-cut">
             <table className="w-full min-w-[720px] text-[13px]">
               <caption className="sr-only">Consultas do universo de buscas</caption>
               <thead className="border-b border-border bg-muted/40">

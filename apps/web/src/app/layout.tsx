@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Chakra_Petch, Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import { brand } from "@/config/brand";
 import "./globals.css";
@@ -14,6 +14,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Fontes QUADRADAS do fluxo de produção (referência: Palantir): títulos em Space Grotesk, rótulos em caixa alta em Chakra Petch. Só o fluxo as
+// usa por enquanto (tokens --font-flow e --font-flow-label em globals.css); para levar a todo o produto, basta apontar --font-heading para elas.
+const flowSans = Space_Grotesk({ variable: "--font-space-grotesk", subsets: ["latin"], weight: ["400", "500", "600"] });
+const flowLabel = Chakra_Petch({ variable: "--font-chakra-petch", subsets: ["latin"], weight: ["400", "500", "600"] });
+
 export const metadata: Metadata = {
   title: { default: `${brand.name} — protótipo`, template: `%s · ${brand.name}` },
   description: "Protótipo visual com dados demonstrativos. Ambiente de teste, não indexável.",
@@ -23,7 +28,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} ${flowSans.variable} ${flowLabel.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full">
         {/* Aplica o tema salvo antes da primeira pintura (evita o "piscar" claro/escuro). Só lê a preferência local. */}
         <Script

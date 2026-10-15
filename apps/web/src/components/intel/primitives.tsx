@@ -60,7 +60,7 @@ export function Section({ title, aside, children, className }: { title: string; 
 /** Painel lateral de detalhe. Em telas largas fica fixo ao lado do conteúdo. */
 export function Inspector({ title, subtitle, onClose, children, footer }: { title: string; subtitle?: ReactNode; onClose?: () => void; children: ReactNode; footer?: ReactNode }) {
   return (
-    <aside aria-label={`Detalhe: ${title}`} className="flex max-h-[calc(100dvh-7rem)] flex-col border border-border bg-card lg:sticky lg:top-16">
+    <aside aria-label={`Detalhe: ${title}`} className="flex max-h-[calc(100dvh-7rem)] flex-col card-cut lg:sticky lg:top-16">
       <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <p className="text-sm leading-snug font-medium text-pretty">{title}</p>
