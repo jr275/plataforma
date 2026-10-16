@@ -22,6 +22,26 @@ export interface GscExportTotals {
   readonly position: number;
 }
 
+/** Linha de um export SEM comparação com período anterior (o "Last 16 months" do Search Console). */
+export interface GscLongRow {
+  readonly key: string;
+  readonly clicks: number;
+  readonly impressions: number;
+  /** Em porcentagem. */
+  readonly ctr: number;
+  readonly position: number;
+}
+
+/** Período longo (export completo de 16 meses): sem variação contra o período anterior, porque o export não a traz. */
+export interface GscExportLong {
+  readonly period: string;
+  readonly searchType: string;
+  readonly total: GscExportTotals;
+  readonly coverage: GscExportSnapshot["coverage"];
+  readonly topQueries: readonly GscLongRow[];
+  readonly topPages: readonly GscLongRow[];
+}
+
 export interface GscDailyPoint {
   /** AAAA-MM-DD, como no export. */
   readonly date: string;
@@ -50,6 +70,8 @@ export interface GscExportSnapshot {
     readonly queries: { readonly rows: number; readonly clicks: number; readonly impressions: number; readonly clicksShare: number; readonly impressionsShare: number };
     readonly pages: { readonly rows: number; readonly clicks: number; readonly clicksShare: number };
   };
+  /** Export de período longo (16 meses): rankings maiores, sem variação contra o período anterior. */
+  readonly long?: GscExportLong;
   /** Série diária (aba "Datas" do export). Pode vir de outra propriedade que o resto do snapshot, por isso carrega a sua. */
   readonly daily?: { readonly property: string; readonly points: readonly GscDailyPoint[] };
   /** As maiores consultas e páginas por cliques (dado do cliente: o snapshot vive só em arquivo local, fora do Git). Ausente em snapshots antigos. */
@@ -145,6 +167,43 @@ export function parseDailySeries(text: string): GscDailyPoint[] {
   return points.sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
+/** Export sem colunas de comparação: Chave, Clicks, Impressions, CTR, Position. */
+function singleRows(text: string): GscLongRow[] {
+  const { header, body } = rowsOf(text);
+  if (header.length !== 5) throw new Error(`export de período longo com ${header.length} colunas (esperado 5: sem comparação)`);
+  return body.map((r) => ({ key: r[0] ?? "", clicks: num(r[1]), impressions: num(r[2]), ctr: num(r[3]), position: num(r[4]) }));
+}
+
+export interface GscExportLongFiles { readonly devices: string; readonly queries: string; readonly pages: string; readonly filters: string }
+
+/** Monta o bloco de período longo. Os totais saem dos dispositivos, que cobrem todo o tráfego. */
+export function buildGscExportLong(files: GscExportLongFiles): GscExportLong {
+  const devices = singleRows(files.devices);
+  if (devices.length === 0) throw new Error("export de período longo sem dispositivos: não há como calcular os totais");
+  const clicks = devices.reduce((s, r) => s + r.clicks, 0);
+  const impressions = devices.reduce((s, r) => s + r.impressions, 0);
+  const total: GscExportTotals = { clicks, impressions, ctr: impressions > 0 ? (clicks / impressions) * 100 : 0, position: impressions > 0 ? devices.reduce((s, r) => s + r.position * r.impressions, 0) / impressions : 0 };
+  const queries = singleRows(files.queries);
+  const pages = singleRows(files.pages);
+  const qClicks = queries.reduce((s, r) => s + r.clicks, 0);
+  const qImpr = queries.reduce((s, r) => s + r.impressions, 0);
+  const pClicks = pages.reduce((s, r) => s + r.clicks, 0);
+  const filters = new Map(rowsOf(files.filters).body.map((r) => [r[0] ?? "", r[1] ?? ""]));
+  const share = (part: number, whole: number) => (whole > 0 ? (part / whole) * 100 : 0);
+  const top = (rows: GscLongRow[]) => [...rows].sort((a, b) => b.clicks - a.clicks).slice(0, TOP_LIST);
+  return {
+    period: filters.get("Date") ?? "",
+    searchType: filters.get("Search type") ?? "",
+    total,
+    coverage: {
+      queries: { rows: queries.length, clicks: qClicks, impressions: qImpr, clicksShare: share(qClicks, clicks), impressionsShare: share(qImpr, impressions) },
+      pages: { rows: pages.length, clicks: pClicks, clicksShare: share(pClicks, clicks) },
+    },
+    topQueries: top(queries),
+    topPages: top(pages),
+  };
+}
+
 export interface GscExportFiles {
   readonly devices: string;
   readonly countries: string;
@@ -156,6 +215,8 @@ export interface GscExportFiles {
   readonly ai?: { readonly pages: string; readonly countries: string; readonly devices: string };
   /** Opcional: aba "Datas" e a propriedade de onde ela veio. */
   readonly dates?: { readonly csv: string; readonly property: string };
+  /** Opcional: export completo de período longo (16 meses), sem comparação. */
+  readonly long?: GscExportLongFiles;
 }
 
 export interface GscExportMeta { readonly property: string; readonly exportedAt: string; readonly tenantId: string | null }
@@ -202,6 +263,7 @@ export function buildGscExportSnapshot(files: GscExportFiles, meta: GscExportMet
     current, previous, devices,
     appearances: metricRows(files.appearances).filter((r) => r.impressions > 0 || r.clicks > 0),
     countries,
+    ...(files.long ? { long: buildGscExportLong(files.long) } : {}),
     ...(files.dates ? { daily: { property: files.dates.property, points: parseDailySeries(files.dates.csv) } } : {}),
     top: { queries: [...queries].sort((a, b) => b.clicks - a.clicks).slice(0, TOP_LIST), pages: [...pages].sort((a, b) => b.clicks - a.clicks).slice(0, TOP_LIST) },
     coverage: {
@@ -221,6 +283,7 @@ export function parseGscExportSnapshot(raw: unknown): GscExportSnapshot | null {
   if (typeof s.property !== "string" || typeof s.exportedAt !== "string" || !okTotals(s.current) || !okTotals(s.previous)) return null;
   if (!Array.isArray(s.devices) || !Array.isArray(s.appearances) || !Array.isArray(s.countries) || !s.coverage) return null;
   if (s.tenantId !== null && typeof s.tenantId !== "string") return null;
+  if (s.long !== undefined && (!okTotals(s.long.total) || !Array.isArray(s.long.topQueries) || !Array.isArray(s.long.topPages) || !s.long.coverage)) return null;
   if (s.daily !== undefined && (typeof s.daily.property !== "string" || !Array.isArray(s.daily.points))) return null;
   if (s.top !== undefined && (!Array.isArray(s.top.queries) || !Array.isArray(s.top.pages))) return null;
   return s as GscExportSnapshot;

@@ -2,12 +2,12 @@
 // Gera o snapshot agregado do export do Search Console (ADR-026). Lê direto dos zips; não grava nada além do arquivo de saída.
 // Uso:
 //   gerar:      node scripts/gsc-export-build.mjs --search <zip> [--ai <zip>] [--dates <csv|zip> --dates-property <prop>] --property <url> --tenant <uuid> [--out apps/web/.data/gsc-export.json]
-//   acrescentar a série diária a um snapshot que já existe:
-//               node scripts/gsc-export-build.mjs --dates <csv|zip> --dates-property <prop> [--out apps/web/.data/gsc-export.json]
+//   acrescentar a um snapshot que já existe (qualquer combinação):
+//               node scripts/gsc-export-build.mjs [--dates <csv|zip> --dates-property <prop>] [--long <zip de 16 meses>] [--property <prop>] [--out apps/web/.data/gsc-export.json]
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { buildGscExportSnapshot, parseDailySeries, parseGscExportSnapshot } from "../packages/api/src/intel/gsc-export.ts";
+import { buildGscExportLong, buildGscExportSnapshot, parseDailySeries, parseGscExportSnapshot } from "../packages/api/src/intel/gsc-export.ts";
 
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 2) args.set(process.argv[i], process.argv[i + 1]);
@@ -24,20 +24,28 @@ const datesCsv = () => {
   if (!name) { console.error("o zip não tem Dates.csv nem Chart.csv"); process.exit(2); }
   return read(datesPath, name);
 };
+const longZip = args.get("--long") ? resolve(args.get("--long")) : null;
+const longFiles = () => ({ devices: read(longZip, "Devices.csv"), queries: read(longZip, "Queries.csv"), pages: read(longZip, "Pages.csv"), filters: read(longZip, "Filters.csv") });
 const write = (snapshot) => {
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(snapshot, null, 2) + "\n", { mode: 0o600 });
   console.log(`snapshot gravado em ${out}`);
   console.log(`cliques=${snapshot.current.clicks} impressões=${snapshot.current.impressions} ctr=${snapshot.current.ctr.toFixed(2)}% posição=${snapshot.current.position.toFixed(2)}`);
+  if (snapshot.long) console.log(`período longo: ${snapshot.long.period}, ${snapshot.long.total.clicks} cliques, ${snapshot.long.coverage.queries.rows} consultas e ${snapshot.long.coverage.pages.rows} páginas`);
   if (snapshot.daily) console.log(`série diária: ${snapshot.daily.points.length} dias (${snapshot.daily.points[0].date} a ${snapshot.daily.points.at(-1).date}) de ${snapshot.daily.property}`);
 };
 
-// Modo "acrescentar": só a série diária, sobre um snapshot existente.
-if (!args.get("--search") && datesPath) {
+// Modo "acrescentar": série diária e/ou período longo, sobre um snapshot existente.
+if (!args.get("--search") && (datesPath || longZip)) {
   if (!existsSync(out)) { console.error(`não há snapshot em ${out}; gere primeiro com --search`); process.exit(2); }
   const current = parseGscExportSnapshot(JSON.parse(readFileSync(out, "utf8")));
   if (!current) { console.error("o snapshot existente é inválido"); process.exit(2); }
-  write({ ...current, ...(args.get("--property") ? { property: args.get("--property") } : {}), daily: { property: need("--dates-property"), points: parseDailySeries(datesCsv()) } });
+  write({
+    ...current,
+    ...(args.get("--property") ? { property: args.get("--property") } : {}),
+    ...(longZip ? { long: buildGscExportLong(longFiles()) } : {}),
+    ...(datesPath ? { daily: { property: need("--dates-property"), points: parseDailySeries(datesCsv()) } } : {}),
+  });
   process.exit(0);
 }
 

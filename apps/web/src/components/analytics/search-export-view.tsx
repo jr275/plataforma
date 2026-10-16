@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { GscExportRow, GscExportSnapshot } from "@plataforma/api";
+import type { GscExportRow, GscExportSnapshot, GscLongRow } from "@plataforma/api";
 import { DailyCharts } from "./daily-charts";
 import { DataStateBadge } from "@/components/intel/primitives";
 import { labelClass } from "@/components/ui/frame";
@@ -88,14 +88,15 @@ function shortUrl(url: string, property: string): string {
   return url.startsWith(base) ? url.slice(base.length) || "/" : url;
 }
 
-function RankTable({ rows, firstColumn, name, total }: { rows: readonly GscExportRow[]; firstColumn: string; name: (key: string) => string; total: number }) {
+function RankTable({ rows, firstColumn, name, total }: { rows: readonly (GscLongRow & { prevClicks?: number })[]; firstColumn: string; name: (key: string) => string; total: number }) {
+  const compare = rows.length > 0 && rows.every((r) => r.prevClicks !== undefined);
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[44rem] text-sm">
         <thead>
           <tr className={`${labelClass} border-b border-border text-left text-[10px] text-muted-foreground`}>
             <th scope="col" className="w-10 py-2 pr-2 font-medium">#</th><th scope="col" className="py-2 pr-3 font-medium">{firstColumn}</th><th scope="col" className="py-2 pr-3 text-right font-medium">Cliques</th>
-            <th scope="col" className="py-2 pr-3 font-medium">Participação</th><th scope="col" className="py-2 pr-3 text-right font-medium">Vs anterior</th>
+            <th scope="col" className="py-2 pr-3 font-medium">Participação</th>{compare ? <th scope="col" className="py-2 pr-3 text-right font-medium">Vs anterior</th> : null}
             <th scope="col" className="py-2 pr-3 text-right font-medium">Impressões</th><th scope="col" className="py-2 pr-3 text-right font-medium">CTR</th><th scope="col" className="py-2 text-right font-medium">Posição</th>
           </tr>
         </thead>
@@ -106,7 +107,7 @@ function RankTable({ rows, firstColumn, name, total }: { rows: readonly GscExpor
               <th scope="row" className="max-w-[26rem] truncate py-2.5 pr-3 text-left font-normal" title={r.key}>{name(r.key)}</th>
               <td className="py-2.5 pr-3 text-right font-mono tabular-nums">{int.format(r.clicks)}</td>
               <td className="py-2.5 pr-3"><Share part={r.clicks} whole={total} /></td>
-              <td className="py-2.5 pr-3 text-right"><RowDelta now={r.clicks} before={r.prevClicks} /></td>
+              {compare ? <td className="py-2.5 pr-3 text-right"><RowDelta now={r.clicks} before={r.prevClicks ?? 0} /></td> : null}
               <td className="py-2.5 pr-3 text-right font-mono tabular-nums">{int.format(r.impressions)}</td>
               <td className="py-2.5 pr-3 text-right font-mono tabular-nums">{pct(r.ctr, 2)}</td>
               <td className="py-2.5 text-right font-mono tabular-nums">{dec(r.position, 2)}</td>
@@ -124,6 +125,11 @@ function RowDelta({ now, before }: { now: number; before: number }) {
   const c = ((now - before) / before) * 100;
   return <span className={`font-mono text-xs tabular-nums ${Math.abs(c) < 0.05 ? "text-muted-foreground" : c > 0 ? "text-success" : "text-destructive"}`}>{c > 0 ? "+" : ""}{dec(c, 1)}%</span>;
 }
+
+/** O Search Console corta cada lista do export em 1.000 linhas: com exatamente esse número, a lista pode estar incompleta. */
+const EXPORT_CAP = 1000;
+const capNote = (rows: number) => (rows >= EXPORT_CAP ? ` O export para em ${int.format(EXPORT_CAP)} linhas (limite do Search Console): pode haver mais.` : "");
+const periodLabel = (p: string) => (p === "Last 16 months" ? "Últimos 16 meses" : p === "Last 6 months" ? "Últimos 6 meses" : p);
 
 const HEADER = (extra?: ReactNode) => (
   <PageHeader crumbs={[{ label: "Performance" }, { label: "Search Console" }]} title="Search Console: desempenho" description="Desempenho orgânico real do site, lido de um export do Search Console." badges={extra} />
@@ -195,6 +201,17 @@ export function SearchExportView({ loaded }: { loaded: GscExportLoaded }) {
           <div><dt className={`${labelClass} text-[10px] text-muted-foreground`}>Como ler</dt><dd className="mt-1 text-xs text-muted-foreground">O resto é cauda longa que o Search Console não entrega por consulta. Por isso a lista de consultas não substitui o universo de busca completo.</dd></div>
         </dl>
       </Panel>
+
+      {s.long ? (
+        <>
+          <Panel title="Páginas com mais cliques em 16 meses" description={`${periodLabel(s.long.period)}: ${int.format(s.long.total.clicks)} cliques, ${int.format(s.long.total.impressions)} impressões, CTR ${pct(s.long.total.ctr, 2)}, posição ${dec(s.long.total.position, 2)}. As ${s.long.topPages.length} maiores de ${int.format(s.long.coverage.pages.rows)} páginas exportadas, juntas ${pct(s.long.coverage.pages.clicksShare)} dos cliques.${capNote(s.long.coverage.pages.rows)} Este export não traz o período anterior, então não há variação.`}>
+            <RankTable rows={s.long.topPages} firstColumn="Página" name={(k) => shortUrl(k, s.property)} total={s.long.total.clicks} />
+          </Panel>
+          <Panel title="Consultas com mais cliques em 16 meses" description={`As ${s.long.topQueries.length} maiores de ${int.format(s.long.coverage.queries.rows)} consultas exportadas, que juntas cobrem ${pct(s.long.coverage.queries.clicksShare)} dos cliques e ${pct(s.long.coverage.queries.impressionsShare)} das impressões do período. O resto é cauda anônima que o Google não entrega.${capNote(s.long.coverage.queries.rows)}`}>
+            <RankTable rows={s.long.topQueries} firstColumn="Consulta" name={(k) => k} total={s.long.total.clicks} />
+          </Panel>
+        </>
+      ) : null}
 
       {s.ai ? (
         <Panel title="Recursos de IA generativa" description="Só impressões: o export não traz cliques separados por recurso de IA.">

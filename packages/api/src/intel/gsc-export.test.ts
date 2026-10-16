@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGscExportSnapshot, parseCsv, parseDailySeries, parseGscExportSnapshot, type GscExportFiles } from "./gsc-export";
+import { buildGscExportLong, buildGscExportSnapshot, parseCsv, parseDailySeries, parseGscExportSnapshot, type GscExportFiles } from "./gsc-export";
 
 const H = "Last 6 months Clicks,Previous 6 months Clicks,Last 6 months Impressions,Previous 6 months Impressions,Last 6 months CTR,Previous 6 months CTR,Last 6 months Position,Previous 6 months Position";
 const files = (over: Partial<GscExportFiles> = {}): GscExportFiles => ({
@@ -98,5 +98,36 @@ describe("parseDailySeries", () => {
     expect(s.daily).toMatchObject({ property: "sc-domain:x.test", points: [{ date: "2026-01-01", clicks: 1 }] });
     expect(parseGscExportSnapshot(JSON.parse(JSON.stringify(s)))).not.toBeNull();
     expect(parseGscExportSnapshot({ ...s, daily: { property: 1, points: [] } })).toBeNull();
+  });
+});
+
+describe("buildGscExportLong (16 meses, sem comparação)", () => {
+  const long = {
+    devices: "Device,Clicks,Impressions,CTR,Position\nMobile,600,6000,10%,2\nDesktop,400,4000,10%,4\n",
+    queries: "Top queries,Clicks,Impressions,CTR,Position\nq1,300,1000,30%,1\nq2,50,400,12%,3\n",
+    pages: "Top pages,Clicks,Impressions,CTR,Position\nhttps://x.test/a,700,5000,14%,3\nhttps://x.test/b,40,300,13%,5\n",
+    filters: "Filter,Value\nSearch type,Web (text-based)\nDate,Last 16 months\n",
+  };
+  it("totais dos dispositivos, cobertura das listas e rankings por cliques, sem nenhuma variação", () => {
+    const l = buildGscExportLong(long);
+    expect(l.total).toMatchObject({ clicks: 1000, impressions: 10000, ctr: 10 });
+    expect(l.total.position).toBeCloseTo(2.8);
+    expect(l.period).toBe("Last 16 months");
+    expect(l.coverage.queries.clicksShare).toBeCloseTo(35);
+    expect(l.coverage.pages.clicksShare).toBeCloseTo(74);
+    expect(l.topQueries.map((q) => q.key)).toEqual(["q1", "q2"]);
+    expect(l.topPages[0]).toMatchObject({ key: "https://x.test/a", clicks: 700, position: 3 });
+    expect(JSON.stringify(l)).not.toMatch(/prev/i);
+  });
+  it("recusa um export COM comparação (9 colunas): misturaria dois formatos e inventaria o que falta", () => {
+    expect(() => buildGscExportLong({ ...long, queries: `Top queries,${H}\nq,1,0,1,0,1%,0%,1,0\n` })).toThrow(/5: sem comparação/);
+  });
+  it("limita os rankings a 50 e o snapshot completo aceita o bloco long (e o validador também)", () => {
+    const many = "Top queries,Clicks,Impressions,CTR,Position\n" + Array.from({ length: 80 }, (_, i) => `q${i},${i},10,10%,1`).join("\n");
+    expect(buildGscExportLong({ ...long, queries: many }).topQueries).toHaveLength(50);
+    const snap = buildGscExportSnapshot(files({ long }), META);
+    expect(snap.long?.total.clicks).toBe(1000);
+    expect(parseGscExportSnapshot(JSON.parse(JSON.stringify(snap)))).not.toBeNull();
+    expect(parseGscExportSnapshot({ ...snap, long: { ...snap.long, topQueries: 1 } })).toBeNull();
   });
 });

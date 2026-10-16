@@ -6,17 +6,26 @@ import { SearchExportView } from "./search-export-view";
 
 // Entradas de teste montadas à mão (NÃO são dados do cliente): o parser real as transforma no snapshot que a tela recebe.
 const H = "Last 6 months Clicks,Previous 6 months Clicks,Last 6 months Impressions,Previous 6 months Impressions,Last 6 months CTR,Previous 6 months CTR,Last 6 months Position,Previous 6 months Position";
-const snapshot = (ai = true) => buildGscExportSnapshot({
+const FILES_BASE = {
   devices: `Device,${H}\nMobile,600,500,6000,5000,10%,10%,2,3\nDesktop,400,500,4000,5000,10%,10%,4,3\n`,
   countries: `Country,${H}\nBrazil,950,950,9500,9500,10%,10%,3,3\n`,
   appearances: `Search Appearance,${H}\nProduct snippets,90,80,900,800,10%,10%,5,5\n`,
   queries: `Top queries,${H}\nq1,300,200,1000,900,30%,22%,1,1\nq2,50,0,400,0,12%,0%,3,0\n`,
   pages: `Top pages,${H}\nhttps://x.test/cidade-a,700,600,5000,4000,14%,15%,3,3\nhttp://x.test/cidade-a,40,0,300,0,13%,0%,5,0\n`,
   filters: "Filter,Value\nSearch type,Web (text-based)\nDate,Last 6 months\n",
-  ...(ai ? { ai: { pages: "Top pages,Last 6 months Impressions,Previous 6 months Impressions\nhttps://x.test/ia-a,50,0\n", countries: "Country,Last 6 months Impressions,Previous 6 months Impressions\nBrazil,50,0\n", devices: "Device,Last 6 months Impressions,Previous 6 months Impressions\nMobile,50,0\n" } } : {}),
-}, { property: "https://x.test/", exportedAt: "2026-10-16", tenantId: null });
+};
+const AI = { ai: { pages: "Top pages,Last 6 months Impressions,Previous 6 months Impressions\nhttps://x.test/ia-a,50,0\n", countries: "Country,Last 6 months Impressions,Previous 6 months Impressions\nBrazil,50,0\n", devices: "Device,Last 6 months Impressions,Previous 6 months Impressions\nMobile,50,0\n" } };
+const FILES = { ...FILES_BASE, ...AI };
+const snapshot = (ai = true) => buildGscExportSnapshot(ai ? FILES : FILES_BASE, { property: "https://x.test/", exportedAt: "2026-10-16", tenantId: null });
 const html = (loaded: GscExportLoaded) => renderToStaticMarkup(<SearchExportView loaded={loaded} />);
 const withDaily = (property: string): GscExportLoaded => ({ state: "ready", snapshot: { ...snapshot(), daily: { property, points: [{ date: "2026-01-01", clicks: 10, impressions: 100, ctr: 10, position: 3 }, { date: "2026-01-02", clicks: 12, impressions: 110, ctr: 10.9, position: 3.1 }] } } });
+const LONG = {
+  devices: "Device,Clicks,Impressions,CTR,Position\nMobile,600,6000,10%,2\nDesktop,400,4000,10%,4\n",
+  queries: "Top queries,Clicks,Impressions,CTR,Position\nlong-q1,300,1000,30%,1\n",
+  pages: "Top pages,Clicks,Impressions,CTR,Position\nhttps://x.test/long-a,700,5000,14%,3\n",
+  filters: "Filter,Value\nSearch type,Web (text-based)\nDate,Last 16 months\n",
+};
+const withLong = (): GscExportLoaded => ({ state: "ready", snapshot: buildGscExportSnapshot({ ...FILES, long: LONG }, { property: "https://x.test/", exportedAt: "2026-10-16", tenantId: null }) });
 const ready = (ai = true): GscExportLoaded => ({ state: "ready", snapshot: snapshot(ai) });
 
 describe("relatório do Search Console a partir de export", () => {
@@ -86,6 +95,25 @@ describe("relatório do Search Console a partir de export", () => {
     expect(out).toContain(">/cidade-a<");
     expect(out).toContain("http://x.test/cidade-a");
     expect(out).toContain("https://www.x.test");
+  });
+  it("16 meses: rankings sem a coluna de variação, com período, totais e cobertura próprios", () => {
+    const out = html(withLong());
+    expect(out).toContain("Páginas com mais cliques em 16 meses");
+    expect(out).toContain("Consultas com mais cliques em 16 meses");
+    expect(out).toContain("Últimos 16 meses");
+    expect(out).toContain("long-q1");
+    expect(out).toContain(">/long-a<");
+    expect(out).toContain("não traz o período anterior");
+    const longSection = out.slice(out.indexOf("Páginas com mais cliques em 16 meses"), out.indexOf("Recursos de IA generativa"));
+    expect(longSection).not.toContain("Vs anterior");
+    expect(html(ready())).not.toContain("em 16 meses");
+  });
+  it("avisa quando uma lista bate no teto de 1.000 linhas do export (pode estar incompleta)", () => {
+    const base = withLong();
+    if (base.state !== "ready" || !base.snapshot.long) throw new Error("fixture");
+    const capped = { ...base.snapshot, long: { ...base.snapshot.long, coverage: { ...base.snapshot.long.coverage, pages: { ...base.snapshot.long.coverage.pages, rows: 1000 } } } };
+    expect(html({ state: "ready", snapshot: capped })).toContain("O export para em 1.000 linhas");
+    expect(html(base)).not.toContain("O export para em");
   });
   it("sem export, diz o motivo em vez de simular números", () => {
     for (const state of ["not_loaded", "invalid", "other_tenant"] as const) {
