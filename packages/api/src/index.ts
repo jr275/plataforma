@@ -107,6 +107,7 @@ export {
   type PropertyKind,
   type Remediation,
 } from "./intel/gsc-diagnostics";
+export { buildGscExportLong, buildGscExportSnapshot, parseDailySeries, parseGscExportSnapshot, type GscDailyPoint, type GscExportFiles, type GscExportLong, type GscExportRow, type GscLongRow, type GscExportSnapshot, type GscExportTotals } from "./intel/gsc-export";
 export { normalizeSearchFacts, overlappingTargets, type SearchPerformanceFact, type SearchFactProvenance } from "./intel/gsc-facts";
 export { resolveDataForSeoConfig } from "./intel/dataforseo";
 export {
