@@ -8,9 +8,10 @@ export type ValidateGscState =
   | { kind: "denied"; message: string; attemptedAt: string }
   | null;
 
-const DENIED: Record<"unauthenticated" | "no_tenant" | "login_not_configured", string> = {
+const DENIED: Record<"unauthenticated" | "no_tenant" | "tenant_selection_required" | "login_not_configured", string> = {
   unauthenticated: "Sua sessão expirou. Entre novamente para validar a conexão.",
   no_tenant: "Seu usuário ainda não está associado a um workspace.",
+  tenant_selection_required: "Seu usuário tem mais de um workspace e a seleção explícita ainda não está disponível; a validação não usa um workspace escolhido por conveniência.",
   login_not_configured: "O login não está configurado neste ambiente; a validação fica bloqueada em produção.",
 };
 

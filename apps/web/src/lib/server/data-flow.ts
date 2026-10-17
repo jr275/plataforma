@@ -3,12 +3,14 @@ import { connection } from "next/server";
 import { countCities, getImportRun, listImportRecords, listImportRuns, withTenant, type ImportRecordView, type ImportRunSummary } from "@plataforma/api";
 import { appPool } from "./db";
 import { requestIdentity } from "./identity";
+import { activeTenantFor } from "./tenant-selection";
 
 // Dados da tela "Fluxo de dados" (ADR-018). Só funções tipadas de packages/api, sempre por withTenant com o tenant da identidade verificada.
 export type DataFlow =
   | { state: "not_configured"; missing: string }
   | { state: "unauthenticated" }
   | { state: "no_tenant" }
+  | { state: "tenant_selection_required" }
   | { state: "error" }
   | { state: "ready"; runs: readonly ImportRunSummary[]; cityCount: number; selected?: { run: ImportRunSummary; records: readonly ImportRecordView[]; truncated: boolean } };
 
@@ -21,10 +23,11 @@ export async function loadDataFlow(runId?: string): Promise<DataFlow> {
   if (who.state === "unauthenticated") return { state: "unauthenticated" };
   const pool = appPool();
   if (!pool) return { state: "not_configured", missing: "banco de dados (PLATAFORMA_APP_DATABASE_URL)" };
-  const tenantId = who.identity.tenantIds[0];
-  if (!tenantId) return { state: "no_tenant" };
+  const pick = activeTenantFor(who.identity); // mesma regra de tenant-data.ts: nunca "o primeiro da lista"
+  if (pick.kind === "none") return { state: "no_tenant" };
+  if (pick.kind === "selection_required") return { state: "tenant_selection_required" };
   try {
-    return await withTenant(pool, who.identity, tenantId, async (db) => {
+    return await withTenant(pool, who.identity, pick.tenantId, async (db) => {
       const [runs, cityCount] = await Promise.all([listImportRuns(db, { limit: 50 }), countCities(db)]);
       let selected: Extract<DataFlow, { state: "ready" }>["selected"];
       if (runId) {
