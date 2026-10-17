@@ -3,7 +3,7 @@
 **Status:** PROPOSTA (2026-10-14). Nada aqui foi executado em Neon, Supabase ou produção. Cada passo que toca um ambiente compartilhado exige a autorização do dono para aquela operação (`docs/POLITICA_DE_ENGENHARIA.md`, seção 2, quando ela estiver integrada). Os comandos abaixo usam **marcadores**; nenhum segredo entra neste documento nem no chat.
 
 ## Por que isto é necessário
-Para a tela `/opportunities` mostrar dado real (ADR-024) é preciso, no ambiente: (1) banco e login configurados; (2) um tenant; (3) a claim `app_metadata.tenant_ids` no usuário; (4) linhas em `plataforma.opportunity`. As migrations não criam tenants nem dados (ADR-013, item 3). Hoje existe só o passo 2 para o banco de **desenvolvimento** do Neon (`scripts/neon-create-tenant.sh`); os passos 3 e 4 não têm procedimento.
+Para a tela `/opportunities` mostrar dado real (ADR-036) é preciso, no ambiente: (1) banco e login configurados; (2) um tenant; (3) a claim `app_metadata.tenant_ids` no usuário; (4) linhas em `plataforma.opportunity`. As migrations não criam tenants nem dados (ADR-013, item 3). Hoje existe só o passo 2 para o banco de **desenvolvimento** do Neon (`scripts/neon-create-tenant.sh`); os passos 3 e 4 não têm procedimento.
 
 ## Camadas de acesso de cada passo
 

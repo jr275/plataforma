@@ -7,7 +7,7 @@ import { loadOpportunityList } from "@/lib/server/opportunities";
 
 export const metadata: Metadata = { title: "Opportunities" };
 
-// ADR-024: com login e banco configurados a tela lê as oportunidades REAIS e nunca cai para a demonstração (cada falha é um estado
+// ADR-036: com login e banco configurados a tela lê as oportunidades REAIS e nunca cai para a demonstração (cada falha é um estado
 // explícito). A demonstração só aparece quando o ambiente não tem nenhum dos dois, com um aviso visível.
 async function Content() {
   const loaded = await loadOpportunityList();

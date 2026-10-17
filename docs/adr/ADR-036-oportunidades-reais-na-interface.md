@@ -1,4 +1,4 @@
-# ADR-024: Oportunidades reais na interface (primeira tela ligada ao banco do produto)
+# ADR-036: Oportunidades reais na interface (primeira tela ligada ao banco do produto)
 
 **Status:** PROPOSED (2026-10-14). Implementado só em código local, com testes de interface e da ação de servidor, todos sem banco. **Não validado contra um banco real**: nenhum banco foi acessado e nenhuma migration foi criada ou aplicada.
 
@@ -26,4 +26,4 @@
 
 - Para ver dados reais é preciso: `PLATAFORMA_APP_DATABASE_URL`, o login (Supabase) configurado, o usuário com a claim `app_metadata.tenant_ids` e linhas em `plataforma.opportunity`. **Nenhuma dessas condições foi verificada aqui.** Os tenants e as oportunidades não são criados por migration (ADR-013); falta o procedimento administrativo.
 - **Risco herdado:** o `loadForTenant` ainda escolhe o tenant por posição (`tenantIds[0]`), o achado F2 da auditoria de segurança. Quem tem mais de um tenant vê sempre o primeiro. O endurecimento (`pickTenant`, ADR-018) está pronto na branch `feat/tenant-selection`, ainda não integrada; esta tela herda a correção quando ela entrar (os estados já estão previstos aqui). Até lá, não use esta tela com usuários de vários tenants.
-- O ADR-024 também não cobre a criação ou a edição de oportunidades pela interface nem a ligação com o motor de provedores.
+- O ADR-036 também não cobre a criação ou a edição de oportunidades pela interface nem a ligação com o motor de provedores.

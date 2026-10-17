@@ -4,7 +4,7 @@ import { RealOpportunityDetail } from "@/components/opportunities/real-opportuni
 import { detailRoute } from "@/lib/detail-route";
 import { loadOpportunityDetail } from "@/lib/server/opportunities";
 
-// Mesmo critério da lista (ADR-024): real quando há login e banco; demonstração, com aviso, só quando o ambiente não tem nenhum dos dois.
+// Mesmo critério da lista (ADR-036): real quando há login e banco; demonstração, com aviso, só quando o ambiente não tem nenhum dos dois.
 async function Detail({ id }: { id: string }) {
   const loaded = await loadOpportunityDetail(id);
   if (loaded.state === "not_configured") {
