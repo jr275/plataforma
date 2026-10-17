@@ -1,4 +1,4 @@
-# ADR-025: Fluxo vivo de geração (React Flow) e imagem OG
+# ADR-037: Fluxo vivo de geração (React Flow) e imagem OG
 
 **Status:** PROPOSED (2026-10-15). Implementado só em código local, com testes de unidade e verificação visual na fixture de desenvolvimento. **Não verificado contra um banco real**: nenhum banco foi acessado e nenhuma migration foi criada.
 
