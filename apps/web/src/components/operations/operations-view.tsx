@@ -41,6 +41,7 @@ function Metric({ label, value, sub, hint }: { label: string; value: string; sub
 const DENIED: Record<string, { title: string; hint: string }> = {
   unauthenticated: { title: "Entre para ver as operações", hint: "O estado das ferramentas só aparece para uma sessão verificada." },
   no_tenant: { title: "Usuário sem workspace", hint: "Peça a um administrador para associar seu usuário a um workspace." },
+  tenant_selection_required: { title: "Seleção de workspace necessária", hint: "Seu usuário tem acesso a mais de um workspace e a escolha explícita ainda não está disponível." },
   login_not_configured: { title: "Login não configurado", hint: "Em produção, esta área exige login." },
 };
 

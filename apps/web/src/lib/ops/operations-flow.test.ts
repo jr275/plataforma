@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { STAGES, STAGE_IDS, TOOLS, computeMetrics, evaluateAll, type Evidence, type ToolInput } from "@plataforma/api";
+import { STAGES, STAGE_IDS, TOOLS, computeMetrics, evaluateAll, type OperationalEvidence as Evidence, type ToolInput } from "@plataforma/api";
 import { buildOperationsFlow, buildToolRows, stageEdges, summarizeStage } from "./operations-flow";
 
 const NOW = new Date("2026-10-17T12:00:00Z");

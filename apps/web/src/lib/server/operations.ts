@@ -1,10 +1,10 @@
 import "server-only";
 import { connection } from "next/server";
-import { STAGE_IDS, TOOLS, computeMetrics, evaluateAll, listGenerationRuns, listImportRuns, withTenant, type Evidence, type OperationalMetrics, type ToolInput, type ToolState } from "@plataforma/api";
+import { STAGE_IDS, TOOLS, computeMetrics, evaluateAll, listGenerationRuns, listImportRuns, withTenant, type OperationalEvidence as Evidence, type OperationalMetrics, type ToolInput, type ToolState } from "@plataforma/api";
 import { buildOperationsFlow, buildToolRows, type ToolRow } from "@/lib/ops/operations-flow";
 import { importMode, runEvidence } from "@/lib/ops/evidence";
 import { loadGscExport } from "./gsc-export";
-import { integrationAccess } from "./gsc";
+import { integrationAccess, type IntegrationAccess } from "./gsc";
 import { isNotMigrated, resolveTenantContext } from "./tenant-data";
 import type { FlowDefinition } from "@/lib/flow/model";
 
@@ -13,7 +13,7 @@ import type { FlowDefinition } from "@/lib/flow/model";
 // (precisa de migration, ainda não autorizada), então o que não deixa registro persistido aparece como NÃO TESTADO.
 
 export type OperationsData =
-  | { state: "denied"; reason: "unauthenticated" | "no_tenant" | "login_not_configured" }
+  | { state: "denied"; reason: Extract<IntegrationAccess, { ok: false }>["reason"] }
   | { state: "ready"; generatedAt: string; flow: FlowDefinition; rows: ToolRow[]; metrics: OperationalMetrics; running: boolean; evidenceSources: string[] };
 
 export async function loadOperations(): Promise<OperationsData> {

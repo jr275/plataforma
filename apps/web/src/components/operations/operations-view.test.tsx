@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { STAGE_IDS, TOOLS, computeMetrics, evaluateAll, type Evidence, type ToolInput } from "@plataforma/api";
+import { STAGE_IDS, TOOLS, computeMetrics, evaluateAll, type OperationalEvidence as Evidence, type ToolInput } from "@plataforma/api";
 import { buildOperationsFlow, buildToolRows } from "@/lib/ops/operations-flow";
 import type { OperationsData } from "@/lib/server/operations";
 import { NEXT_ACTION, OperationsView } from "./operations-view";
@@ -46,6 +46,9 @@ describe("tela de operações", () => {
     const out = html({ state: "denied", reason: "unauthenticated" });
     expect(out).toContain("Entre para ver as operações");
     expect(out).not.toContain("Ferramentas funcionando");
+  });
+  it("acesso negado por falta de escolha de workspace tem texto próprio (não cai em undefined)", () => {
+    expect(html({ state: "denied", reason: "tenant_selection_required" })).toContain("Seleção de workspace necessária");
   });
   it("não pede nenhuma decisão: sem formulários, seletores nem campos", () => {
     expect(html(data())).not.toMatch(/<(select|input|form)\b/);

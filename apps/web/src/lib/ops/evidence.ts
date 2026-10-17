@@ -1,4 +1,4 @@
-import type { Evidence, ExecutionMode } from "@plataforma/api";
+import type { OperationalEvidence as Evidence, ExecutionMode } from "@plataforma/api";
 
 // Converte registros REAIS de execução (importação, geração) em evidência. Módulo puro. Execução ainda em andamento não é evidência
 // terminal e é ignorada; uma mensagem de erro nunca sai sem passar pela redação (URLs de conexão, tokens e e-mails).

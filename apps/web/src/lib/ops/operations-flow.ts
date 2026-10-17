@@ -1,4 +1,4 @@
-import { STAGES, TOOLS, type Evidence, type ExecutionMode, type OperationalStatus, type ToolState } from "@plataforma/api";
+import { STAGES, TOOLS, type OperationalEvidence as Evidence, type ExecutionMode, type OperationalStatus, type ToolState } from "@plataforma/api";
 import type { FlowDefinition, FlowEdgeSpec, FlowNodeSpec, FlowStatus, InspectorItem, InspectorRow, NodeKind, RowTone } from "@/lib/flow/model";
 
 // Constrói o fluxo operacional a partir do REGISTRO e dos ESTADOS já avaliados (módulo puro). Nada é desenhado à mão: as arestas vêm das
