@@ -23,7 +23,7 @@ export function PagePreview({ page }: { page: RenderedPage }) {
     </button>
   );
   return (
-    <section aria-label="Pré-visualização da página" className="border border-border bg-card">
+    <section aria-label="Pré-visualização da página" className="card-cut">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
         <h2 className="font-mono text-[11px] font-semibold tracking-[0.08em] uppercase">Pré-visualização</h2>
         <div className="flex gap-1.5" role="group" aria-label="Tamanho da tela">{btn("desktop", "Desktop", Monitor)}{btn("mobile", "Celular", Smartphone)}</div>

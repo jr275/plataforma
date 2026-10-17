@@ -94,7 +94,7 @@ export function GscIntegrationView({ initial, providers, accessMode }: { initial
         <p role="alert" className="border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">{state.message}</p>
       ) : null}
 
-      <section aria-labelledby="gsc-title" className="border border-border bg-card">
+      <section aria-labelledby="gsc-title" className="card-cut">
         <header className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center border border-border font-mono text-xs font-semibold">GSC</span>

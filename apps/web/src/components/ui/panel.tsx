@@ -18,15 +18,15 @@ export function Panel({
   bodyClassName?: string;
 }) {
   return (
-    <section className={cn("border border-border bg-card", className)}>
-      <header className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
+    <section className={cn("card-cut", className)}>
+      <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4 pr-12">
         <div className="min-w-0">
-          <h2 className="font-mono text-[11px] font-semibold tracking-[0.08em] uppercase">{title}</h2>
+          <h2 className="font-mono text-xs font-semibold tracking-[0.09em] uppercase">{title}</h2>
           {description ? <p className="mt-1 text-xs text-muted-foreground">{description}</p> : null}
         </div>
         {action}
       </header>
-      <div className={cn("p-4", bodyClassName)}>{children}</div>
+      <div className={cn("p-5", bodyClassName)}>{children}</div>
     </section>
   );
 }

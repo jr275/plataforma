@@ -6,13 +6,13 @@ import { useAppState } from "@/components/app-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dl } from "@/components/ui/field";
-import { ChipGroup, SearchField, norm } from "@/components/ui/filters";
+import { SearchField, norm } from "@/components/ui/filters";
 import { NotFoundState } from "@/components/ui/not-found-state";
 import { OwnerNotice } from "@/components/ui/owner-notice";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, Panel } from "@/components/ui/panel";
 import { ResourceList } from "@/components/ui/resource-list";
-import type { KnowledgeStatus, Level } from "@/data/demo/types";
+import type { KnowledgeStatus } from "@/data/demo/types";
 import { findAcross } from "@/lib/find";
 import { levelTone } from "@/lib/opportunity";
 
@@ -22,22 +22,18 @@ export const knowledgeTone = { verified: "success", needs_review: "warning", exp
 export function KnowledgeList() {
   const { current } = useAppState();
   const [text, setText] = useState("");
-  const [status, setStatus] = useState<KnowledgeStatus | "">("");
-  const [confidence, setConfidence] = useState<Level | "">("");
   const sourceName = useMemo(() => new Map(current.sources.map((s) => [s.id, s.name])), [current]);
   const rows = useMemo(() => {
     const q = norm(text.trim());
-    return current.knowledge.filter((k) => (!status || k.status === status) && (!confidence || k.confidence === confidence) && (!q || norm(`${k.title} ${k.statement}`).includes(q)));
-  }, [current, text, status, confidence]);
-  const filtered = Boolean(text.trim() || status || confidence);
-  const clear = () => { setText(""); setStatus(""); setConfidence(""); };
+    return current.knowledge.filter((k) => (!q || norm(`${k.title} ${k.statement}`).includes(q)));
+  }, [current, text]);
+  const filtered = Boolean(text.trim());
+  const clear = () => setText("");
   return (
     <div className="space-y-6">
       <PageHeader crumbs={[{ label: "Knowledge" }]} title="Conhecimento" description={`Fatos com fonte, confiança e validade em ${current.workspace.name}. Nenhum número em texto existe sem um fato aqui (regra 1).`} />
       <div className="space-y-3">
         <SearchField className="sm:w-96" value={text} onChange={setText} label="Filtrar conhecimento" placeholder="Buscar por título ou afirmação…" />
-        <ChipGroup label="Filtrar por estado" value={status} onChange={setStatus} allLabel="Todos os estados" options={(Object.keys(knowledgeLabel) as KnowledgeStatus[]).map((s) => ({ value: s, label: knowledgeLabel[s] }))} />
-        <ChipGroup label="Filtrar por confiança" value={confidence} onChange={setConfidence} allLabel="Qualquer confiança" options={[{ value: "alta", label: "Confiança alta" }, { value: "média", label: "Confiança média" }, { value: "baixa", label: "Confiança baixa" }]} />
         {filtered ? <Button variant="ghost" size="sm" onClick={clear}>Limpar filtros</Button> : null}
       </div>
       <ResourceList

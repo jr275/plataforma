@@ -8,7 +8,7 @@ export type Row = { id: string; href: string; title: string; subtitle?: string; 
 export function ResourceList({ rows, empty, count }: { rows: readonly Row[]; empty: ReactNode; count?: string }) {
   return (
     <div>
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="overflow-hidden card-cut">
         {rows.length === 0 ? (
           empty
         ) : (

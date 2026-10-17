@@ -8,7 +8,8 @@ export const metadata: Metadata = { title: "Página gerada" };
 async function PageContent({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const raw = typeof sp.v === "string" ? Number.parseInt(sp.v, 10) : NaN;
-  return <PageDetailView loaded={await loadPageDetail(id)} version={Number.isInteger(raw) && raw >= 1 ? raw : undefined} />;
+  const version = Number.isInteger(raw) && raw >= 1 ? raw : undefined;
+  return <PageDetailView loaded={await loadPageDetail(id)} version={version} ogSrc={`/generation/pages/${encodeURIComponent(id)}/og${version ? `?v=${version}` : ""}`} />;
 }
 
 export default function Page(props: PageProps<"/generation/pages/[id]">) {

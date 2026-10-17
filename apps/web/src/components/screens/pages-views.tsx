@@ -6,38 +6,33 @@ import { CircleAlert, CircleCheck, Clock } from "lucide-react";
 import { useAppState } from "@/components/app-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChipGroup, SearchField, norm } from "@/components/ui/filters";
+import { SearchField, norm } from "@/components/ui/filters";
 import { NotFoundState } from "@/components/ui/not-found-state";
 import { OwnerNotice } from "@/components/ui/owner-notice";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, Panel } from "@/components/ui/panel";
 import { ResourceList } from "@/components/ui/resource-list";
-import type { PageItem, PageStatus } from "@/data/demo/types";
+import type { PageStatus } from "@/data/demo/types";
 import { findAcross } from "@/lib/find";
 import { cn } from "@/lib/utils";
 
 export const pageStatusLabel: Record<PageStatus, string> = { draft: "Rascunho", in_review: "Em revisão", blocked: "Bloqueada", ready: "Pronta para gates" };
 export const pageStatusTone = { draft: "neutral", in_review: "info", blocked: "danger", ready: "success" } as const;
-const KINDS: readonly PageItem["kind"][] = ["guia", "glossário", "comparativo", "FAQ", "cluster"];
 
 export function PagesList() {
   const { current } = useAppState();
   const [text, setText] = useState("");
-  const [status, setStatus] = useState<PageStatus | "">("");
-  const [kind, setKind] = useState<PageItem["kind"] | "">("");
   const rows = useMemo(() => {
     const q = norm(text.trim());
-    return current.pages.filter((p) => (!status || p.status === status) && (!kind || p.kind === kind) && (!q || norm(`${p.title} ${p.path} ${p.summary}`).includes(q)));
-  }, [current, text, status, kind]);
-  const clear = () => { setText(""); setStatus(""); setKind(""); };
+    return current.pages.filter((p) => (!q || norm(`${p.title} ${p.path} ${p.summary}`).includes(q)));
+  }, [current, text]);
+  const clear = () => setText("");
   return (
     <div className="space-y-6">
       <PageHeader crumbs={[{ label: "Pages" }]} title="Páginas" description={`Inventário de páginas de ${current.workspace.name}. Nenhuma está publicada: nada sai indexável sem passar em todos os gates (regra 5).`} />
       <div className="space-y-3">
         <SearchField className="sm:w-96" value={text} onChange={setText} label="Filtrar páginas" placeholder="Buscar por título ou caminho…" />
-        <ChipGroup label="Filtrar por estado" value={status} onChange={setStatus} allLabel="Todos os estados" options={(Object.keys(pageStatusLabel) as PageStatus[]).map((s) => ({ value: s, label: pageStatusLabel[s] }))} />
-        <ChipGroup label="Filtrar por tipo" value={kind} onChange={setKind} allLabel="Todos os tipos" options={KINDS.map((k) => ({ value: k, label: k }))} />
-        {text.trim() || status || kind ? <Button variant="ghost" size="sm" onClick={clear}>Limpar filtros</Button> : null}
+        {text.trim() ? <Button variant="ghost" size="sm" onClick={clear}>Limpar filtros</Button> : null}
       </div>
       <ResourceList
         rows={rows.map((p) => ({ id: p.id, href: `/pages/${p.id}`, title: p.title, subtitle: p.path, badges: (<><Badge tone="outline">{p.kind}</Badge><Badge tone={pageStatusTone[p.status]}>{pageStatusLabel[p.status]}</Badge></>), meta: `${p.gates.filter((g) => g.status === "pass").length}/${p.gates.length} gates` }))}
@@ -86,7 +81,7 @@ export function PageDetail({ id }: { id: string }) {
         ))}
       </div>
       {view === "preview" ? (
-        <article className="mx-auto max-w-2xl rounded-xl border border-border bg-card p-6">
+        <article className="mx-auto max-w-2xl card-cut p-6">
           <p className="text-xs text-warning">Pré-visualização de demonstração · não publicada · noindex</p>
           <h2 className="mt-3 text-xl font-semibold tracking-tight">{p.title}</h2>
           <p className="mt-2 text-sm text-muted-foreground">{p.summary}</p>

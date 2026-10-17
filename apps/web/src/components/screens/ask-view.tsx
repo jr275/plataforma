@@ -59,7 +59,7 @@ export function AskView() {
         badges={<Badge tone="warning">Protótipo: sem provedor de IA conectado</Badge>}
         actions={chat.length > 0 ? <Button variant="outline" onClick={() => { clearChat(current.workspace.id); notify("Conversa limpa."); }}><Trash2 data-icon="inline-start" aria-hidden="true" />Limpar conversa</Button> : undefined}
       />
-      <div className="flex min-h-[28rem] flex-col rounded-xl border border-border bg-card">
+      <div className="flex min-h-[28rem] flex-col card-cut">
         <div className="flex-1 space-y-4 overflow-y-auto p-4" role="log" aria-live="polite" aria-label="Conversa">
           {chat.length === 0 && !thinking ? (
             <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-10 text-center">

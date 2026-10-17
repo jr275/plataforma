@@ -7,8 +7,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-space-grotesk), var(--font-geist-sans);
+  --font-mono: var(--font-chakra-petch), var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
@@ -70,8 +70,8 @@
   --accent: oklch(0.93 0.04 280);
   --accent-foreground: oklch(0.2 0.04 280);
   --destructive: oklch(0.55 0.22 27);
-  --border: oklch(0.87 0.03 285);
-  --input: oklch(0.85 0.035 285);
+  --border: oklch(0.78 0.045 285);
+  --input: oklch(0.74 0.05 285);
   --ring: oklch(0.43 0.27 268);
   --brand: oklch(0.43 0.27 268);
   --brand-foreground: oklch(0.99 0 0);
@@ -182,4 +182,213 @@ html[data-density="compact"] {
 .dot-grid {
   background-image: radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px);
   background-size: 14px 14px;
+}
+
+/* ───────────────────────────── Fluxo vivo de geração (paleta nova, ADITIVA: nenhum token acima foi alterado) ─────────────────────────────
+   A tela de geração mostra o fluxo num canvas escuro (como nas referências do Stitch e do React Flow); o resto da interface continua
+   azul/lavanda. As cores vêm da paleta de gradientes fornecida; cada estado de execução tem um acento próprio. */
+:root {
+  --flow-navy: #12132b;
+  --flow-ink: #0b0c1f;
+  --flow-surface: #181a3a;
+  --flow-line: rgb(255 255 255 / 0.1);
+  --flow-text: #eef0ff;
+  --flow-muted: #9aa0c8;
+  --flow-cyan: #00e5ff;
+  --flow-sky: #14a5ff;
+  --flow-blue: #1f47ff;
+  --flow-violet: #7b1fff;
+  --flow-mint: #00f0a0;
+  --flow-lime: #c9ff80;
+  --flow-yellow: #ffe45c;
+  --flow-orange: #ff8a3d;
+  --flow-red: #ff3d5a;
+  --flow-pink: #ff3d7f;
+  --flow-magenta: #ff00ff;
+  --font-flow: var(--font-space-grotesk), var(--font-sans);
+  --font-flow-label: var(--font-chakra-petch), var(--font-mono);
+}
+
+.flow-canvas {
+  background-color: var(--flow-navy);
+  color: var(--flow-text);
+  font-family: var(--font-flow, var(--font-sans));
+}
+.flow-canvas .react-flow__background {
+  background-color: var(--flow-navy);
+}
+
+.flow-node {
+  --accent: var(--flow-muted);
+  position: relative;
+  width: 20rem;
+  min-height: 13rem;
+  color: var(--flow-text);
+  transition: opacity 160ms;
+}
+/* Card grande, de um só tamanho (nada de pequeno/médio), com o canto superior direito cortado como nos cards da Palantir. Os handles ficam no
+   contêiner (fora do recorte); o recorte vale só para o corpo do card. */
+.flow-card {
+  position: relative;
+  display: flex;
+  min-height: 13rem;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.1rem 1.25rem 1.15rem 1.5rem;
+  background: var(--flow-surface);
+  clip-path: polygon(0 0, calc(100% - 2.75rem) 0, 100% 2.75rem, 100% 100%, 0 100%);
+  transition: background 160ms, box-shadow 160ms;
+}
+.flow-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--accent);
+}
+.flow-node[data-selected="true"] .flow-card {
+  background: #252863;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.flow-node[data-dim="true"] {
+  opacity: 0.28;
+}
+.flow-label {
+  font-family: var(--font-flow-label);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.flow-node[data-status="completed"] { --accent: var(--flow-mint); }
+.flow-node[data-status="running"] { --accent: var(--flow-cyan); }
+.flow-node[data-status="queued"] { --accent: var(--flow-yellow); }
+.flow-node[data-status="failed"] { --accent: var(--flow-red); }
+.flow-node[data-status="blocked"] { --accent: var(--flow-orange); }
+.flow-node[data-status="needs_review"] { --accent: var(--flow-yellow); }
+.flow-node[data-status="skipped"],
+.flow-node[data-status="cancelled"],
+.flow-node[data-status="idle"] { --accent: var(--flow-muted); }
+.flow-node[data-status="unavailable"] {
+  --accent: #5b6090;
+}
+.flow-node[data-status="unavailable"] .flow-card {
+  background: var(--flow-ink);
+}
+.flow-node[data-status="running"] .flow-status-dot {
+  animation: flow-pulse 1.4s ease-in-out infinite;
+}
+@keyframes flow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
+  50% { box-shadow: 0 0 0 6px transparent; }
+}
+.flow-status-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+.flow-chip {
+  border: 1px solid var(--flow-line);
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--flow-muted);
+  background: rgb(255 255 255 / 0.03);
+}
+.flow-chip[aria-pressed="true"] {
+  color: var(--flow-text);
+  border-color: var(--flow-sky);
+  background: color-mix(in srgb, var(--flow-blue) 28%, transparent);
+}
+.flow-canvas .react-flow__controls-button {
+  background: var(--flow-surface);
+  border-color: var(--flow-line);
+  fill: var(--flow-text);
+}
+.flow-canvas .react-flow__controls-button:hover {
+  background: var(--flow-blue);
+}
+.flow-canvas .react-flow__minimap {
+  background: var(--flow-ink);
+  border: 1px solid var(--flow-line);
+}
+.flow-canvas .react-flow__attribution {
+  background: transparent;
+  color: var(--flow-muted);
+}
+.flow-canvas .react-flow__handle {
+  width: 7px;
+  height: 7px;
+  background: var(--flow-muted);
+  border: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-node[data-status="running"] .flow-status-dot {
+    animation: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-canvas .react-flow__edge.animated path {
+    animation: none !important;
+  }
+}
+
+/* Tema "Linha" do fluxo (referência: diagrama da Palantir): fundo lavanda claro, caixas só de contorno fino, texto quase preto. Só troca tokens e o
+   formato dos cards; a estrutura e o comportamento do grafo são os mesmos do tema escuro. */
+[data-flow-theme="line"] {
+  --flow-navy: #efecfd;
+  --flow-ink: #e4dffa;
+  --flow-surface: #f7f5ff;
+  --flow-line: rgb(18 19 43 / 0.85);
+  --flow-text: #12132b;
+  --flow-muted: #565b86;
+  --flow-cyan: #0a8aa8;
+  --flow-sky: #1668c9;
+  --flow-blue: #1f47ff;
+  --flow-mint: #0c8f66;
+  --flow-yellow: #9a7300;
+  --flow-orange: #c25a10;
+  --flow-red: #d1203d;
+}
+[data-flow-theme="line"] .flow-card {
+  clip-path: none;
+  border: 1px solid var(--flow-text);
+  background: transparent;
+}
+[data-flow-theme="line"] .flow-node[data-selected="true"] .flow-card {
+  background: var(--flow-ink);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+[data-flow-theme="line"] .flow-node[data-status="unavailable"] .flow-card {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--flow-muted);
+}
+[data-flow-theme="line"] .flow-chip[aria-pressed="true"] {
+  color: var(--flow-text);
+  border-color: var(--flow-text);
+  background: var(--flow-ink);
+}
+[data-flow-theme="line"] .flow-canvas .react-flow__controls-button:hover {
+  background: var(--flow-ink);
+  fill: var(--flow-text);
+}
+.flow-prop-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.4rem;
+  border-radius: 9999px;
+  background: var(--flow-muted);
+}
+
+/* Card do produto (Palantir): superfície clara, canto superior direito cortado e borda em sombra interna (aberta só no corte). Usado pelo Panel. */
+.card-cut {
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--border);
+  clip-path: polygon(0 0, calc(100% - 1.75rem) 0, 100% 1.75rem, 100% 100%, 0 100%);
+}
+.dark .card-cut {
+  box-shadow: inset 0 0 0 1px var(--border);
 }
