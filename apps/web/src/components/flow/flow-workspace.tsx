@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type KeyboardEvent } from "react";
-import { STATUS_LABEL, STATUS_ORDER, countByStatus, type FlowDefinition, type FlowNodeSpec } from "@/lib/flow/model";
+import { STATUS_ORDER, labelOf, type FlowDefinition, type FlowNodeSpec } from "@/lib/flow/model";
 import { FlowCanvas } from "./flow-canvas";
 import { NodeInspector } from "./node-inspector";
 
@@ -21,7 +21,13 @@ export function defaultFocus(nodes: readonly FlowNodeSpec[]): string | null {
 export function FlowWorkspace({ definition, banner, focusIds, height = 780 }: { definition: FlowDefinition; banner?: string; focusIds?: readonly string[]; height?: number }) {
   // `undefined` = o usuário ainda não escolheu nada: segue a etapa em foco calculada a cada atualização (acompanha a execução ao vivo).
   const [picked, setPicked] = useState<string | null | undefined>(undefined);
-  const counts = useMemo(() => countByStatus(definition.nodes), [definition.nodes]);
+  // Contagem pelos rótulos EXIBIDOS (na ordem dos estados): o resumo nunca contradiz o que os cartões mostram.
+  const summary = useMemo(() => {
+    const m = new Map<string, number>();
+    const order = [...definition.nodes].sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status));
+    for (const n of order) m.set(labelOf(n), (m.get(labelOf(n)) ?? 0) + 1);
+    return [...m].map(([l, c]) => `${l} ${c}`).join(" · ");
+  }, [definition.nodes]);
   const selectedId = picked === undefined ? defaultFocus(definition.nodes) : picked;
   const selected = definition.nodes.find((n) => n.id === selectedId);
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => { if (e.key === "Escape") setPicked(null); };
@@ -35,7 +41,7 @@ export function FlowWorkspace({ definition, banner, focusIds, height = 780 }: { 
         </span>
         {banner ? <span className="flow-chip" style={{ color: "var(--flow-yellow)" }}>{banner}</span> : null}
         <p className="ml-auto text-[11px]" style={{ color: "var(--flow-muted)" }} aria-label="Resumo dos estados">
-          {STATUS_ORDER.filter((s) => (counts[s] ?? 0) > 0).map((s) => `${STATUS_LABEL[s]} ${counts[s]}`).join(" · ")}
+          {summary}
         </p>
       </header>
       <div className={selected ? "grid lg:grid-cols-[minmax(0,1fr)_21rem]" : undefined}>

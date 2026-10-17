@@ -6,6 +6,9 @@ import { bounds, type Point } from "@/lib/graph/layout";
 import { cn } from "@/lib/utils";
 import { DASH, NODE_RADIUS, NodeShape } from "./node-glyph";
 
+/** O layout de força dá coordenadas que diferem na 13ª casa entre o servidor e o navegador; arredondar o que vai para o SVG evita o erro de hidratação sem mudar o desenho. */
+const r2 = (n: number): number => Math.round(n * 100) / 100;
+
 export type LabelMode = "auto" | "always" | "minimal";
 export type CanvasHandle = { fit: () => void; zoomBy: (f: number) => void; centerOn: (id: string) => void };
 type Transform = { x: number; y: number; k: number };
@@ -162,7 +165,7 @@ export function GraphCanvas(p: Props) {
             </marker>
           ))}
         </defs>
-        <g style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.k})`, transition: animate ? "transform 500ms cubic-bezier(.2,.7,.2,1)" : undefined }}>
+        <g style={{ transform: `translate(${r2(t.x)}px, ${r2(t.y)}px) scale(${r2(t.k)})`, transition: animate ? "transform 500ms cubic-bezier(.2,.7,.2,1)" : undefined }}>
           <g>
             {p.edges.map((e) => {
               const a = p.positions.get(e.source);
@@ -173,12 +176,12 @@ export function GraphCanvas(p: Props) {
               const dx = b.x - a.x, dy = b.y - a.y;
               const len = Math.hypot(dx, dy) || 1;
               const ra = NODE_RADIUS[sn.kind] + 3, rb = NODE_RADIUS[tn.kind] + 5;
-              const x1 = a.x + (dx / len) * ra, y1 = a.y + (dy / len) * ra;
-              const x2 = b.x - (dx / len) * rb, y2 = b.y - (dy / len) * rb;
+              const x1 = r2(a.x + (dx / len) * ra), y1 = r2(a.y + (dy / len) * ra);
+              const x2 = r2(b.x - (dx / len) * rb), y2 = r2(b.y - (dy / len) * rb);
               const hot = p.flowEdgeIds.has(e.id) || e.id === p.selectedEdgeId;
               const dim = dimEdge(e.id);
-              const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-              let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+              const mx = r2((x1 + x2) / 2), my = r2((y1 + y2) / 2);
+              let angle = r2((Math.atan2(dy, dx) * 180) / Math.PI);
               if (angle > 90 || angle < -90) angle += 180;
               return (
                 <g key={e.id} data-graph-item className={cn("transition-opacity duration-300", dim ? "opacity-15" : "opacity-100")}>
@@ -222,7 +225,7 @@ export function GraphCanvas(p: Props) {
                   aria-label={`${KIND_META[n.kind].label}: ${n.label}. ${VERIFICATION_META[n.verification].label}.`}
                   aria-pressed={selected}
                   className={cn("group cursor-pointer outline-none transition-[opacity,transform] duration-500 ease-out", dim ? "opacity-20" : "opacity-100")}
-                  style={{ transform: `translate(${pt.x}px, ${pt.y}px)` }}
+                  style={{ transform: `translate(${r2(pt.x)}px, ${r2(pt.y)}px)` }}
                   onClick={(ev) => { ev.stopPropagation(); p.onSelectNode(n.id, ev.shiftKey); }}
                   onDoubleClick={(ev) => { ev.stopPropagation(); p.onExpand(n.id); }}
                   onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); p.onSelectNode(n.id, ev.shiftKey); } }}
