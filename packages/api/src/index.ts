@@ -109,3 +109,7 @@ export {
 } from "./intel/gsc-diagnostics";
 export { normalizeSearchFacts, overlappingTargets, type SearchPerformanceFact, type SearchFactProvenance } from "./intel/gsc-facts";
 export { resolveDataForSeoConfig } from "./intel/dataforseo";
+export {
+  competitionFactor, estimateUnits, fillMissingFactors, keywordOverview, limitsAndUsage, resolveAhrefsConfig, toEvidence, UnitBudget,
+  type AhrefsConfig, type AhrefsDeps, type Evidence, type KeywordObservation, type UsageSnapshot,
+} from "./intel/ahrefs";
