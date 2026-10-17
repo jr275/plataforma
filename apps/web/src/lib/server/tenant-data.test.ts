@@ -49,11 +49,18 @@ describe("resolveTenantContext: a identidade verificada determina o escopo", () 
     mPool.mockReturnValue(null);
     expect(await resolveTenantContext()).toMatchObject({ ok: false, reason: "not_configured", missing: expect.stringContaining("PLATAFORMA_APP_DATABASE_URL") });
   });
-  it("contexto válido: tenant = o PRIMEIRO da claim verificada, com a mesma identidade e o pool", async () => {
-    const id = identity(A, B);
+  it("contexto válido com UM único tenant autorizado: é ele, com a mesma identidade e o pool", async () => {
+    const id = identity(A);
     mIdentity.mockResolvedValue({ state: "ok", identity: id });
     const ctx = await resolveTenantContext();
     expect(ctx).toEqual({ ok: true, pool: POOL, identity: id, tenantId: A });
+  });
+  it("VÁRIOS tenants sem seleção explícita: seleção obrigatória (nunca o primeiro), com as opções da claim, qualquer que seja a ordem", async () => {
+    mIdentity.mockResolvedValue({ state: "ok", identity: identity(A, B) });
+    expect(await resolveTenantContext()).toEqual({ ok: false, reason: "tenant_selection_required", choices: [A, B] });
+    mIdentity.mockResolvedValue({ state: "ok", identity: identity(B, A) });
+    expect(await resolveTenantContext()).toEqual({ ok: false, reason: "tenant_selection_required", choices: [B, A] });
+    expect(mWith).not.toHaveBeenCalled();
   });
   it("não aceita tenant vindo de fora: a função não tem parâmetros e ignora argumentos extras", async () => {
     expect(resolveTenantContext.length).toBe(0);
@@ -74,7 +81,7 @@ describe("resolveTenantContext: a identidade verificada determina o escopo", () 
 
 describe("loadForTenant: estados reais, sem vazar detalhes", () => {
   it("pronto: executa por withTenant com o pool, a identidade e o tenant da sessão, e informa a origem", async () => {
-    const id = identity(A, B);
+    const id = identity(A);
     mIdentity.mockResolvedValue({ state: "ok", identity: id });
     mWith.mockImplementation(async (_p, _i, _t, fn) => fn({ query: vi.fn() } as never));
     const fn = vi.fn(async () => ({ n: 7 }));
@@ -112,5 +119,15 @@ describe("loadForTenant: estados reais, sem vazar detalhes", () => {
     expect(isNotMigrated({ code: "42P01" })).toBe(true);
     expect(isNotMigrated({ code: "22012" })).toBe(false);
     expect(isNotMigrated(undefined)).toBe(false);
+  });
+});
+
+describe("seleção de tenant (F2): nada é lido nem escrito enquanto a seleção estiver ambígua", () => {
+  it("loadForTenant com vários tenants: estado controlado com as opções; a consulta NÃO roda e withTenant NÃO é chamado", async () => {
+    mIdentity.mockResolvedValue({ state: "ok", identity: identity(A, B) });
+    const fn = vi.fn(async () => ({ n: 1 }));
+    expect(await loadForTenant(fn)).toEqual({ state: "tenant_selection_required", choices: [A, B] });
+    expect(fn).not.toHaveBeenCalled();
+    expect(mWith).not.toHaveBeenCalled();
   });
 });

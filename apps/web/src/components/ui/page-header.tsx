@@ -27,7 +27,7 @@ export function PageHeader({ crumbs, title, description, actions, badges }: { cr
           </nav>
         ) : null}
         {badges ? <div className="mb-3 flex flex-wrap items-center gap-1.5">{badges}</div> : null}
-        <h1 className="text-3xl font-semibold tracking-tight text-balance">{title}</h1>
+        <h1 className="text-4xl font-medium tracking-[-0.02em] text-balance">{title}</h1>
         {description ? <p className="mt-2 max-w-2xl font-mono text-[13px] leading-relaxed text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2 self-start">{actions}</div> : null}

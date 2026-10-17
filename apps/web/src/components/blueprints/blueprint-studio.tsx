@@ -50,7 +50,7 @@ export function BlueprintStudio() {
       </label>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
-        <div className="flex flex-col gap-4 border border-border bg-card p-4">
+        <div className="flex flex-col gap-4 card-cut p-4">
           <Section title="Arquétipo">
             <ul className="flex flex-col gap-1.5" role="radiogroup" aria-label="Arquétipo">
               {ranked.map((r) => (
@@ -101,7 +101,7 @@ export function BlueprintStudio() {
 
         <BlueprintPreview title={o.title} modules={bp.modules} cta={bp.cta} schemaType={archetype.schemaType} />
 
-        <div className="flex flex-col border border-border bg-card xl:sticky xl:top-16 xl:max-h-[calc(100dvh-7rem)]">
+        <div className="flex flex-col card-cut xl:sticky xl:top-16 xl:max-h-[calc(100dvh-7rem)]">
           <div className="border-b border-border p-4">
             <p className="font-mono text-[10.5px] tracking-[0.08em] text-muted-foreground uppercase">Experience Quality Gate</p>
             <div className="mt-2 flex items-center justify-between gap-2">
@@ -142,7 +142,7 @@ export function BlueprintStudio() {
 
 function BlueprintPreview({ title, modules, cta, schemaType }: { title: string; modules: readonly ModuleId[]; cta: string; schemaType: string }) {
   return (
-    <figure className="flex min-w-0 flex-col border border-border bg-card">
+    <figure className="flex min-w-0 flex-col card-cut">
       <figcaption className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <span className="font-mono text-[10.5px] tracking-[0.08em] text-muted-foreground uppercase">Pré-visualização estrutural</span>
         <span className="font-mono text-[10.5px] text-muted-foreground">schema.org/{schemaType}</span>

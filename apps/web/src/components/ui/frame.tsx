@@ -8,7 +8,7 @@ export const labelClass = "font-mono text-[11px] font-medium tracking-[0.08em] u
 /** Figura enquadrada com legenda `[ fig. N — legenda ]`: o recipiente padrão do conteúdo principal de cada tela. */
 export function Frame({ fig, caption, children, className, bodyClassName, dots = false }: { fig?: string; caption: string; children: ReactNode; className?: string; bodyClassName?: string; dots?: boolean }) {
   return (
-    <figure className={cn("border border-border bg-card", className)}>
+    <figure className={cn("card-cut", className)}>
       <figcaption className="flex items-center gap-3 border-b border-border px-3 py-2">
         <span aria-hidden="true" className="grid size-6 shrink-0 place-items-center border border-border text-muted-foreground">
           <Code2 className="size-3" />

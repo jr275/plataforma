@@ -7,20 +7,17 @@ import { X } from "lucide-react";
 import { useAppState } from "@/components/app-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Chip, ChipGroup, SearchField, norm } from "@/components/ui/filters";
+import { SearchField, norm } from "@/components/ui/filters";
 import { EmptyState } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataStateBadge, Fact, Inspector, ScoreBar, Section, SortHeader, StateNotice } from "@/components/intel/primitives";
 import { ScoreBreakdown } from "@/components/intel/score-breakdown";
 import { useOpportunityIntel, type OpportunityIntel } from "@/components/intel/use-intel";
-import type { OpportunityStatus } from "@/data/demo/types";
 import { stageLabel } from "@/lib/intel/lifecycle";
 import { buyerStageOf, defaultWeights, type Weights } from "@/lib/intel/score";
 import { levelTone, statusLabel, statusTone } from "@/lib/opportunity";
 import { cn } from "@/lib/utils";
 
-const STATUSES: readonly OpportunityStatus[] = ["candidate", "in_review", "ready", "blocked", "dismissed"];
-const INTENTS = [{ value: "informacional", label: "Informacional" }, { value: "comparação", label: "Comparação" }, { value: "transacional", label: "Transacional" }] as const;
 type SortKey = "score" | "demand" | "evidence" | "risk" | "stage";
 const levelRank = { alta: 3, média: 2, baixa: 1 } as const;
 
@@ -31,16 +28,12 @@ export function OpportunitiesView() {
   const [weights, setWeights] = useState<Weights>(defaultWeights);
   const intel = useOpportunityIntel(current, weights);
   const [text, setText] = useState("");
-  const [statuses, setStatuses] = useState<ReadonlySet<OpportunityStatus>>(new Set());
-  const [intent, setIntent] = useState<(typeof INTENTS)[number]["value"] | "">("");
-  const [cluster, setCluster] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "score", dir: "desc" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editWeights, setEditWeights] = useState(false);
 
   const entityLabels = useMemo(() => new Map(current.entities.map((e) => [e.id, e.label])), [current]);
   const refLabel = ref ? (entityLabels.get(ref) ?? current.sources.find((s) => s.id === ref)?.name) : undefined;
-  const clusters = useMemo(() => [...new Set(current.queries.map((q) => q.cluster))], [current]);
 
   const rows = useMemo(() => {
     const q = norm(text.trim());
@@ -54,18 +47,15 @@ export function OpportunitiesView() {
     };
     return intel
       .filter(({ o, clusters: cs }) => {
-        if (statuses.size === 0 ? o.status === "dismissed" : !statuses.has(o.status)) return false;
-        if (intent && o.intent !== intent) return false;
-        if (cluster && !cs.includes(cluster)) return false;
+        if (o.status === "dismissed") return false; // o produto mostra só as ativas; descartadas não pedem decisão
         if (ref && !o.entityIds.includes(ref) && !o.sourceIds.includes(ref)) return false;
         const entities = o.entityIds.map((id) => entityLabels.get(id) ?? "").join(" ");
         return !q || norm(`${o.title} ${o.summary} ${o.intent} ${entities} ${cs.join(" ")}`).includes(q);
       })
       .sort((a, b) => (sort.dir === "desc" ? -1 : 1) * (value[sort.key](a) - value[sort.key](b)) || a.o.rank - b.o.rank);
-  }, [intel, statuses, intent, cluster, ref, text, sort, entityLabels]);
+  }, [intel, ref, text, sort, entityLabels]);
 
   const selected = rows.find((r) => r.o.id === selectedId) ?? null;
-  const toggle = (s: OpportunityStatus) => setStatuses((prev) => { const n = new Set(prev); if (n.has(s)) n.delete(s); else n.add(s); return n; });
   const onSort = (key: SortKey) => setSort((s) => ({ key, dir: s.key === key && s.dir === "desc" ? "asc" : "desc" }));
   const customWeights = Object.entries(weights).some(([k, v]) => defaultWeights()[k as keyof Weights] !== v);
 
@@ -79,21 +69,11 @@ export function OpportunitiesView() {
         actions={<Button variant="outline" onClick={() => setEditWeights((v) => !v)} aria-pressed={editWeights}>{editWeights ? "Fechar pesos" : "Ajustar pesos"}</Button>}
       />
 
-      <div className="flex flex-col gap-3 border border-border bg-card p-3">
+      <div className="flex flex-col gap-3 card-cut p-3">
         <div className="flex flex-wrap items-center gap-3">
           <SearchField value={text} onChange={setText} placeholder="Buscar por tema, entidade ou cluster" label="Buscar oportunidades" className="w-full sm:w-80" />
-          <ChipGroup label="Intenção" value={intent} onChange={setIntent} options={INTENTS} allLabel="Toda intenção" />
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            Cluster
-            <select value={cluster} onChange={(e) => setCluster(e.target.value)} className="h-7 border border-input bg-card px-2 text-xs text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-              <option value="">Todos</option>
-              {clusters.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
         </div>
         <div role="group" aria-label="Status" className="flex flex-wrap items-center gap-1.5">
-          <Chip pressed={statuses.size === 0} onClick={() => setStatuses(new Set())}>Ativas</Chip>
-          {STATUSES.map((s) => <Chip key={s} pressed={statuses.has(s)} onClick={() => toggle(s)}>{statusLabel[s]}</Chip>)}
           {refLabel ? (
             <button type="button" onClick={() => router.replace("/opportunities")} className="ml-auto inline-flex h-7 items-center gap-1.5 border border-brand/40 bg-brand/10 px-2.5 text-xs text-brand">
               Ligadas a {refLabel} <X className="size-3" aria-hidden="true" /><span className="sr-only">Remover filtro</span>
@@ -104,7 +84,7 @@ export function OpportunitiesView() {
       </div>
 
       <div className={cn("grid grid-cols-1 gap-4", selected || editWeights ? "lg:grid-cols-[minmax(0,1fr)_380px]" : "")}>
-        <div className="min-w-0 overflow-x-auto border border-border bg-card">
+        <div className="min-w-0 overflow-x-auto card-cut">
           {rows.length === 0 ? (
             <div className="p-6"><EmptyState title="Nenhuma oportunidade com esses filtros." hint="Limpe a busca ou ative outros status." /></div>
           ) : (

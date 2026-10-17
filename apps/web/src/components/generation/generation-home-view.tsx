@@ -27,7 +27,6 @@ export function homeHref(p: HomeParams, over: Partial<HomeParams>): string {
   return s ? `/generation?${s}` : "/generation";
 }
 
-const SORT_LABEL: Record<HomeParams["sort"], string> = { path: "URL", updated: "Atualização", population: "População" };
 
 export function GenerationHomeView({ loaded, params, pageSize, rowHref = (p) => `/generation/pages/${p.id}` }: { loaded: Loaded<HomeData>; params: HomeParams; pageSize: number; /** Destino do link de cada linha (padrão: o detalhe da página). */ rowHref?: (p: PageListItem) => string }) {
   const header = <PageHeader crumbs={[{ label: "Geração de páginas" }]} title="Geração de páginas" description="Rascunhos de páginas de cidade gerados a partir de dados reais do IBGE e conferidos por gates de qualidade. Nada aqui é publicado." />;
@@ -58,12 +57,9 @@ export function GenerationHomeView({ loaded, params, pageSize, rowHref = (p) => 
       </Panel>
 
       <Panel title="Páginas" description={`${formatInt(pages.total)} página(s)${hasFilter ? " com os filtros atuais" : ""}.`}>
-        <form method="get" action="/generation" className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_9rem_7rem_9rem_auto]" role="search" aria-label="Filtrar páginas">
+        <form method="get" action="/generation" className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_auto]" role="search" aria-label="Filtrar páginas">
           <label className="block"><span className="sr-only">Buscar por cidade ou URL</span><input type="search" name="q" defaultValue={params.q} placeholder="Buscar cidade ou URL" maxLength={80} className={inputClass} /></label>
-          <label className="block"><span className="sr-only">Status</span><select name="status" defaultValue={params.status} className={inputClass}><option value="">Todos os status</option><option value="draft">Rascunho</option><option value="blocked">Bloqueada</option></select></label>
-          <label className="block"><span className="sr-only">UF</span><select name="uf" defaultValue={params.uf} className={inputClass}><option value="">Todas as UFs</option>{UFS.map((u) => (<option key={u} value={u}>{u}</option>))}</select></label>
-          <label className="block"><span className="sr-only">Ordenar por</span><select name="sort" defaultValue={params.sort} className={inputClass}>{(Object.keys(SORT_LABEL) as HomeParams["sort"][]).map((k) => (<option key={k} value={k}>Ordenar: {SORT_LABEL[k]}</option>))}</select></label>
-          <div className="flex gap-2"><input type="hidden" name="dir" value={params.dir} /><Button type="submit" variant="outline">Aplicar</Button>{hasFilter ? <Link href="/generation" className="inline-flex h-8 items-center px-2 text-xs underline underline-offset-2">Limpar</Link> : null}</div>
+          <div className="flex gap-2"><input type="hidden" name="dir" value={params.dir} /><Button type="submit" variant="outline">Buscar</Button>{hasFilter ? <Link href="/generation" className="inline-flex h-8 items-center px-2 text-xs underline underline-offset-2">Limpar</Link> : null}</div>
         </form>
         {pages.rows.length === 0 ? (
           hasFilter ? <EmptyState title="Nenhuma página com esses filtros" hint="Ajuste a busca ou limpe os filtros." action={<Link href="/generation" className="text-xs underline underline-offset-2">Limpar filtros</Link>} />

@@ -18,7 +18,7 @@ export function LoginForm() {
 
   if (!client) {
     return (
-      <div className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-card p-6">
+      <div className="w-full max-w-sm space-y-4 card-cut p-6">
         <BrandMark />
         <h1 className="text-lg font-semibold tracking-tight">Login não configurado</h1>
         <p className="text-sm text-muted-foreground">O Supabase não está configurado neste ambiente, então o protótipo roda em modo demonstração, sem login e com dados fictícios.</p>
@@ -53,7 +53,7 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={submit} noValidate className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-card p-6">
+    <form onSubmit={submit} noValidate className="w-full max-w-sm space-y-4 card-cut p-6">
       <BrandMark />
       <h1 className="text-lg font-semibold tracking-tight">Entrar</h1>
       <Field id="login-email" label="E-mail" error={errors.email}>
