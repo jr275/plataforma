@@ -19,5 +19,5 @@ __pycache__/
 *.bak
 *.bak2
 
-# Dados do cliente (ADR-026): snapshot do export do Search Console, nunca no Git
+# Dados do cliente (ADR-038): snapshot do export do Search Console, nunca no Git
 apps/web/.data/

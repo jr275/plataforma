@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { parseGscExportSnapshot, type GscExportSnapshot } from "@plataforma/api";
 import { integrationAccess } from "./gsc";
 
-// Relatórios a partir do export do Search Console (ADR-026). O snapshot é um arquivo local agregado, FORA do Git; em produção ele não
+// Relatórios a partir do export do Search Console (ADR-038). O snapshot é um arquivo local agregado, FORA do Git; em produção ele não
 // existe e a tela diz isso. Mesma regra de acesso das integrações: sessão com tenant, ou desenvolvimento local fora de produção.
 export type GscExportLoaded =
   | { state: "ready"; snapshot: GscExportSnapshot }

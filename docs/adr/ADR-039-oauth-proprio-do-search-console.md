@@ -1,4 +1,4 @@
-# ADR-027: Conexão ao Search Console por OAuth próprio da Plataforma
+# ADR-039: Conexão ao Search Console por OAuth próprio da Plataforma
 
 **Status:** PROPOSED (2026-10-17). Só texto: **nenhum código, tabela, migration, cliente OAuth, variável de ambiente ou deploy foi criado.** Depende da aprovação do ADR-016 (tabelas `search_*`) e do ADR-013 (papéis e privilégios), ambos ainda PROPOSED.
 
@@ -7,7 +7,7 @@
 - A conta de serviço da Plataforma (`plataforma-gsc@plataforma-511815.iam.gserviceaccount.com`) autentica no Google, mas o dono da propriedade ainda não a autorizou: a validação devolve "Permissão negada". Só um **proprietário** da propriedade pode adicionar usuários.
 - Quem não é proprietário, mas tem acesso de leitura, consegue conectar por **login Google (OAuth)**. Foi o que o OpenSEO fez para a Wendy e para o projeto da RE/MAX.
 - O OpenSEO em modo **hospedado** guarda o token do Google em servidor de terceiros, fora do nosso isolamento por tenant. É útil para pesquisa, mas não deve ser a base do produto.
-- Hoje o relatório do Search Console (ADR-026) é carregado à mão, de exports, em arquivo local. Não há conexão permanente nem histórico.
+- Hoje o relatório do Search Console (ADR-038) é carregado à mão, de exports, em arquivo local. Não há conexão permanente nem histórico.
 - Regras que valem: fatos nunca inventados (regra 1); `tenant_id` e RLS em toda tabela do data plane, com teste de isolamento (regra 2); telas só leem por `packages/api` (regra 4); núcleo genérico (regra 10); dados do cliente e segredos nunca no repositório nem no cliente.
 
 ## Decisão proposta
@@ -17,7 +17,7 @@
 3. **Token só no servidor.** O `refresh token` é cifrado em repouso (cifra autenticada, chave fora do banco, com versão para rotação) e **nunca** vai ao navegador, ao log, a um prompt ou ao repositório. O `access token` é obtido sob demanda e não é guardado.
 4. **Acesso por função tipada** de `packages/api`, com `withTenant`/RLS; o papel da aplicação não lê a coluna do token cifrado por SQL livre (a decifragem acontece numa função de servidor, e a política de privilégio da coluna é definida junto com o ADR-013).
 5. **Revogável e auditável:** botão "Desconectar" revoga no Google e apaga o token; cada conexão, uso e revogação gera registro de auditoria (sem o segredo). Se o usuário que autorizou perder o acesso à propriedade, a conexão passa a "reautorizar" (estado explícito, nunca "conectado" por padrão).
-6. **Carga incremental** para as tabelas `search_*` do ADR-016 (idempotente, regra 3), respeitando a cota da API e o atraso de ~3 dias dos dados. Até a carga existir, a tela continua mostrando só "Importado" (ADR-026).
+6. **Carga incremental** para as tabelas `search_*` do ADR-016 (idempotente, regra 3), respeitando a cota da API e o atraso de ~3 dias dos dados. Até a carga existir, a tela continua mostrando só "Importado" (ADR-038).
 7. **Estados honestos na tela:** não configurado, autorização pendente, conectado, sem permissão, reautorização necessária, erro do provedor. Nada de "conectado" sem uma leitura real bem-sucedida.
 
 ## Modelo de ameaça (resumido)
@@ -32,7 +32,7 @@
 
 - **Só a conta de serviço:** é o ideal, mas depende do dono da propriedade, que hoje é o bloqueio.
 - **OpenSEO hospedado como backend:** token fora do nosso isolamento.
-- **CSV manual para sempre:** serve de ponte (ADR-026), não de conexão.
+- **CSV manual para sempre:** serve de ponte (ADR-038), não de conexão.
 
 ## Plano em fases (cada uma pede autorização própria)
 
