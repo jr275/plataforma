@@ -1,4 +1,4 @@
-# ADR-023: Ahrefs como provedor externo complementar
+# ADR-035: Ahrefs como provedor externo complementar
 
 **Status:** PROPOSED (2026-10-14). Implementado só o adapter com testes sem rede (`packages/api/src/intel/ahrefs.ts`). **Não validado contra a API real:** a chamada gratuita de uso e limites devolveu HTTP 401 e o dono informou que a conta está sem saldo de API. Nada foi persistido, nenhuma migration foi criada e nenhuma tela foi alterada.
 
