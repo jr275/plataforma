@@ -123,6 +123,7 @@ describe("relatório do Search Console a partir de export", () => {
     }
     expect(html({ state: "not_loaded" })).toContain("Nenhum export carregado");
     expect(html({ state: "denied", reason: "unauthenticated" })).toContain("Acesso negado");
+    expect(html({ state: "denied", reason: "tenant_selection_required" })).toContain("Acesso negado");
   });
   it("o núcleo é genérico: nenhuma menção a marca ou domínio fixo na tela", () => {
     expect(html(ready())).not.toMatch(/re\/?max/i);
