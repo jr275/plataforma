@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { Monitor, Smartphone } from "lucide-react";
-import type { RenderedPage } from "@plataforma/api";
+import type { PageBlock, RenderedPage } from "@plataforma/api";
 import { cn } from "@/lib/utils";
-import { RenderedArticle } from "./rendered-article";
+import { SiteView } from "@/components/site/site-view";
 
 type Device = "desktop" | "mobile";
 
 /** Pré-visualização renderizada, com moldura de navegador e alternância desktop/celular. É só uma PRÉVIA: nada aqui está publicado. */
-export function PagePreview({ page }: { page: RenderedPage }) {
+/** `blocks` e `blockErrors` vêm calculados do servidor (o pacote da API não pode ir para o navegador). */
+export function PagePreview({ page, blocks, blockErrors }: { page: RenderedPage; blocks: readonly PageBlock[]; blockErrors: readonly string[] }) {
   const [device, setDevice] = useState<Device>("desktop");
   const btn = (d: Device, label: string, Icon: typeof Monitor) => (
     <button
@@ -34,7 +35,7 @@ export function PagePreview({ page }: { page: RenderedPage }) {
             <span aria-hidden="true" className="flex gap-1"><i className="size-2.5 rounded-full bg-neutral-300" /><i className="size-2.5 rounded-full bg-neutral-300" /><i className="size-2.5 rounded-full bg-neutral-300" /></span>
             <span className="min-w-0 flex-1 truncate rounded bg-white px-2 py-0.5 font-mono text-[11px] text-neutral-600" title="Caminho da URL; o domínio será definido na publicação">{page.path}</span>
           </div>
-          <RenderedArticle page={page} />
+          <SiteView blocks={blocks} errors={blockErrors} />
         </div>
       </div>
       <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">Prévia do conteúdo gerado. Esta página <strong>não está publicada</strong> nem indexável.</p>
