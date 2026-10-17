@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CircleAlert, Lock } from "lucide-react";
-import { FACT_LABELS, describeOmissions, reviewFacts, type PageDetail } from "@plataforma/api";
+import { FACT_LABELS, describeOmissions, reviewFacts, toBlocks, validateBlocks, type PageDetail } from "@plataforma/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -31,6 +31,9 @@ export function PageDetailView({ loaded, version, ogSrc, flowBanner }: { loaded:
   const failed = latestAttempt?.gates.filter((g) => g.outcome === "fail") ?? [];
   const omissions = shown ? describeOmissions(shown.content) : [];
   const review = shown ? reviewFacts(shown.content, now) : [];
+  // Blocos calculados AQUI, no servidor: o componente de prévia (cliente) não pode importar o código de execução do pacote da API.
+  const blocks = shown ? toBlocks(shown.content) : [];
+  const blockErrors = shown ? validateBlocks(blocks) : [];
 
   return (
     <div className="space-y-6">
@@ -68,8 +71,8 @@ export function PageDetailView({ loaded, version, ogSrc, flowBanner }: { loaded:
       {!shown ? (
         <Panel title="Pré-visualização"><EmptyState title="Esta página ainda não tem versão aprovada" hint="Ela nasceu bloqueada e nenhum conteúdo passou pelos gates." /></Panel>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <PagePreview page={shown.content} />
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <PagePreview page={shown.content} blocks={blocks} blockErrors={blockErrors} />
           <div className="space-y-6">
             <SerpSnippet page={shown.content} />
             {ogSrc ? <OgPreview src={ogSrc} title={shown.content.title} /> : null}

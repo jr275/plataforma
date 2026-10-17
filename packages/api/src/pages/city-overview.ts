@@ -126,9 +126,12 @@ export const cityPath = (uf: string, name: string): string => `/cidades/${uf.toL
 /** Número inteiro no padrão pt-BR (22724 → "22.724"), sem depender de ICU. */
 export const formatInt = (n: number): string => String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 const formatDate = (iso: string): string => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
-const show = (f: Fact): string => (f.key === "population" ? formatInt(f.value as number) : String(f.value));
+export const showFact = (f: Fact): string => (f.key === "population" ? formatInt(f.value as number) : String(f.value));
+const show = showFact;
 
 const LABELS: Record<FactKey, string> = { name: "Nome", uf: "UF", region: "Região", population: "População estimada", population_year: "Ano da estimativa", ibge_code: "Código IBGE" };
+/** Rótulos dos fatos, reutilizados pelo catálogo de blocos (ADR-040). */
+export const FACT_LABELS: Readonly<Record<FactKey, string>> = LABELS;
 const TITLE_MAX = 60;
 const META_MIN = 70;
 const META_MAX = 155;
