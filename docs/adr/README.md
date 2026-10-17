@@ -32,5 +32,6 @@ Modelo curto: Contexto · Decisão · Alternativas rejeitadas · Consequências 
 | ADR-022 | [Área Geração de páginas, segurança das execuções e ambiente local](ADR-022-area-de-geracao-e-ambiente-local.md): uma execução por tenant (0007), recuperação de abandonadas, escopo validado, área `/generation`, socket local fora de produção, `pnpm dev:local` | ACCEPTED (2026-10-13): implementado sob a diretiva do dono |
 | ADR-025 | [Fluxo vivo de geração (React Flow) e imagem OG](ADR-025-fluxo-vivo-de-geracao.md): definição × execução, status só de registros reais, decisão por contagem de gates (sem nota), ao vivo só com execução em andamento, OG com next/og; não verificado com banco real | Proposed |
 | ADR-035 | [Ahrefs como provedor externo complementar](ADR-035-ahrefs-como-provedor-complementar.md): adapter desativável, custo em unidades com teto por execução, sem substituir fontes; não validado contra a API real | Proposed |
+| ADR-036 | [Oportunidades reais na interface](ADR-036-oportunidades-reais-na-interface.md): `/opportunities` lê `plataforma.opportunity` por `withTenant`; demo só sem login/banco, com aviso; só muda o status (transição revalidada no servidor); sem nota | Proposed |
 
 Os textos completos de 007 a 010 estão neste diretório; os de 001 a 006 ainda não foram escritos como arquivos; o índice acima é copiado de `menlo/docs/menlo-os/11-decisoes.md`.

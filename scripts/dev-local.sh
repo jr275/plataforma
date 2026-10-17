@@ -11,6 +11,7 @@
 #   3. cria o tenant (o MESMO uuid da claim do seu login, para o seu usuário enxergar estes dados);
 #   4. importa o extrato REAL do IBGE de SP (db/test-fixtures/generation, 645 municípios, origem real);
 #   5. gera os 20 rascunhos do piloto (as 20 maiores populações), com os 6 gates;
+#   5b. semeia 4 oportunidades de TESTE (títulos "[teste local]") só neste banco descartável, para ver a tela Opportunity Discovery real;
 #   6. escreve apps/web/.env.development.local (só enquanto roda) apontando o aplicativo para este banco local;
 #   7. liga o aplicativo (`next dev`). Ao sair, apaga o arquivo .env.development.local, para o servidor e remove o banco.
 # Nada aqui usa senha, URL de rede ou o Neon. O socket local só é aceito fora de produção (packages/api/src/pool.ts).
@@ -64,6 +65,21 @@ say "4/5 importação REAL do IBGE (SP, 645 municípios)"
 say "5/5 geração do piloto (20 maiores populações de SP)"
 ( cd "$ROOT/packages/api" && pnpm exec tsx src/pages/cli.ts --env-var PLATAFORMA_LOCAL_URL --tenant "$TENANT" --uf SP --limit 20 )
 
+say "5b/5 oportunidades de TESTE (somente neste banco descartável, como menlo_app, no tenant)"
+# Dados de tenant NÃO entram por migration (ADR-013). São registros fictícios para ver a tela real: o título leva "[teste local]" para nunca
+# serem confundidos com dado de produção. Nada disto toca o Neon.
+"${PSQL[@]}" -U "$APP" -d "$DB" -v ON_ERROR_STOP=1 >/dev/null <<SQL
+BEGIN;
+SELECT set_config('app.tenant_id', '$TENANT', true) IS NOT NULL;
+INSERT INTO plataforma.opportunity (tenant_id, title, summary, next_action, kind, intent, demand, competition, evidence, status, rank, rationale, gaps) VALUES
+ ('$TENANT', '[teste local] Guia de imóveis por município', 'Registro de teste para exercitar a tela real.', 'Montar o blueprint da página.', 'page', 'informational', 'high', 'medium', 'high', 'candidate', 1, ARRAY['Demanda local alta (registro de teste).'], ARRAY['Falta fonte de preços (registro de teste).']),
+ ('$TENANT', '[teste local] Comparativo: alugar ou comprar', 'Registro de teste para exercitar a tela real.', 'Reunir as fontes antes de redigir.', 'comparison', 'comparison', 'medium', 'high', 'medium', 'in_review', 2, ARRAY['Tema recorrente (registro de teste).'], ARRAY[]::text[]),
+ ('$TENANT', '[teste local] FAQ de financiamento', 'Registro de teste para exercitar a tela real.', 'Validar as respostas com um especialista.', 'faq', 'informational', 'medium', 'low', 'low', 'blocked', 3, ARRAY[]::text[], ARRAY['Sem fonte oficial conectada (registro de teste).']),
+ ('$TENANT', '[teste local] Cluster de bairros', 'Registro de teste para exercitar a tela real.', 'Definir as entidades do cluster.', 'cluster', 'transactional', 'low', 'medium', 'medium', 'ready', 4, ARRAY['Cobertura local (registro de teste).'], ARRAY[]::text[]);
+COMMIT;
+SQL
+echo "4 oportunidades de teste criadas neste banco local"
+
 say "conferência (somente leitura, como menlo_app, no tenant)"
 "${PSQL[@]}" -U "$APP" -d "$DB" -v ON_ERROR_STOP=1 <<SQL
 BEGIN READ ONLY;
@@ -72,6 +88,7 @@ SELECT 'cidades', count(*) FROM plataforma.city;
 SELECT 'páginas em rascunho', count(*) FROM plataforma.page WHERE status = 'draft';
 SELECT 'versões', count(*) FROM plataforma.page_version;
 SELECT 'execuções de geração', count(*) FROM plataforma.generation_run;
+SELECT 'oportunidades (teste local)', count(*) FROM plataforma.opportunity;
 COMMIT;
 SQL
 
@@ -83,7 +100,7 @@ cat <<MSG
 
 ==============================================================================================
 Pronto. O aplicativo vai subir apontando para o BANCO LOCAL (dados reais do IBGE, só nesta máquina).
-  1. Abra http://localhost:3000, entre com o seu usuário e clique em "Geração de páginas".
+  1. Abra http://localhost:3000, entre com o seu usuário e clique em "Geração de páginas" ou em "Opportunity Discovery" (4 oportunidades de TESTE).
   2. Ctrl+C encerra tudo e apaga o banco e o arquivo apps/web/.env.development.local.
 O Neon não é usado nem alterado.
 ==============================================================================================
