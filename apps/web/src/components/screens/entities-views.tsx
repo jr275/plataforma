@@ -6,7 +6,7 @@ import { useAppState } from "@/components/app-state";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dl } from "@/components/ui/field";
-import { ChipGroup, SearchField, norm } from "@/components/ui/filters";
+import { SearchField, norm } from "@/components/ui/filters";
 import { NotFoundState } from "@/components/ui/not-found-state";
 import { OwnerNotice } from "@/components/ui/owner-notice";
 import { PageHeader } from "@/components/ui/page-header";
@@ -18,20 +18,17 @@ import { knowledgeLabel, knowledgeTone } from "./knowledge-views";
 export function EntitiesList() {
   const { current } = useAppState();
   const [text, setText] = useState("");
-  const [type, setType] = useState("");
-  const types = useMemo(() => [...new Set(current.entities.map((e) => e.type))], [current]);
   const rows = useMemo(() => {
     const q = norm(text.trim());
-    return current.entities.filter((e) => (!type || e.type === type) && (!q || norm(`${e.label} ${e.type} ${e.summary}`).includes(q)));
-  }, [current, text, type]);
-  const clear = () => { setText(""); setType(""); };
+    return current.entities.filter((e) => (!q || norm(`${e.label} ${e.type} ${e.summary}`).includes(q)));
+  }, [current, text]);
+  const clear = () => setText("");
   return (
     <div className="space-y-6">
       <PageHeader crumbs={[{ label: "Entities" }]} title="Entidades" description={`O diretório do que existe no domínio de ${current.workspace.name}: pessoas, produtos, lugares e conceitos, com suas relações.`} />
       <div className="space-y-3">
         <SearchField className="sm:w-96" value={text} onChange={setText} label="Filtrar entidades" placeholder="Buscar entidade…" />
-        <ChipGroup label="Filtrar por tipo" value={type} onChange={setType} allLabel="Todos os tipos" options={types.map((t) => ({ value: t, label: t }))} />
-        {text.trim() || type ? <Button variant="ghost" size="sm" onClick={clear}>Limpar filtros</Button> : null}
+        {text.trim() ? <Button variant="ghost" size="sm" onClick={clear}>Limpar filtros</Button> : null}
       </div>
       <ResourceList
         rows={rows.map((e) => ({ id: e.id, href: `/entities/${e.id}`, title: e.label, subtitle: e.summary, badges: <Badge tone="outline">{e.type}</Badge>, meta: `${e.relatedIds.length} relações` }))}

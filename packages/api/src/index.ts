@@ -14,6 +14,7 @@ export {
 } from "./errors";
 export { verifiedIdentity, type VerifiedIdentity } from "./identity";
 export { parseTenantId, type TenantId } from "./tenant-id";
+export { pickTenant, type TenantPick } from "./tenant-selection";
 export {
   withTenant,
   type ClientEvents,

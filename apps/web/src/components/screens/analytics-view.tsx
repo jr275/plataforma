@@ -26,7 +26,7 @@ export function AnalyticsView() {
       </div>
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[{ l: "Impressões (demo)", v: nf.format(data.impressions) }, { l: "Cliques (demo)", v: nf.format(data.clicks) }, { l: "CTR (demo)", v: `${(data.ctr * 100).toFixed(1).replace(".", ",")}%` }].map((m) => (
-          <div key={m.l} className="rounded-xl border border-border bg-card p-4"><dt className="text-xs text-muted-foreground">{m.l}</dt><dd className="mt-1 text-2xl font-semibold tabular-nums">{m.v}</dd></div>
+          <div key={m.l} className="card-cut p-4"><dt className="text-xs text-muted-foreground">{m.l}</dt><dd className="mt-1 text-4xl font-medium tabular-nums">{m.v}</dd></div>
         ))}
       </dl>
       <Panel title={`Impressões no período (${days} dias)`} description="12 faixas de tempo, valores de demonstração.">

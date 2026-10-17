@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, Panel } from "@/components/ui/panel";
 import type { Loaded } from "@/lib/server/tenant-data";
+import { FlowWorkspace } from "@/components/flow/flow-workspace";
 import { GatesPanel } from "./gates-panel";
+import { buildPageFlow } from "./flow-model";
+import { OgPreview } from "./og-preview";
 import { PAGE_STATUS, formatDateTime, formatInt } from "./format";
 import { PagePreview } from "./page-preview";
 import { ReprocessForm } from "./reprocess-form";
@@ -15,7 +18,7 @@ import { StatePanel } from "./state-panel";
 
 export interface PageDetailData { detail: PageDetail | undefined; now: Date }
 
-export function PageDetailView({ loaded, version }: { loaded: Loaded<PageDetailData>; version?: number }) {
+export function PageDetailView({ loaded, version, ogSrc, flowBanner }: { loaded: Loaded<PageDetailData>; version?: number; ogSrc?: string; flowBanner?: string }) {
   const crumbs = [{ label: "Geração de páginas", href: "/generation" }, { label: "Página" }];
   if (loaded.state !== "ready") return <div className="space-y-6"><PageHeader crumbs={crumbs} title="Página" /><StatePanel state={loaded.state} missing={loaded.state === "not_configured" ? loaded.missing : undefined} /></div>;
   const { detail, now } = loaded.data;
@@ -60,6 +63,8 @@ export function PageDetailView({ loaded, version }: { loaded: Loaded<PageDetailD
         <p role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm">Você está vendo a <strong>versão {shown.version}</strong>, que não é a mais recente. <Link href={`/generation/pages/${page.id}`} className="underline underline-offset-2">Ver a versão {latest?.version}</Link></p>
       ) : null}
 
+      <FlowWorkspace definition={buildPageFlow(detail, shown, now)} banner={flowBanner} />
+
       {!shown ? (
         <Panel title="Pré-visualização"><EmptyState title="Esta página ainda não tem versão aprovada" hint="Ela nasceu bloqueada e nenhum conteúdo passou pelos gates." /></Panel>
       ) : (
@@ -67,6 +72,7 @@ export function PageDetailView({ loaded, version }: { loaded: Loaded<PageDetailD
           <PagePreview page={shown.content} />
           <div className="space-y-6">
             <SerpSnippet page={shown.content} />
+            {ogSrc ? <OgPreview src={ogSrc} title={shown.content.title} /> : null}
             {latestAttempt ? <GatesPanel gates={latestAttempt.gates} description={`Tentativa de ${formatDateTime(latestAttempt.startedAt)}. ${latestAttempt.outcome === "unchanged" ? "Conteúdo idêntico ao anterior." : ""}`.trim()} /> : null}
             <Panel title="Fatos e fontes" description="Todo número do texto vem de um destes fatos.">
               <ul className="divide-y divide-border text-sm">

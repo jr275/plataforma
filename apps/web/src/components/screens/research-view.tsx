@@ -39,7 +39,7 @@ export function ResearchView() {
       <div id="tabpanel" role="tabpanel" className="space-y-3">
         {shown.length === 0 ? <EmptyState title="Nenhum achado nesta seção" hint="Quando houver pesquisa registrada, ela aparece aqui." /> : null}
         {shown.map((f) => (
-          <article key={f.id} className="rounded-xl border border-border bg-card">
+          <article key={f.id} className="card-cut">
             <button type="button" onClick={() => toggle(f.id)} aria-expanded={open.has(f.id)} className="flex w-full items-start gap-3 p-4 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2"><Badge tone={f.section === "Lacunas" ? "warning" : f.section === "Mercado" ? "brand" : "info"}>{f.section}</Badge></span>

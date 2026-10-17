@@ -8,7 +8,7 @@ export function BrandMark({ compact = false }: { compact?: boolean }) {
         aria-hidden="true"
         className="grid size-8 place-items-center bg-primary font-mono text-[12px] font-semibold text-primary-foreground"
       >
-        S
+        M
       </span>
       {compact ? null : (
         <span className="flex min-w-0 flex-col leading-tight">

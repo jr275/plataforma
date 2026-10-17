@@ -13,6 +13,7 @@ const MESSAGES: Record<Exclude<DataFlow["state"], "ready">, { title: string; hin
   not_configured: { title: "Fluxo de dados não configurado neste ambiente", hint: "Esta tela só mostra dado real. Faltam as variáveis de ambiente do servidor; nenhum dado de demonstração é exibido no lugar." },
   unauthenticated: { title: "Sessão não encontrada ou expirada", hint: "Entre novamente para ver os dados do seu workspace." },
   no_tenant: { title: "Seu usuário ainda não está associado a um workspace", hint: "O administrador precisa gravar a lista de tenants na claim assinada do seu usuário (ADR-015)." },
+  tenant_selection_required: { title: "Seleção de workspace necessária", hint: "Seu usuário tem acesso a mais de um workspace e a escolha explícita do workspace ainda não está disponível nesta versão. Nada é consultado em nome de um workspace escolhido por conveniência. Peça ao administrador para deixar um único workspace na sua claim assinada (ADR-015) ou aguarde a seleção." },
   error: { title: "Não foi possível ler os dados agora", hint: "Houve uma falha ao consultar o banco. Tente novamente; se persistir, avise o administrador." },
 };
 
