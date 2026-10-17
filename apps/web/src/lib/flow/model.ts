@@ -20,6 +20,9 @@ export const STATUS_LABEL: Readonly<Record<FlowStatus, string>> = {
   unavailable: "Não implementada",
 };
 
+/** Rótulo exibido do status de uma etapa: o próprio, quando a etapa traz um, senão o padrão. */
+export const labelOf = (n: { readonly status: FlowStatus; readonly statusLabel?: string }): string => n.statusLabel ?? STATUS_LABEL[n.status];
+
 /** Ordem de exibição dos filtros de status. */
 export const STATUS_ORDER: readonly FlowStatus[] = ["running", "queued", "completed", "needs_review", "blocked", "failed", "idle", "skipped", "cancelled", "unavailable"];
 
@@ -50,6 +53,8 @@ export interface FlowNodeSpec {
   readonly status: FlowStatus;
   /** Resultado mais relevante, em uma linha. */
   readonly summary?: string;
+  /** Rótulo de status próprio (por exemplo, o status operacional). Sem ele vale o rótulo padrão do `status`. */
+  readonly statusLabel?: string;
   /** Métricas pequenas, só quando existem de verdade (contagens, durações registradas). */
   readonly metrics?: readonly { readonly label: string; readonly value: string }[];
   /** 0 a 1, só quando há contagem real (itens registrados / total). */

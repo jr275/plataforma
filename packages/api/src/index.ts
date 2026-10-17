@@ -107,6 +107,8 @@ export {
   type PropertyKind,
   type Remediation,
 } from "./intel/gsc-diagnostics";
+export { OPERATIONAL_STATUSES, ageLabel, computeMetrics, evaluateAll, evaluateTool, topoOrder, type Evidence as OperationalEvidence, type EvidenceKind as OperationalEvidenceKind, type ExecutionMode, type OperationalMetrics, type OperationalStatus, type Ratio, type ToolDefinition, type ToolInput, type ToolState } from "./ops/operational-status";
+export { STAGES, STAGE_IDS, TOOLS, type Implementation, type StageDefinition } from "./ops/registry";
 export { buildGscExportLong, buildGscExportSnapshot, parseDailySeries, parseGscExportSnapshot, type GscDailyPoint, type GscExportFiles, type GscExportLong, type GscExportRow, type GscLongRow, type GscExportSnapshot, type GscExportTotals } from "./intel/gsc-export";
 export { normalizeSearchFacts, overlappingTargets, type SearchPerformanceFact, type SearchFactProvenance } from "./intel/gsc-facts";
 export { resolveDataForSeoConfig } from "./intel/dataforseo";

@@ -11,6 +11,7 @@ import {
   Factory,
   FileSearch,
   FlaskConical,
+  Gauge,
   GitBranch,
   Globe,
   GraduationCap,
@@ -106,6 +107,7 @@ export const navigation: readonly NavGroup[] = [
     label: "Performance",
     items: [
       { id: "analytics", label: "Traffic & Rankings", icon: Activity, href: "/analytics", status: "partial" },
+      { id: "operations", label: "Operations", icon: Gauge, href: "/operations" },
       { id: "search-console", label: "Search Console", icon: Search, href: "/analytics/search-console" },
       { id: "conversions", label: "Conversions", icon: ChartNoAxesCombined, href: "/conversions", status: "planned" },
       { id: "experiments", label: "Experiments", icon: FlaskConical, href: "/experiments", status: "planned" },

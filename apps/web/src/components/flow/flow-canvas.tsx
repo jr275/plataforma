@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Background, BackgroundVariant, Controls, MarkerType, MiniMap, ReactFlow, type Edge, type NodeTypes } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { STATUS_LABEL, type FlowDefinition, type FlowEdgeSpec, type FlowStatus } from "@/lib/flow/model";
+import { labelOf, type FlowDefinition, type FlowEdgeSpec, type FlowStatus } from "@/lib/flow/model";
 import { StageNode, type StageNodeType } from "./stage-node";
 
 // Definida fora do componente: identidade estável (o React Flow recria nós se o objeto muda).
@@ -54,7 +54,7 @@ export function FlowCanvas({ definition, selectedId, onSelect, matchIds, focusId
       id: spec.id, type: "stage", position: { x: spec.x, y: spec.y }, draggable: false, connectable: false,
       // Dimensões aproximadas: o modo controlado não devolve as medidas ao objeto, e o minimapa só desenha nós com tamanho. Não afeta o layout.
       initialWidth: 320, initialHeight: 208,
-      ariaLabel: `${spec.title}: ${STATUS_LABEL[spec.status]}${spec.summary ? `. ${spec.summary}` : ""}`,
+      ariaLabel: `${spec.title}: ${labelOf(spec)}${spec.summary ? `. ${spec.summary}` : ""}`,
       data: { spec, selected: spec.id === selectedId, dim: matchIds ? !matchIds.has(spec.id) : false },
     })),
     [definition.nodes, selectedId, matchIds],

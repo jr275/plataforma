@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Panel } from "@/components/ui/panel";
 import { ScoreBreakdown } from "@/components/intel/score-breakdown";
 import { DataStateBadge } from "@/components/intel/primitives";
@@ -61,7 +60,7 @@ export function OpportunityIntelPanel({ owner, o }: { owner: WorkspaceData; o: O
           </div>
         ) : null}
         <p className="mt-3 text-xs text-muted-foreground">Alternativas: {rest.slice(0, 2).map((r) => r.archetype.name).join(", ")}</p>
-        <Button className="mt-4" render={<Link href={`/blueprints?o=${o.id}`} />}>Montar blueprint</Button>
+        <LinkButton className="mt-4" href={`/blueprints?o=${o.id}`}>Montar blueprint</LinkButton>
       </Panel>
     </div>
   );

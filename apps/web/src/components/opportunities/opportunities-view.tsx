@@ -1,12 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { useAppState } from "@/components/app-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { SearchField, norm } from "@/components/ui/filters";
 import { EmptyState } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
@@ -170,8 +170,8 @@ function OpportunityInspector({ r, weights, onClose }: { r: OpportunityIntel; we
       onClose={onClose}
       footer={
         <>
-          <Button render={<Link href={`/opportunities/${o.id}`} />}>Abrir oportunidade</Button>
-          <Button variant="outline" render={<Link href={`/blueprints?o=${o.id}`} />}>Montar blueprint</Button>
+          <LinkButton href={`/opportunities/${o.id}`}>Abrir oportunidade</LinkButton>
+          <LinkButton variant="outline" href={`/blueprints?o=${o.id}`}>Montar blueprint</LinkButton>
         </>
       }
     >

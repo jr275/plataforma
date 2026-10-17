@@ -18,7 +18,7 @@ export function Panel({
   bodyClassName?: string;
 }) {
   return (
-    <section className={cn("card-cut", className)}>
+    <section className={cn("card-cut min-w-0", className)}>
       <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4 pr-12">
         <div className="min-w-0">
           <h2 className="font-mono text-xs font-semibold tracking-[0.09em] uppercase">{title}</h2>

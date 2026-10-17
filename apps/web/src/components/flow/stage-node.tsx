@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { STATUS_LABEL, type FlowNodeSpec, type NodeKind } from "@/lib/flow/model";
+import { labelOf, type FlowNodeSpec, type NodeKind } from "@/lib/flow/model";
 
 // Rótulo do tipo de etapa (caixa alta, fonte quadrada), como o nome do cliente no topo dos cards da referência.
 const KIND_LABEL: Record<NodeKind, string> = {
@@ -44,7 +44,7 @@ function StageNodeImpl({ data }: NodeProps<StageNodeType>) {
           <p className="flow-label text-[11px] leading-none" style={{ color: "var(--flow-muted)" }}>{KIND_LABEL[spec.kind]}</p>
           <p className="flow-label mt-2 flex items-center gap-2 text-[11px] leading-none font-medium" style={{ color: "var(--accent)" }}>
             <span className="flow-status-dot" aria-hidden="true" />
-            {STATUS_LABEL[spec.status]}
+            {labelOf(spec)}
           </p>
         </div>
         <div className="flex items-end justify-between gap-3">

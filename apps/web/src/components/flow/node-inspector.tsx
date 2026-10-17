@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { CircleAlert, X } from "lucide-react";
-import { STATUS_LABEL, type FlowNodeSpec, type RowTone } from "@/lib/flow/model";
+import { labelOf, type FlowNodeSpec, type RowTone } from "@/lib/flow/model";
 
 const TONE: Record<RowTone, string> = { default: "", good: "text-[color:var(--flow-mint)]", warn: "text-[color:var(--flow-yellow)]", bad: "text-[color:var(--flow-red)]", muted: "text-[color:var(--flow-muted)]" };
 
@@ -25,7 +25,7 @@ export function NodeInspector({ node, onClose }: { node: FlowNodeSpec | undefine
           <h3 className="text-base leading-tight font-semibold">{node.title}</h3>
           <p className="mt-1 flex items-center gap-1.5 font-mono text-[10px] tracking-wide uppercase" data-status={node.status} style={{ color: "var(--flow-text)" }}>
             <span className="flow-status-dot" style={{ background: `var(--flow-${node.status === "completed" ? "mint" : node.status === "running" ? "cyan" : node.status === "failed" ? "red" : node.status === "blocked" ? "orange" : node.status === "needs_review" || node.status === "queued" ? "yellow" : "muted"})` }} aria-hidden="true" />
-            {STATUS_LABEL[node.status]}
+            {labelOf(node)}
           </p>
         </div>
         <button type="button" onClick={onClose} aria-label="Fechar o inspetor e voltar ao grafo" className="grid size-7 shrink-0 place-items-center rounded-md border border-[color:var(--flow-line)] hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-[color:var(--flow-sky)] focus-visible:outline-none"><X className="size-4" aria-hidden="true" /></button>

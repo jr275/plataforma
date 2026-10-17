@@ -115,6 +115,11 @@ describe("relatório do Search Console a partir de export", () => {
     expect(html({ state: "ready", snapshot: capped })).toContain("O export para em 1.000 linhas");
     expect(html(base)).not.toContain("O export para em");
   });
+  it("painéis podem encolher dentro de grades (min-w-0): sem isso uma tabela larga alarga a página inteira no celular", () => {
+    const out = html(ready());
+    expect(out).toContain('class="card-cut min-w-0"');
+    expect(out).toContain("overflow-x-auto"); // a rolagem fica dentro da tabela, não na página
+  });
   it("sem export, diz o motivo em vez de simular números", () => {
     for (const state of ["not_loaded", "invalid", "other_tenant"] as const) {
       const out = html({ state });
