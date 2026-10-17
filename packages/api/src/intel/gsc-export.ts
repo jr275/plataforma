@@ -1,4 +1,4 @@
-// Export do Search Console → snapshot agregado (ADR-026). Módulo puro: sem E/S, sem marca, sem termo de domínio.
+// Export do Search Console → snapshot agregado (ADR-038). Módulo puro: sem E/S, sem marca, sem termo de domínio.
 // Nada aqui inventa número: tudo vem das tabelas do export. Totais saem da tabela de dispositivos (cobre todo o tráfego).
 
 export interface GscExportRow {

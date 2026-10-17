@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Gera o snapshot agregado do export do Search Console (ADR-026). Lê direto dos zips; não grava nada além do arquivo de saída.
+// Gera o snapshot agregado do export do Search Console (ADR-038). Lê direto dos zips; não grava nada além do arquivo de saída.
 // Uso:
 //   gerar:      node scripts/gsc-export-build.mjs --search <zip> [--ai <zip>] [--dates <csv|zip> --dates-property <prop>] --property <url> --tenant <uuid> [--out apps/web/.data/gsc-export.json]
 //   acrescentar a um snapshot que já existe (qualquer combinação):

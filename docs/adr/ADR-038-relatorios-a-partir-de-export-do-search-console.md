@@ -1,4 +1,4 @@
-# ADR-026: Relatórios a partir de export do Search Console (sem banco)
+# ADR-038: Relatórios a partir de export do Search Console (sem banco)
 
 **Status:** PROPOSED (2026-10-16). Implementado só em código local. **Nenhum banco foi acessado e nenhuma migration foi criada.**
 
