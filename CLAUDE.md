@@ -19,4 +19,9 @@ Verificar: `pnpm check:consistency`, `pnpm turbo typecheck lint build` e, para a
 9. Antes da primeira onda de publicação, a saúde do índice do domínio (URLs 2xx canônicas / URLs rastreadas) deve ser pelo menos 95%.
 10. Núcleo genérico: nada de RE/MAX, imóvel ou corretor fora de `packs/real-estate`.
 
+## Boas práticas
+
+- **Diagnóstico de indexação:** ao investigar uma URL que não aparece ou não ranqueia, percorra Descoberta → Busca → Renderização → Índice → Exibição e pare no **primeiro estado que falha**; rode a matriz em uma URL antes de teorizar sobre o site inteiro. Um teste de renderização não prova descoberta, e um relatório de índice não prova conversão. Ver `docs/runbooks/diagnostico-de-indexacao.md`.
+- **Política de engenharia:** migrations e banco, autorização, recuperação, tenancy, integração de branches e conduta de agentes seguem `docs/POLITICA_DE_ENGENHARIA.md` (fonte única; leia-a antes de mexer em migration ou banco).
+
 @AGENTS.md

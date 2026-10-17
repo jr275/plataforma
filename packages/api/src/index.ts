@@ -14,6 +14,7 @@ export {
 } from "./errors";
 export { verifiedIdentity, type VerifiedIdentity } from "./identity";
 export { parseTenantId, type TenantId } from "./tenant-id";
+export { pickTenant, type TenantPick } from "./tenant-selection";
 export {
   withTenant,
   type ClientEvents,
@@ -111,3 +112,7 @@ export { STAGES, STAGE_IDS, TOOLS, type Implementation, type StageDefinition } f
 export { buildGscExportLong, buildGscExportSnapshot, parseDailySeries, parseGscExportSnapshot, type GscDailyPoint, type GscExportFiles, type GscExportLong, type GscExportRow, type GscLongRow, type GscExportSnapshot, type GscExportTotals } from "./intel/gsc-export";
 export { normalizeSearchFacts, overlappingTargets, type SearchPerformanceFact, type SearchFactProvenance } from "./intel/gsc-facts";
 export { resolveDataForSeoConfig } from "./intel/dataforseo";
+export {
+  competitionFactor, estimateUnits, fillMissingFactors, keywordOverview, limitsAndUsage, resolveAhrefsConfig, toEvidence, UnitBudget,
+  type AhrefsConfig, type AhrefsDeps, type Evidence, type KeywordObservation, type UsageSnapshot,
+} from "./intel/ahrefs";
