@@ -34,5 +34,6 @@ Modelo curto: Contexto · Decisão · Alternativas rejeitadas · Consequências 
 | ADR-036 | [Oportunidades reais na interface](ADR-036-oportunidades-reais-na-interface.md): `/opportunities` lê `plataforma.opportunity` por `withTenant`; demo só sem login/banco, com aviso; só muda o status (transição revalidada no servidor); sem nota | Proposed |
 | ADR-037 | [Fluxo vivo de geração (React Flow) e imagem OG](ADR-037-fluxo-vivo-de-geracao.md): definição × execução, status só de registros reais, decisão por contagem de gates (sem nota), ao vivo só com execução em andamento, OG com next/og; não verificado com banco real | Proposed |
 | ADR-038 | [Relatórios a partir de export do Search Console](ADR-038-relatorios-a-partir-de-export-do-search-console.md): snapshot agregado em arquivo local fora do Git, amarrado a um tenant, estado "Importado", cobertura sempre visível, sem banco (PROPOSED) | Proposed |
+| ADR-039 | [Conexão ao Search Console por OAuth próprio](ADR-039-oauth-proprio-do-search-console.md): escopo somente leitura, token cifrado só no servidor, uma conexão por tenant e propriedade, auditável e revogável; só texto, depende dos ADR-013 e 016 | Proposed |
 
 Os textos completos de 007 a 010 estão neste diretório; os de 001 a 006 ainda não foram escritos como arquivos; o índice acima é copiado de `menlo/docs/menlo-os/11-decisoes.md`.
